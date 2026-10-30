@@ -1,0 +1,3 @@
+E[V | achat] exact 100.5 ; Monte-Carlo 100.4980 ; erreur standard 0.0019
+corrélation exécutions et rendement suivant : -0.0002 (erreur standard 0.0020)
+écart moyen calme 417.6 pb ; tension 735.9 pb ; retard 18 pas

@@ -1,0 +1,129 @@
+{
+ "id": "seance-mm-5",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-MM-5",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon : réparer ou retirer une donnée sale",
+   "difficulte": 2,
+   "temps_cible_s": 900,
+   "contenu": "## Leçon : réparer ou retirer\n\nDurée visée : 15 minutes.\n\n### 1. Le problème\n\n#### Le problème\n\nUn fichier exporté d'un système contient des défauts de forme et des données fausses. Les deux ne se traitent pas de la même façon, et une erreur d'analyse ne provoque pas forcément d'erreur Python : elle produit un nombre faux qui a l'air correct.\n\n#### Intuition\n\nUne question décide de tout : **la valeur vraie est-elle encore lisible ?** Oui pour `1,446.57` précédé du symbole dollar, écrit autrement mais sans perte : on répare. Non pour une cellule vide ou un volume de -120 : on ne peut pas deviner, on retire la ligne.\n\n### 2. Le fichier\n\n#### Exemple\n\n`data_cache/messy_trading_data.csv` contient 187 lignes pour trois titres. Ses défauts :\n\n- noms de colonnes avec espaces (` Timestamp`, `Ticker `) ;\n- symboles en casse variable, avec espaces (`aapl`, ` GOOG `) ;\n- prix écrits simplement, avec le symbole dollar, ou avec un séparateur de milliers ;\n- prix absents, en cellule vide ou sous la forme `N/A` ;\n- volumes écrits simplement, avec un séparateur de milliers, ou absents ;\n- volumes négatifs ;\n- lignes exactement dupliquées.\n\nLe décompte de ce qui est retiré, dans l'ordre :\n\n| Étape | Lignes concernées |\n|---|---|\n| Prix absent | 24 |\n| Volume absent | 12 |\n| Volume nul ou négatif | 4 |\n| Il reste après ces filtres (une ligne peut cumuler les défauts) | 147 |\n| Doublons exacts retirés | 3 |\n| Lignes finales | 144 |\n\n#### L'ordre importe\n\n1. Normaliser les noms de colonnes avant de les utiliser.\n2. Normaliser le symbole et les nombres **avant** de chercher les doublons : deux lignes de même contenu peuvent différer par leur écriture.\n3. Convertir l'horodatage, trier par titre puis par temps : les rendements en dépendent.\n\n#### Pièges\n\n- `pd.to_numeric(..., errors=\"coerce\")` transforme tout ce qu'il ne lit pas en `NaN`, sans message : il faut retirer les symboles **avant**, sinon tous les prix en milliers disparaissent.\n- Lire un prix jusqu'à la première virgule donne une valeur fausse pour les prix en milliers : pour GOOG, toutes les valeurs deviendraient 1, et la volatilité mesurée \\(0{,}0\\).\n- `pct_change` sur tout le cadre calcule un rendement entre deux titres différents à chaque changement de symbole : le calcul doit se faire à l'intérieur de chaque titre.\n- Une ligne retirée laisse un trou dans la grille de 5 minutes : sur les 180 lignes de la grille d'origine, 144 restent, et certains rendements portent donc sur 10 minutes ou plus. L'écart-type calculé n'est pas celui d'un pas constant.\n\n[[controle:quoi]]\n\n### 3. Le contrôle de bout en bout\n\n#### Intuition\n\nUn nombre calculé sur toutes les lignes, ici la volatilité par titre, attrape les erreurs d'analyse qu'un contrôle de type ne voit pas. Valeurs attendues de l'écart-type du rendement par ligne : \\(0{,}015469\\) pour AAPL, \\(0{,}017329\\) pour GOOG, \\(0{,}019836\\) pour MSFT.\n\n#### Réflexes en 30 secondes\n\n- Valeur vraie encore lisible : réparer. Sinon : retirer.\n- Normaliser avant de dédupliquer.\n- Trier avant tout calcul de rendement.\n- Tout groupe calculé reste à l'intérieur de son groupe.\n\n#### À savoir refaire\n\n- La chaîne complète, de `read_csv` au tri final, en vingt lignes.\n- Le décompte des lignes retirées, étape par étape.\n\n[[controle:ordre]]\n",
+   "controles": {
+    "quoi": {
+     "question": "Une ligne a pour volume -250. Que faire ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Retirer la ligne",
+       "correcte": true,
+       "explication": "Oui : rien ne dit que la vraie valeur était 250 ; la donnée est fausse, pas mal écrite."
+      },
+      {
+       "id": "b",
+       "texte": "Prendre la valeur absolue",
+       "correcte": false,
+       "explication": "Cette réparation invente une valeur : elle suppose une erreur de signe que rien dans le fichier n'établit."
+      },
+      {
+       "id": "c",
+       "texte": "Propager le volume précédent",
+       "correcte": false,
+       "explication": "Un volume n'est pas un niveau qui persiste : la propagation convient à un prix de relevé, pas à une transaction."
+      },
+      {
+       "id": "d",
+       "texte": "Remplacer par zéro",
+       "correcte": false,
+       "explication": "Une ligne de volume nul reste une ligne sans transaction : on crée un enregistrement faux au lieu de le retirer."
+      }
+     ]
+    },
+    "ordre": {
+     "question": "Pourquoi dédupliquer après avoir normalisé le symbole ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Deux lignes égales peuvent s'écrire différemment",
+       "correcte": true,
+       "explication": "Oui : `aapl` et `AAPL` ne sont des doublons qu'une fois normalisés."
+      },
+      {
+       "id": "b",
+       "texte": "drop_duplicates exige des majuscules",
+       "correcte": false,
+       "explication": "La méthode compare des valeurs quelconques : le problème vient du contenu du fichier, pas de la méthode."
+      },
+      {
+       "id": "c",
+       "texte": "Pour gagner du temps de calcul",
+       "correcte": false,
+       "explication": "L'ordre change le résultat, pas seulement la durée : retirer trop tard ou trop tôt ne garde pas les mêmes lignes."
+      },
+      {
+       "id": "d",
+       "texte": "L'ordre n'a aucune importance",
+       "correcte": false,
+       "explication": "Avant normalisation, deux lignes de même transaction écrites autrement resteraient toutes deux dans le résultat."
+      }
+     ]
+    }
+   },
+   "verif": {
+    "script": "verif/seance_mm_5.py"
+   }
+  },
+  {
+   "id": "MM5-E1",
+   "type": "code",
+   "section": "code",
+   "theme": "Nettoyer un export de transactions",
+   "difficulte": 4,
+   "temps_cible_s": 1320,
+   "enonce": "## Exercice 1 : charger et nettoyer\n\nÉcris `load_and_clean(path)`, où `path` est un chemin de fichier CSV ayant la forme décrite dans la leçon. Il rend un DataFrame de colonnes exactement `timestamp`, `ticker`, `price`, `volume`, dans cet ordre.\n\n1. Noms de colonnes : espaces retirés, minuscules.\n2. `ticker` : espaces de début et de fin retirés, majuscules.\n3. `price` et `volume` : flottants, en retirant le symbole dollar et les virgules de milliers. Une cellule vide ou `N/A` donne une valeur manquante.\n4. `timestamp` : type date.\n5. Retirer les lignes de prix manquant, de volume manquant, ou de volume inférieur ou égal à 0.\n6. Retirer les lignes exactement dupliquées, après ces conversions.\n7. Trier par `ticker` puis `timestamp`, et réindexer de 0 à \\(n-1\\).\n\nLe fichier de travail est `data_cache/messy_trading_data.csv`, relatif au dossier du notebook.\n\n**Ce que vérifient les tests.** Le nombre de lignes, les symboles, l'absence de volume invalide et de doublon, les types.\n\n\n**Fonctionnement.** **Tests visibles** exécute 2 test(s). **Soumettre** exécute les 5 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm5_e1.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd",
+    "pd.read_csv(\"data_cache/messy_trading_data.csv\").head(12)",
+    "def load_and_clean(path):\n    pass  # À compléter",
+    "load_and_clean(\"data_cache/messy_trading_data.csv\")"
+   ],
+   "tests_visibles": 2,
+   "tests_caches": 5,
+   "fichier_correction": "coding/millennium/corrections/mm_5.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm5_e1.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_5.py`) :\n\n```python\n\"\"\"Correction de la séance MM 5 : nettoyer un export de transactions.\"\"\"\nimport pandas as pd\n\n\ndef _nombre(colonne):\n    \"\"\"Retire tout ce qui n'est ni chiffre, ni point, ni signe moins, puis convertit ; le reste devient NaN.\"\"\"\n    return pd.to_numeric(colonne.astype(str).str.replace(r\"[^0-9.-]\", \"\", regex=True), errors=\"coerce\")\n\n\ndef load_and_clean(path):\n    df = pd.read_csv(path)\n    df.columns = [c.strip().lower() for c in df.columns]\n    df[\"ticker\"] = df[\"ticker\"].astype(str).str.strip().str.upper()\n    df[\"price\"] = _nombre(df[\"price\"])     # une cellule vide ou N/A devient une chaîne vide après filtrage, puis NaN\n    df[\"volume\"] = _nombre(df[\"volume\"])\n    df[\"timestamp\"] = pd.to_datetime(df[\"timestamp\"])\n    df = df.dropna(subset=[\"price\", \"volume\"])\n    df = df[df[\"volume\"] > 0]              # un volume négatif est une donnée fausse : on la retire, on ne la répare pas\n    df = df.drop_duplicates()              # après normalisation : deux lignes égales ne diffèrent plus par leur écriture\n    return df.sort_values([\"ticker\", \"timestamp\"]).reset_index(drop=True)\n\n\ndef realized_vol_by_ticker(df):\n    trie = df.sort_values([\"ticker\", \"timestamp\"])\n    rendements = trie.groupby(\"ticker\")[\"price\"].pct_change()   # le calcul reste à l'intérieur de chaque titre\n    return rendements.groupby(trie[\"ticker\"]).std().sort_index()\n```"
+  },
+  {
+   "id": "MM5-E2",
+   "type": "code",
+   "section": "code",
+   "theme": "Volatilité par titre, calculée à l'intérieur de chaque groupe",
+   "difficulte": 2,
+   "temps_cible_s": 780,
+   "enonce": "## Exercice 2 : la volatilité par titre\n\nÉcris `realized_vol_by_ticker(df)`, où `df` a la forme rendue par `load_and_clean`, sans hypothèse sur l'ordre des lignes. Il rend une `Series` indexée par le symbole, triée par symbole : pour chaque titre, l'écart-type (`ddof=1`, le défaut de pandas) des variations relatives de `price` d'une ligne à la suivante, les lignes étant dans l'ordre du temps à l'intérieur de chaque titre.\n\n**Ce que vérifie le test.** Les trois valeurs de la leçon, à 0,001 près : ce test valide aussi l'analyse des prix de l'exercice 1.\n\n\n**Fonctionnement.** **Tests visibles** exécute 1 test(s). **Soumettre** exécute les 1 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm5_e2.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd",
+    "def realized_vol_by_ticker(df):\n    pass  # À compléter",
+    "realized_vol_by_ticker(load_and_clean(\"data_cache/messy_trading_data.csv\"))"
+   ],
+   "tests_visibles": 1,
+   "tests_caches": 1,
+   "fichier_correction": "coding/millennium/corrections/mm_5.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm5_e2.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_5.py`) :\n\n```python\n\"\"\"Correction de la séance MM 5 : nettoyer un export de transactions.\"\"\"\nimport pandas as pd\n\n\ndef _nombre(colonne):\n    \"\"\"Retire tout ce qui n'est ni chiffre, ni point, ni signe moins, puis convertit ; le reste devient NaN.\"\"\"\n    return pd.to_numeric(colonne.astype(str).str.replace(r\"[^0-9.-]\", \"\", regex=True), errors=\"coerce\")\n\n\ndef load_and_clean(path):\n    df = pd.read_csv(path)\n    df.columns = [c.strip().lower() for c in df.columns]\n    df[\"ticker\"] = df[\"ticker\"].astype(str).str.strip().str.upper()\n    df[\"price\"] = _nombre(df[\"price\"])     # une cellule vide ou N/A devient une chaîne vide après filtrage, puis NaN\n    df[\"volume\"] = _nombre(df[\"volume\"])\n    df[\"timestamp\"] = pd.to_datetime(df[\"timestamp\"])\n    df = df.dropna(subset=[\"price\", \"volume\"])\n    df = df[df[\"volume\"] > 0]              # un volume négatif est une donnée fausse : on la retire, on ne la répare pas\n    df = df.drop_duplicates()              # après normalisation : deux lignes égales ne diffèrent plus par leur écriture\n    return df.sort_values([\"ticker\", \"timestamp\"]).reset_index(drop=True)\n\n\ndef realized_vol_by_ticker(df):\n    trie = df.sort_values([\"ticker\", \"timestamp\"])\n    rendements = trie.groupby(\"ticker\")[\"price\"].pct_change()   # le calcul reste à l'intérieur de chaque titre\n    return rendements.groupby(trie[\"ticker\"]).std().sort_index()\n```"
+  }
+ ]
+}

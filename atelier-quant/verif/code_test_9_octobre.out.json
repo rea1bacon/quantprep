@@ -1,0 +1,136 @@
+{
+ "anciennetes_negatives_test": 42,
+ "anciennetes_negatives_train": 74,
+ "correction_exactitude_cv": {
+  "boosting par histogrammes": 0.8675,
+  "régression logistique": 0.8749
+ },
+ "correction_exactitude_validation": 0.8721,
+ "correction_lignes_retirees": 211,
+ "correction_modele_retenu": "régression logistique",
+ "debits_en_lettres_train": 966,
+ "exactitude_baclee": 0.6492,
+ "exactitude_correction": 0.8833,
+ "exactitude_majoritaire": 0.5517,
+ "exactitude_soignee_boosting_sans_variable": 0.84,
+ "exactitude_soignee_logistique_sans_variable": 0.7892,
+ "fichiers_defectueux": {
+  "(valide) lignes mélangées, 0.0 et 1.0": {
+   "caches_reussis": 2,
+   "visibles": [
+    1,
+    1,
+    1,
+    1,
+    1
+   ]
+  },
+  "True et False au lieu de 0 et 1": {
+   "caches_reussis": 0,
+   "visibles": [
+    1,
+    1,
+    1,
+    1,
+    0
+   ]
+  },
+  "colonne d'index écrite": {
+   "caches_reussis": 0,
+   "visibles": [
+    1,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "fichier absent": {
+   "caches_reussis": 0,
+   "visibles": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "identifiants faux": {
+   "caches_reussis": 0,
+   "visibles": [
+    1,
+    1,
+    1,
+    0,
+    0
+   ]
+  },
+  "lignes de test supprimées": {
+   "caches_reussis": 0,
+   "visibles": [
+    1,
+    1,
+    0,
+    0,
+    0
+   ]
+  },
+  "mauvais nom de colonne": {
+   "caches_reussis": 0,
+   "visibles": [
+    1,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "probabilités au lieu de classes": {
+   "caches_reussis": 0,
+   "visibles": [
+    1,
+    1,
+    1,
+    1,
+    0
+   ]
+  },
+  "un doublon, un absent": {
+   "caches_reussis": 0,
+   "visibles": [
+    1,
+    1,
+    1,
+    0,
+    0
+   ]
+  }
+ },
+ "manquants_test": {
+  "anciennete_ans": 27,
+  "temperature_c": 54
+ },
+ "manquants_train": {
+  "anciennete_ans": 49,
+  "temperature_c": 95
+ },
+ "marge_correction": 0.0333,
+ "marge_correction_en_lignes": 40,
+ "materiaux_sales_train": 373,
+ "n_test": 1200,
+ "n_train": 2400,
+ "seuils": [
+  0.6,
+  0.72,
+  0.78,
+  0.85
+ ],
+ "taux_panne_train": 0.4492,
+ "tests_caches_reussis": {
+  "bâclée": 2,
+  "classe majoritaire": 1,
+  "correction": 5,
+  "soignée, boosting, sans variable ajoutée": 4,
+  "soignée, logistique, sans variable ajoutée": 4
+ }
+}

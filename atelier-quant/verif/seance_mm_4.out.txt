@@ -1,0 +1,3 @@
+n = 252 : phi moyen 0.96580 ; demi-vie médiane 22.7
+n = 3000 : phi moyen 0.98284 ; demi-vie médiane 40.8
+24 opérations ; gain cumulé 82.7 pb ; demi-vie estimée 41.3

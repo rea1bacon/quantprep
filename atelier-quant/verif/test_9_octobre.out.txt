@@ -1,0 +1,63 @@
+Q01 : capture = -    attendue = (code) verdict = non visible
+Q02 : capture = -    attendue = ABCD  verdict = non visible
+Q03 : capture = -    attendue = D     verdict = non visible
+Q04 : capture = -    attendue = AD    verdict = non visible
+Q05 : capture = -    attendue = C     verdict = non visible
+Q06 : capture = -    attendue = AC    verdict = non visible
+Q07 : capture = -    attendue = D     verdict = non visible
+Q08 : capture = -    attendue = D     verdict = non visible
+Q09 : capture = -    attendue = B     verdict = non visible
+Q10 : capture = -    attendue = B     verdict = non visible
+Q11 : capture = -    attendue = C     verdict = non visible
+Q12 : capture = -    attendue = B     verdict = non visible
+Q13 : capture = -    attendue = A     verdict = non visible
+Q16 : capture = -    attendue = BC    verdict = non visible
+Q17 : capture = -    attendue = ABC   verdict = non visible
+Q19 : capture = -    attendue = D     verdict = non visible
+Q20 : capture = -    attendue = AC    verdict = non visible
+Q21 : capture = -    attendue = ACD   verdict = non visible
+Q22 : capture = -    attendue = B     verdict = non visible
+Q23 : capture = -    attendue = ABD   verdict = non visible
+Q24 : capture = -    attendue = A     verdict = non visible
+Bilan : 0 réponses visibles, 0 justes, 0 fausses, 0 incomplètes ; 21 non visibles ; 3 captures manquantes.
+Q02 : taux de rejet à 5 % du test KS sous H0, paramètres connus 0.0473, paramètres estimés 0.0000
+Q02 : khi-deux Poisson, taux de rejet à 5 % avec 4 ddl 0.0498, avec 5 ddl 0.0300
+Q04_cov_carre          exact=0.000000  MC=0.000179  se=0.000272  z=+0.66
+Q05_jointe_2           exact=0.005774  MC=0.005742  se=0.000054  z=-0.61
+Q05_jointe_4           exact=0.025007  MC=0.025118  se=0.000110  z=+1.01
+Q05_jointe_6           exact=0.025700  MC=0.025644  se=0.000112  z=-0.50
+Q05_jointe_8           exact=0.014657  MC=0.014821  se=0.000085  z=+1.93
+Q06_ln_moyenne         exact=1.648721  MC=1.648056  se=0.001084  z=-0.61
+Q06_ln_mediane_p       exact=0.500000  MC=0.500244  se=0.000250  z=+0.97
+Q06 : contre-exemple, moyenne 0.87 < médiane = mode = 1, asymétrie 2.382 > 0
+Q07_exact              exact=0.111111  MC=0.111070  se=0.000079  z=-0.52
+Q07_milieu             exact=0.277778  MC=0.277785  se=0.000104  z=+0.07
+Q07_max                exact=0.611111  MC=0.611145  se=0.000142  z=+0.24
+Q07_survie_01          exact=0.490000  MC=0.489703  se=0.000500  z=-0.59
+Q07_general_2          exact=0.250000  MC=0.249962  se=0.000204  z=-0.19
+Q07_general_3          exact=0.111111  MC=0.111137  se=0.000111  z=+0.23
+Q07_general_4          exact=0.062500  MC=0.062603  se=0.000069  z=+1.50
+Q07_general_5          exact=0.040000  MC=0.040027  se=0.000046  z=+0.58
+Q07 : modèle séquentiel, E[min] estimée 0.09446 (se 0.00008), différente de 1/9
+Q08_p_y1               exact=0.279732  MC=0.278944  se=0.000224  z=-3.51
+Q08_bande              exact=0.605835  MC=0.603318  se=0.001480  z=-1.70
+Q08_esp_y_bande        exact=1.996669  MC=1.995287  se=0.006091  z=-0.23
+Q09_total              exact=67.500000  MC=67.521551  se=0.068046  z=+0.32
+Q10_p1                 exact=0.500000  MC=0.498544  se=0.000707  z=-2.06
+Q10_p2                 exact=0.333333  MC=0.332966  se=0.000544  z=-0.68
+Q10_p2_alt             exact=0.500000  MC=0.499800  se=0.000707  z=-0.28
+Q11_rang_maths         exact=0.747507  MC=0.748085  se=0.000434  z=+1.33
+Q11_rang_sciences      exact=0.747507  MC=0.747208  se=0.000434  z=-0.69
+Q12 : marge same, figure (128, 128, 192), liste (128, 128, 128) ; sans marge 254 contre 252 : concaténation impossible ; modèle réduit (8, 8, 12)
+Q13 : entropie croisée catégorielle à 2 sorties softmax = entropie croisée binaire sur la sigmoïde de la différence des scores (1000 cas).
+Q14_rappel             exact=0.600000  MC=0.600204  se=0.000490  z=+0.42
+Q15 : exactitude d'entraînement k=1 : 1.0, k=15 : 0.635, k=n : 0.6
+Q18_esp                exact=3.000000  MC=2.999921  se=0.001500  z=-0.05
+Q18_var                exact=2.250000  MC=2.250177  se=0.003375  z=+0.05
+Q20 : arbre non limité sur 2 variables numériques et 500 points : profondeur 24, exactitude d'entraînement 1.0
+Q21 : importance par impureté (utile, bruit continu, bruit binaire) = [0.559 0.426 0.016] ; par permutation sur données de test = [ 0.078 -0.034 -0.003]
+Q22 : degré 10 sans pénalité, erreur train 0.0454 test 0.4532 ; ridge train 0.0477 test 0.1814 ; degré 15 train 0.0348 test 18.5737
+Q23 : part de la 1re composante, variances égales 0.5, une variable multipliée par 100 : 0.999900, 10 variables non corrélées de même variance : 0.10
+Q24 : coefficients non nuls sur 200 : Lasso 11, Elastic Net 48, Ridge 200
+313 valeurs exportées dans verif/test_9_octobre.out.json.
+Toutes les vérifications passent.

@@ -1,0 +1,1 @@
+{'N_brut': 187, 'N_sans_prix': 24, 'N_sans_vol': 12, 'N_neg': 4, 'N_filtre': 147, 'N_final': 144, 'N_dup': 3, 'N_grille': 180, 'VOL_AAPL': 0.015469, 'VOL_GOOG': 0.017329, 'VOL_MSFT': 0.019836, 'VOL_GOOG_faux': 0.0}

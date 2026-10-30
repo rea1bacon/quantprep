@@ -23,10 +23,14 @@ EXAMENS = ["questions_diagnostic", "questions_seance_code_1", "questions_seance_
            "questions_seance_code_2", "questions_seance_ml_3",
            "questions_seance_math_4", "questions_seance_quant_1",
            "questions_seance_ml_4", "questions_seance_math_5", "questions_seance_ml_5", "questions_seance_code_3",
-           "questions_examen_blanc_1", "questions_examen_blanc_2", 
-           "questions_fiche_derniere_heure"]
+           "questions_seance_mm_1", "questions_seance_mm_2", "questions_seance_mm_3", "questions_seance_mm_4", "questions_seance_mm_5",
+           "questions_oa_millennium", "questions_oa_millennium_desk", "questions_oa_millennium_numpy",
+           "questions_examen_blanc_1", "questions_examen_blanc_2", "questions_test_9_octobre",
+           "questions_debrief_test_9_octobre", "questions_fiche_derniere_heure"]
 # Page d'accueil : les séances rangées par domaine, dans l'ordre conseillé à l'intérieur de chaque bloc : (titre, note, identifiants).
 PARCOURS = [
+    ("OA de recrutement", "Évaluations en ligne reconstituées, non officielles : examen en conditions réelles, corrigé et entraînements.",
+     ["test-9-octobre", "debrief-test-9-octobre", "oa-millennium", "oa-millennium-desk", "oa-millennium-numpy"]),
     ("Probabilités et statistique", "Conditionnement, lois, espérance, chaînes de Markov, martingales, estimation et tests.",
      ["seance-math-1", "seance-math-2", "seance-math-3", "seance-math-4", "seance-math-5"]),
     ("Algèbre linéaire", "Valeurs propres, matrices semi-définies positives, projections, SVD, ACP.", ["seance-algebre-1"]),
@@ -34,6 +38,8 @@ PARCOURS = [
      ["seance-ml-1", "seance-ml-2", "seance-ml-3", "seance-ml-4", "seance-ml-5"]),
     ("Finance quantitative", "Covariance en grande dimension, coefficient d'information, surapprentissage de backtest, ratio de Sharpe.",
      ["seance-quant-1"]),
+    ("Market making", "Écart et sélection adverse, inventaire, couverture, arbitrage statistique, nettoyage de données.",
+     ["seance-mm-1", "seance-mm-2", "seance-mm-3", "seance-mm-4", "seance-mm-5"]),
     ("Code et données", "pandas, numpy, alignement temporel, backtest sans regard vers le futur, chaîne de classification scikit-learn.",
      ["seance-code-1", "seance-code-2", "seance-code-3"]),
     ("Examens blancs et révision", "En conditions réelles : chronomètre, pas de pause.",

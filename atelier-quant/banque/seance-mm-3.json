@@ -1,0 +1,156 @@
+{
+ "id": "seance-mm-3",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-MM-3",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon : bêta, efficacité, erreur d'estimation et bande de non-intervention",
+   "difficulte": 3,
+   "temps_cible_s": 1500,
+   "contenu": "## Leçon : retirer le risque qui n'est pas rémunéré\n\nDurée visée : 25 minutes. Exception aux conventions : \\(\\hat{\\beta}\\), calculé sur des rendements aléatoires, est une variable aléatoire malgré sa minuscule grecque.\n\n### 1. Le ratio de couverture\n\n#### Le problème\n\nUn fonds détient une action parce qu'il pense qu'elle battra le marché. Son rendement contient pourtant une part qui vient du marché entier, sur laquelle il ne prétend à aucun avantage. Vendre l'action retirerait aussi le pari voulu. Il cherche plutôt à vendre à découvert un ETF (fonds coté qui suit un indice), juste assez pour annuler la part de marché.\n\n#### Cadre\n\n\\(R_a\\) est le rendement de l'actif sur une période, \\(R_c\\) celui de l'instrument de couverture, deux variables aléatoires de variance finie, avec \\(\\mathrm{Var}(R_c) > 0\\). Une couverture de ratio \\(b\\) (nombre réel) donne le rendement \\(R_a - b\\,R_c\\) par euro d'actif.\n\n#### Énoncé\n\nLa variance de \\(R_a - b R_c\\) est minimale pour un unique \\(b\\), le **bêta** :\n\n\\(\\displaystyle \\beta = \\frac{\\mathrm{Cov}(R_a, R_c)}{\\mathrm{Var}(R_c)}.\\)\n\nLe minimum vaut \\((1 - \\rho^2)\\mathrm{Var}(R_a)\\), où \\(\\rho\\) est la corrélation entre \\(R_a\\) et \\(R_c\\).\n\n#### Preuve\n\n1. \\(\\mathrm{Var}(R_a - bR_c) = \\mathrm{Var}(R_a) - 2b\\,\\mathrm{Cov}(R_a, R_c) + b^2\\,\\mathrm{Var}(R_c)\\), par bilinéarité de la covariance.\n2. C'est un trinôme en \\(b\\), de coefficient dominant strictement positif : son minimum unique est au point où sa dérivée s'annule, soit \\(b = \\beta\\).\n3. En remplaçant : \\(\\mathrm{Var}(R_a) - \\mathrm{Cov}(R_a, R_c)^2/\\mathrm{Var}(R_c) = \\mathrm{Var}(R_a)(1 - \\rho^2)\\), par définition de \\(\\rho\\).\n\nCe même \\(\\beta\\) est la pente de la droite des moindres carrés de \\(R_a\\) sur \\(R_c\\) : son estimateur empirique est donc une régression.\n\n#### Exemple\n\n800000 euros d'une action de bêta \\(0{,}72\\) : on vend à découvert \\(576000\\) euros de l'ETF. Si l'ETF baisse de 1 %, l'action baisse en moyenne de \\(0{,}72\\) %, soit \\(5760\\) euros, et la position courte gagne \\(5760\\) euros. Il reste le rendement propre à l'action.\n\n#### Cas limites\n\n- \\(\\rho = 0\\) : la couverture ne retire rien. \\(\\lvert\\rho\\rvert = 1\\) : elle retire toute la variance.\n- Une action dont le risque est surtout spécifique reste peu couvrable : c'est une propriété de l'actif, pas une erreur de l'estimateur.\n\n### 2. Mesurer l'efficacité\n\n#### Définition\n\n\\(\\displaystyle \\text{efficacité} = 1 - \\frac{\\mathrm{Var}(\\text{rendements couverts})}{\\mathrm{Var}(\\text{rendements non couverts})}.\\)\n\nD'après la partie 1, cette quantité vaut \\(\\rho^2\\) au bêta exact. Pour \\(R_a = \\beta R_c + E\\) avec \\(E\\) indépendant de \\(R_c\\), de variance \\(\\sigma_i^2\\), et \\(\\sigma_m^2 = \\mathrm{Var}(R_c)\\) : \\(\\rho^2 = \\beta^2\\sigma_m^2/(\\beta^2\\sigma_m^2 + \\sigma_i^2)\\).\n\n#### Exemple\n\n\\(\\beta = 0{,}9\\), volatilités annualisées \\(\\sigma_m = 0{,}18\\) et \\(\\sigma_i = 0{,}12\\) : l'efficacité maximale vaut \\(0{,}6457\\). Sur une simulation de 1500 jours, une couverture par bêta glissant de 60 jours, estimé sur le passé seulement, obtient \\(0{,}6184\\). L'écart vient de l'erreur d'estimation et de l'échantillon.\n\n#### Cas limites\n\n- 1 : toute la variance a disparu. Cela demande \\(\\lvert\\rho\\rvert = 1\\) et un bêta exact ; une sur-couverture, au contraire, **diminue** l'efficacité, puisque \\(b \\neq \\beta\\) n'est pas le minimum.\n- 0 : aucun effet. Valeur négative : la couverture a ajouté du risque, ce qui arrive avec un signe faux ou un \\(b\\) trop grand.\n\n[[controle:eff]]\n\n### 3. L'erreur d'estimation\n\n#### Le problème\n\nLe bêta n'est jamais observé. Une fenêtre courte donne une estimation bruitée ; une fenêtre longue, une estimation stable mais lente à réagir si la relation change.\n\n#### Énoncé\n\nSupposons \\(n\\) périodes indépendantes, \\(R_a = \\alpha + \\beta R_c + E\\) avec \\(E\\) normale de variance \\(\\sigma_i^2\\) indépendante de \\(R_c\\), et \\(R_c\\) normale de variance \\(\\sigma_m^2\\), \\(n > 3\\). Alors l'estimateur des moindres carrés \\(\\hat\\beta\\) est sans biais et \\(\\mathrm{Var}(\\hat\\beta) = \\dfrac{\\sigma_i^2}{\\sigma_m^2\\,(n-3)}\\).\n\n#### Preuve\n\n1. Conditionnellement aux \\(R_c\\), \\(\\hat\\beta - \\beta = \\sum_t (R_{c,t} - \\bar{R}_c) E_t / \\sum_t (R_{c,t} - \\bar{R}_c)^2\\), d'espérance nulle et de variance \\(\\sigma_i^2 / \\sum_t (R_{c,t} - \\bar{R}_c)^2\\).\n2. L'espérance conditionnelle nulle donne l'absence de biais. Par la variance totale, \\(\\mathrm{Var}(\\hat\\beta) = \\sigma_i^2\\,\\mathbb{E}\\bigl[1/\\sum_t (R_{c,t} - \\bar{R}_c)^2\\bigr]\\).\n3. \\(\\sum_t (R_{c,t} - \\bar{R}_c)^2 / \\sigma_m^2\\) suit une loi du khi-deux à \\(n - 1\\) degrés de liberté, dont l'inverse a pour espérance \\(1/(n-3)\\) (intégrale directe de la densité, admise ici).\n\n#### Exemple\n\nAvec les paramètres de la partie 2, l'écart-type de \\(\\hat\\beta\\) vaut :\n\n| Fenêtre (jours) | Exact | Monte-Carlo |\n|---|---|---|\n| 10 | \\(0{,}2520\\) | \\(0{,}2521\\) |\n| 60 | \\(0{,}0883\\) | \\(0{,}0881\\) |\n| 250 | \\(0{,}0424\\) | \\(0{,}0425\\) |\n\nUne fenêtre de 10 jours laisse un écart-type de \\(0{,}25\\) pour un bêta de \\(0{,}9\\) : le ratio de couverture y contient beaucoup de bruit. La longueur optimale dépend de la vitesse à laquelle le vrai bêta change, qui n'est pas observable : elle n'a pas de valeur universelle.\n\n#### Pièges\n\n**Le même `ddof` en haut et en bas.** `np.cov(x, y)` calcule en `ddof=1`, alors que `np.var(y)` calcule en `ddof=0`. Les mélanger multiplie le bêta par \\(n/(n-1)\\), soit \\(1{,}0169\\) pour \\(n = 60\\) : sur un exemple, \\(0{,}9640\\) au lieu de \\(0{,}9479\\). Rien ne plante, et un test à tolérance large ne le voit pas. Cette erreur figurait dans le code de référence d'origine de cet exercice. Le contrôle sûr est de comparer à la pente de `np.polyfit`.\n\n### 4. La bande de non-intervention\n\n#### Le problème\n\nRéajuster à chaque variation de l'estimation coûte une commission pour corriger surtout du bruit. Ne jamais réajuster laisse dériver l'exposition.\n\n#### Règle\n\nAvec \\(c\\) la valeur de la position (euros), la cible est \\(-c\\,b\\) et l'ajustement est \\(\\Delta = -c\\,b - \\text{couverture actuelle}\\). On ne traite que si \\(\\lvert\\Delta\\rvert\\) atteint une fraction \\(f\\) de \\(\\lvert c\\rvert\\). \\(\\Delta < 0\\) : la couverture doit devenir plus courte, on **vend**. \\(\\Delta > 0\\) : on **rachète**. Le volume est \\(\\lvert\\Delta\\rvert\\) divisé par le prix de l'instrument.\n\n#### Exemple\n\n\\(c = 100\\,000\\), \\(b = 0{,}70\\), \\(f = 3\\) %, soit une bande de 3000 euros et une cible de \\(-70\\,000\\).\n\n- Couverture à \\(-69\\,000\\) : \\(\\Delta = -1000\\), rien à faire.\n- Couverture à 0, prix 50 : \\(\\Delta = -70\\,000\\), vente de \\(1400\\) unités.\n- Couverture à \\(-95\\,000\\), prix 25 : \\(\\Delta = +25\\,000\\), rachat de \\(1000\\) unités.\n\n#### Pièges\n\n- Le signe. Se tromper double l'exposition au lieu de l'annuler.\n- Le regard vers le futur : le bêta appliqué au rendement du jour \\(t\\) doit être estimé sur des rendements strictement antérieurs à \\(t\\).\n\n[[controle:signe]]\n\n### 5. Réflexes et acquis\n\n#### Réflexes en 30 secondes\n\n- Couverture à la variance minimale : \\(\\beta = \\mathrm{Cov}/\\mathrm{Var}\\).\n- Efficacité maximale : \\(\\rho^2\\).\n- Notionnel vendu : valeur de la position fois \\(\\beta\\).\n- Plus court : vente. Moins court : achat.\n- Même `ddof` au numérateur et au dénominateur.\n\n#### À savoir refaire\n\n- La minimisation du trinôme et la valeur \\((1-\\rho^2)\\mathrm{Var}(R_a)\\) du minimum.\n- La variance de \\(\\hat\\beta\\) conditionnellement aux rendements de la couverture.\n- Les trois cas de la bande de non-intervention.\n\n[[controle:fenetre]]\n",
+   "controles": {
+    "eff": {
+     "question": "Corrélation de 0,6 entre l'action et l'ETF. Quelle part de la variance une couverture au vrai bêta retire-t-elle ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "36 %",
+       "correcte": true,
+       "explication": "Oui : l'efficacité maximale est \\(\\rho^2 = 0{,}36\\)."
+      },
+      {
+       "id": "b",
+       "texte": "60 %",
+       "correcte": false,
+       "explication": "La corrélation n'est pas la part de variance : c'est son carré qui l'est, comme le montre le calcul du minimum."
+      },
+      {
+       "id": "c",
+       "texte": "64 %",
+       "correcte": false,
+       "explication": "Cette valeur, \\(1 - \\rho^2\\), est la part de variance qui reste après couverture, pas celle qui est retirée."
+      },
+      {
+       "id": "d",
+       "texte": "100 %",
+       "correcte": false,
+       "explication": "Retirer toute la variance demande une corrélation de 1 ou de -1 : ici un risque spécifique subsiste."
+      }
+     ]
+    },
+    "signe": {
+     "question": "Position de 200 000 euros, bêta cible 0,5, couverture actuelle de -60 000 euros, bande de 2 %. Quel ordre passer ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Vendre pour 40 000 euros",
+       "correcte": true,
+       "explication": "Oui : la cible est -100 000, donc \\(\\Delta = -40\\,000\\), hors de la bande de 4000 euros, et il faut devenir plus court."
+      },
+      {
+       "id": "b",
+       "texte": "Acheter pour 40 000 euros",
+       "correcte": false,
+       "explication": "Le signe est inversé : acheter ramènerait la couverture à -20 000, soit plus loin encore de la cible de -100 000."
+      },
+      {
+       "id": "c",
+       "texte": "Ne rien faire",
+       "correcte": false,
+       "explication": "L'ajustement de 40 000 euros dépasse la bande de 4000 euros : il faut traiter."
+      },
+      {
+       "id": "d",
+       "texte": "Vendre pour 100 000 euros",
+       "correcte": false,
+       "explication": "Ce montant est la cible et non l'ajustement : il ignore les 60 000 euros déjà vendus à découvert."
+      }
+     ]
+    },
+    "fenetre": {
+     "question": "Dans le modèle de la partie 3, par combien faut-il environ multiplier la fenêtre pour diviser par deux l'écart-type de \\(\\hat\\beta\\) ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Environ 4",
+       "correcte": true,
+       "explication": "Oui : l'écart-type décroît en \\(1/\\sqrt{n-3}\\), donc il faut quatre fois plus de données pour une grande fenêtre."
+      },
+      {
+       "id": "b",
+       "texte": "Environ 2",
+       "correcte": false,
+       "explication": "Doubler la fenêtre divise la variance par deux, donc l'écart-type par seulement \\(\\sqrt{2}\\)."
+      },
+      {
+       "id": "c",
+       "texte": "Environ 8",
+       "correcte": false,
+       "explication": "Aucune puissance trois n'intervient : la variance est inversement proportionnelle à \\(n - 3\\)."
+      },
+      {
+       "id": "d",
+       "texte": "Rien ne change",
+       "correcte": false,
+       "explication": "La formule dépend bien de \\(n\\) : seule la vitesse de changement du vrai bêta n'y figure pas."
+      }
+     ]
+    }
+   },
+   "verif": {
+    "script": "verif/seance_mm_3.py"
+   }
+  },
+  {
+   "id": "MM3-E1",
+   "type": "code",
+   "section": "code",
+   "theme": "Bêta et bande de non-intervention",
+   "difficulte": 3,
+   "temps_cible_s": 1320,
+   "enonce": "## Exercice 1 : un couvreur à bande de non-intervention\n\nComplète `RollingHedger`, sous-classe de `HedgerBase`, de constructeur `(window=60, no_trade_band_pct=0.03)`.\n\n**`hedge_ratio(asset_returns, hedge_returns)`** rend, en flottant, le bêta de la partie 1 : covariance empirique des deux séries divisée par la variance empirique de `hedge_returns`, **avec le même `ddof`**. Les deux entrées sont des `Series` ou des tableaux de même longueur, sans valeur manquante. Le résultat doit égaler la pente de `np.polyfit(hedge_returns, asset_returns, 1)`.\n\n**`rebalance(equity_value, current_hedge_notional, target_ratio, hedge_price, timestamp=0)`** rend l'ordre à passer, ou `None` :\n\n1. Si `hedge_price` n'est pas strictement positif, lever `ValueError`.\n2. `ajustement = -equity_value * target_ratio - current_hedge_notional`.\n3. Si `ajustement` est nul, ou si `abs(ajustement) < no_trade_band_pct * abs(equity_value)`, rendre `None`. Un ajustement exactement égal à la bande est traité.\n4. Sinon, rendre `ExchangeTrade(ticker=\"HEDGE\", trade_volume=abs(ajustement) / hedge_price, ref_price=hedge_price, action=..., timestamp=timestamp)`, avec `action=\"sell\"` si `ajustement < 0`, `\"buy\"` sinon.\n\n**Exemple.** Avec `no_trade_band_pct=0.03`, `rebalance(100000, 0.0, 0.70, 50.0)` rend un ordre `sell` de volume 1400.0.\n\n\n**Fonctionnement.** **Tests visibles** exécute 2 test(s). **Soumettre** exécute les 10 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm3_e1.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd\nfrom amplify_quant_trading import ExchangeTrade, HedgerBase",
+    "class RollingHedger(HedgerBase):\n    def __init__(self, window=60, no_trade_band_pct=0.03):\n        pass  # À compléter\n\n    def hedge_ratio(self, asset_returns, hedge_returns):\n        pass  # À compléter\n\n    def rebalance(self, equity_value, current_hedge_notional, target_ratio, hedge_price, timestamp=0):\n        pass  # À compléter",
+    "RollingHedger().rebalance(100000, 0.0, 0.70, 50.0)"
+   ],
+   "tests_visibles": 2,
+   "tests_caches": 10,
+   "fichier_correction": "coding/millennium/corrections/mm_3.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm3_e1.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_3.py`) :\n\n```python\n\"\"\"Correction de la séance MM 3 : bêta, bande de non-intervention, rendements couverts sans regard vers le futur.\"\"\"\nimport numpy as np\nimport pandas as pd\n\nfrom amplify_quant_trading import ExchangeTrade, HedgerBase\n\n\nclass RollingHedger(HedgerBase):\n    def __init__(self, window=60, no_trade_band_pct=0.03):\n        self.window = window\n        self.no_trade_band_pct = no_trade_band_pct\n\n    def hedge_ratio(self, asset_returns, hedge_returns):\n        # Numérateur et dénominateur avec le même nombre de degrés de liberté : np.cov(x, y) rend une matrice en ddof=1,\n        # alors que np.var(y) est en ddof=0 par défaut. Les mélanger gonfle le bêta d'un facteur n / (n - 1).\n        c = np.cov(np.asarray(asset_returns, dtype=float), np.asarray(hedge_returns, dtype=float))\n        return float(c[0, 1] / c[1, 1])\n\n    def rebalance(self, equity_value, current_hedge_notional, target_ratio, hedge_price, timestamp=0):\n        if hedge_price <= 0:\n            raise ValueError(\"hedge_price doit être strictement positif\")\n        cible = -equity_value * target_ratio\n        ajustement = cible - current_hedge_notional\n        if ajustement == 0 or abs(ajustement) < self.no_trade_band_pct * abs(equity_value):\n            return None\n        # Ajustement négatif : la couverture doit devenir plus courte, donc on vend.\n        return ExchangeTrade(ticker=\"HEDGE\", trade_volume=abs(ajustement) / hedge_price, ref_price=hedge_price,\n                             action=\"sell\" if ajustement < 0 else \"buy\", timestamp=timestamp)\n\n\ndef rendements_couverts(actif, couverture, fenetre):\n    \"\"\"Pour t >= fenetre, le bêta est estimé sur les fenetre rendements strictement antérieurs à t.\"\"\"\n    actif, couverture = np.asarray(actif, dtype=float), np.asarray(couverture, dtype=float)\n    sortie = np.full(actif.size, np.nan)\n    for t in range(fenetre, actif.size):\n        c = np.cov(actif[t - fenetre:t], couverture[t - fenetre:t])\n        sortie[t] = actif[t] - c[0, 1] / c[1, 1] * couverture[t]\n    return pd.Series(sortie)\n```"
+  },
+  {
+   "id": "MM3-E2",
+   "type": "code",
+   "section": "code",
+   "theme": "Couverture glissante sans regard vers le futur",
+   "difficulte": 4,
+   "temps_cible_s": 1080,
+   "enonce": "## Exercice 2 : des rendements couverts sans regard vers le futur\n\nÉcris `rendements_couverts(actif, couverture, fenetre)`. Les deux premières entrées sont des `Series` de rendements de même longueur \\(n\\), d'index 0 à \\(n-1\\), sans valeur manquante ; `fenetre` est un entier au moins égal à 2.\n\n**Sortie.** Une `Series` de longueur \\(n\\). Pour \\(t\\) < `fenetre`, la valeur est `NaN`. Pour \\(t\\) \\(\\geq\\) `fenetre`, on estime \\(\\hat\\beta_t\\) sur les `fenetre` rendements des indices \\(t - \\text{fenetre}\\) à \\(t - 1\\), bornes comprises, et la valeur est `actif[t] - beta * couverture[t]`.\n\n**Ce que vérifient les tests.** La forme, la première valeur, et l'absence de regard vers le futur : modifier une valeur d'indice 100 ou plus ne change aucune sortie d'indice inférieur à 100.\n\n\n**Fonctionnement.** **Tests visibles** exécute 1 test(s). **Soumettre** exécute les 4 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm3_e2.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd",
+    "def rendements_couverts(actif, couverture, fenetre):\n    pass  # À compléter"
+   ],
+   "tests_visibles": 1,
+   "tests_caches": 4,
+   "fichier_correction": "coding/millennium/corrections/mm_3.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm3_e2.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_3.py`) :\n\n```python\n\"\"\"Correction de la séance MM 3 : bêta, bande de non-intervention, rendements couverts sans regard vers le futur.\"\"\"\nimport numpy as np\nimport pandas as pd\n\nfrom amplify_quant_trading import ExchangeTrade, HedgerBase\n\n\nclass RollingHedger(HedgerBase):\n    def __init__(self, window=60, no_trade_band_pct=0.03):\n        self.window = window\n        self.no_trade_band_pct = no_trade_band_pct\n\n    def hedge_ratio(self, asset_returns, hedge_returns):\n        # Numérateur et dénominateur avec le même nombre de degrés de liberté : np.cov(x, y) rend une matrice en ddof=1,\n        # alors que np.var(y) est en ddof=0 par défaut. Les mélanger gonfle le bêta d'un facteur n / (n - 1).\n        c = np.cov(np.asarray(asset_returns, dtype=float), np.asarray(hedge_returns, dtype=float))\n        return float(c[0, 1] / c[1, 1])\n\n    def rebalance(self, equity_value, current_hedge_notional, target_ratio, hedge_price, timestamp=0):\n        if hedge_price <= 0:\n            raise ValueError(\"hedge_price doit être strictement positif\")\n        cible = -equity_value * target_ratio\n        ajustement = cible - current_hedge_notional\n        if ajustement == 0 or abs(ajustement) < self.no_trade_band_pct * abs(equity_value):\n            return None\n        # Ajustement négatif : la couverture doit devenir plus courte, donc on vend.\n        return ExchangeTrade(ticker=\"HEDGE\", trade_volume=abs(ajustement) / hedge_price, ref_price=hedge_price,\n                             action=\"sell\" if ajustement < 0 else \"buy\", timestamp=timestamp)\n\n\ndef rendements_couverts(actif, couverture, fenetre):\n    \"\"\"Pour t >= fenetre, le bêta est estimé sur les fenetre rendements strictement antérieurs à t.\"\"\"\n    actif, couverture = np.asarray(actif, dtype=float), np.asarray(couverture, dtype=float)\n    sortie = np.full(actif.size, np.nan)\n    for t in range(fenetre, actif.size):\n        c = np.cov(actif[t - fenetre:t], couverture[t - fenetre:t])\n        sortie[t] = actif[t] - c[0, 1] / c[1, 1] * couverture[t]\n    return pd.Series(sortie)\n```"
+  }
+ ]
+}

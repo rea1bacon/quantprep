@@ -498,7 +498,7 @@ function ficheDebrief(titre, noeuds) {
     + (v[1] ? '<span class="verdict">' + v[1] + '</span>' : '') + '</header><div class="fiche-corps">';
   if (ta === null && attendue === null) return h + enonce + corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '') + '</div></article>';
   h += '<h5>Énoncé</h5>' + enonce;
-  h += '<div class="fiche-reponses"><div><span class="lab">Ta réponse</span>' + (ta || 'non visible') + '</div><div><span class="lab">Réponse attendue</span>' + (attendue || '') + '</div></div>';
+  h += '<div class="fiche-reponses">' + (ta === null ? '' : '<div><span class="lab">Ta réponse</span>' + ta + '</div>') + '<div><span class="lab">Réponse attendue</span>' + (attendue || '') + '</div></div>';
   if (suite) h += '<p class="meta">' + verdict.replace(/^[^.]*\.\s*/, '') + '</p>';
   h += corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '');
   return h + '</div></article>';

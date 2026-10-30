@@ -1,0 +1,1409 @@
+{
+ "id": "test-9-octobre",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "T9-C1",
+   "type": "code",
+   "section": "code",
+   "theme": "scikit-learn : chaîne complète de classification, du CSV sale au fichier de prédictions",
+   "difficulte": 4,
+   "temps_cible_s": 1800,
+   "enonce": "## Prédire la panne d'un compresseur\n\n**Origine.** Cette question reprend le genre de la question de code du test en ligne du 9 octobre 2026 : un notebook, un jeu d'apprentissage et un jeu de test en CSV, des colonnes mal formées, un classifieur binaire à entraîner, un fichier de prédictions à rendre. Le jeu de données, lui, est **synthétique et inventé pour cet entraînement** : ce n'est pas celui du test, et ses colonnes, ses valeurs et ses saletés sont différentes.\n\n### Contexte\n\nUn atelier relève les caractéristiques de ses compresseurs d'air. La colonne cible `panne` vaut 1 si le compresseur est tombé en panne dans les 90 jours qui ont suivi le relevé, 0 sinon. Tu dois entraîner un modèle sur `train.csv` et prédire `panne` pour chaque compresseur de `test.csv`.\n\n### Fichiers du répertoire courant\n\n| Fichier | Contenu |\n|---|---|\n| `train.csv` | 2400 lignes : les colonnes ci-dessous et la cible `panne` |\n| `test.csv` | 1200 lignes : les mêmes colonnes, sans `panne` |\n| `sample_submission.csv` | exemple du format attendu, 5 lignes aux valeurs arbitraires |\n| `submissions.csv` | **à écrire** : tes prédictions |\n\n### Colonnes\n\n| Colonne | Contenu | Saletés |\n|---|---|---|\n| `id` | identifiant entier du compresseur, unique | aucune |\n| `debit_et_ligne` | chaîne `<débit><séparateur><ligne>` : le débit nominal en m³/h, puis le numéro de la ligne de production | voir ci-dessous |\n| `pression_bar` | pression de service, en bars (nombre) | aucune |\n| `temperature_c` | température de refoulement, en degrés Celsius (nombre) | peut manquer |\n| `anciennete_ans` | années écoulées depuis la mise en service (nombre) | peut manquer ; valeurs négatives |\n| `heures_semaine` | heures de fonctionnement par semaine (entier de 20 à 168) | aucune |\n| `materiau` | matériau du carter : `acier`, `fonte` ou `alu` | majuscules et espaces parasites |\n| `panne` | cible, 0 ou 1 (dans `train.csv` seulement) | aucune |\n\nRègles de lecture, valables pour les deux fichiers :\n\n- **`debit_et_ligne`.** Le débit est un entier pair de 20 à 40. Il est écrit soit en chiffres avec une décimale (`32.0`), soit en lettres minuscules, les mots reliés par un trait d'union (`trente-deux`, `vingt`, `quarante`). Le séparateur est l'un des trois caractères `;` `,` `_`. La ligne est un seul chiffre, de 1 à 4 : c'est une **étiquette**, les lignes de production ne sont pas ordonnées. Exemples : `32.0;2`, `trente-deux_3`, `vingt-huit,1`.\n- **`anciennete_ans`.** Une valeur strictement négative est une erreur de saisie : la vraie valeur est perdue, la traiter comme **manquante**.\n- **`materiau`.** `ACIER`, `Acier` et ` acier ` (avec des espaces) désignent tous `acier` ; de même pour les deux autres matériaux.\n\n### Travail demandé\n\n1. **Nettoyer** les deux jeux selon les règles ci-dessus : deux colonnes propres à la place de `debit_et_ligne` (le débit en nombre, la ligne), anciennetés négatives rendues manquantes, matériaux uniformisés.\n2. **Valeurs manquantes.** Dans le jeu d'apprentissage, retirer toute ligne qui a au moins une valeur manquante après nettoyage. Dans le jeu de test, **ne retirer aucune ligne** : chaque `id` de `test.csv` doit recevoir une prédiction, il faut donc y remplacer les valeurs manquantes.\n3. **Ajouter au moins une variable** construite à partir des colonnes existantes (par exemple le produit ou le rapport de deux colonnes numériques), et la garder si elle améliore l'exactitude estimée.\n4. **Encoder** les variables catégorielles là où c'est nécessaire.\n5. **Entraîner un classifieur binaire** de `panne`, et **estimer son exactitude hors échantillon** sur des lignes d'apprentissage mises de côté.\n6. **Écrire `submissions.csv`** dans le répertoire courant : exactement deux colonnes, `id` puis `panne`, avec la ligne d'en-tête ; une ligne par `id` de `test.csv`, chacun une seule fois, dans un ordre quelconque ; `panne` vaut 0 ou 1 (les écritures `0.0` et `1.0` sont acceptées ; `True`, `False` ou une probabilité ne le sont pas).\n\n### Notation\n\nSeul le fichier `submissions.csv` est jugé : les étapes 1 à 5 ne sont pas contrôlées une à une, elles se voient dans l'exactitude obtenue. L'**exactitude** est la proportion des 1200 lignes de test dont la classe prédite est égale à la classe réelle, que tu ne connais pas.\n\n- **Tests visibles** : 5 contrôles de format (fichier lisible, colonnes, nombre de lignes, identifiants, valeurs). Ils ne disent rien de la qualité des prédictions.\n- **Soumettre** : 5 contrôles cachés. Le premier reprend le format complet ; les quatre autres demandent une exactitude au moins égale à 0,60, 0,72, 0,78 puis 0,85. Prédire toujours la classe la plus fréquente ne passe aucun de ces quatre seuils. Le dernier est placé au-dessus de ce qu'obtiennent sur ce jeu, après un nettoyage complet mais sans variable ajoutée, une régression logistique et un boosting par histogrammes aux réglages par défaut (mesures de `verif/code_test_9_octobre.py`).\n- La note est la proportion de contrôles cachés réussis à la dernière soumission. Un fichier jamais soumis ne rapporte rien.\n\n### Fonctionnement\n\n- Notebook sous Python 3.9, pandas 1.4.2, numpy 1.21.6 et scikit-learn 1.1.1. PyTorch et XGBoost ne sont pas installés.\n- Temps conseillé : 25 à 30 minutes. Vise d'abord une chaîne complète et simple qui écrit un fichier valide, soumets, puis améliore.\n- Un `submissions.csv` écrit lors d'un essai précédent reste dans le dossier : il est jugé tant que tu ne l'as pas réécrit.\n- Raccourcis : Maj+Entrée exécute la cellule et passe à la suivante, Ctrl+Entrée l'exécute sans changer de cellule.\n",
+   "dossier": "coding/test9oct",
+   "module_tests": "coding/test9oct/tests_test9oct.py",
+   "cellules_initiales": [
+    "import numpy as np\nimport pandas as pd\n\n# Le jeu d'apprentissage est déjà chargé ci-dessous.\ndata = pd.read_csv(\"train.csv\")\ndata.head()",
+    "test = pd.read_csv(\"test.csv\")\npd.read_csv(\"sample_submission.csv\")",
+    "# Exploration et nettoyage\n",
+    "# Variable ajoutée, encodage, modèle, validation\n",
+    "# Écriture de submissions.csv, puis relecture pour contrôle\n"
+   ],
+   "tests_visibles": 5,
+   "tests_caches": 5,
+   "fichier_correction": "coding/test9oct/correction_test9oct.py",
+   "intro_correction": "Correction commentée, étape par étape, avec pandas et scikit-learn. Il n'y a qu'une version : entraîner un classifieur n'a pas d'équivalent raisonnable sans bibliothèque dans le temps de l'épreuve",
+   "verif": {
+    "script": "coding/test9oct/tests_test9oct.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée, étape par étape, avec pandas et scikit-learn. Il n'y a qu'une version : entraîner un classifieur n'a pas d'équivalent raisonnable sans bibliothèque dans le temps de l'épreuve (`coding/test9oct/correction_test9oct.py`) :\n\n```python\n\"\"\"Correction de la question T9-C1 (pannes de compresseurs). À n'ouvrir qu'après avoir tenté la question.\n\nLe script se lit de haut en bas, comme les cellules d'un notebook, et s'exécute dans le dossier qui contient\ntrain.csv et test.csv. Chaque étape répond à une consigne de l'énoncé. Tous les nombres sont affichés par le\ncode : aucun n'est écrit à la main dans les commentaires.\n\"\"\"\nimport numpy as np\nimport pandas as pd\nfrom sklearn.compose import ColumnTransformer\nfrom sklearn.ensemble import HistGradientBoostingClassifier\nfrom sklearn.impute import SimpleImputer\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split\nfrom sklearn.pipeline import Pipeline\nfrom sklearn.preprocessing import OneHotEncoder, StandardScaler\n\n# ------------------------------------------------------------------ 1. Lire et inspecter\ntrain = pd.read_csv(\"train.csv\")\ntest = pd.read_csv(\"test.csv\")\nprint(\"dimensions :\", train.shape, test.shape)\nprint(train.dtypes.to_string())           # une colonne \"object\" censée être numérique est une colonne sale\nprint(train.isna().sum().to_string())     # valeurs manquantes déclarées\nprint(test.isna().sum().to_string())      # le jeu de test en a aussi : il faudra les remplacer, pas supprimer les lignes\nprint(train[\"panne\"].value_counts(normalize=True).to_string())   # équilibre des classes : il fixe le point de comparaison\nprint(train.describe().loc[[\"min\", \"max\"]].to_string())          # un minimum négatif pour une ancienneté : valeur impossible\nprint(train[\"materiau\"].unique())         # casse et espaces parasites\n\n# ------------------------------------------------------------------ 2. Nettoyer : UNE fonction, appliquée aux deux jeux\n# 2a. debit_et_ligne contient deux informations : \"<débit><séparateur><ligne>\", séparateur parmi ; , _\n#     L'expression régulière prend tout jusqu'au DERNIER séparateur (.* est gourmand), puis un chiffre final.\n#     ^ ancre le début de la chaîne et \\Z sa fin : une valeur qui ne suit pas ce format ne donne aucun groupe.\nMOTIF = r\"^(.*)[;,_](\\d)\\Z\"\nprint(sorted(train[\"debit_et_ligne\"].str.extract(MOTIF)[0].unique()))   # toutes les écritures du débit : chiffres et lettres\n\n# 2b. Les débits en lettres sont des mots reliés par des traits d'union : la valeur est la somme des mots.\nMOTS = {\"vingt\": 20, \"trente\": 30, \"quarante\": 40, \"deux\": 2, \"quatre\": 4, \"six\": 6, \"huit\": 8}\n\n\ndef en_nombre(texte):\n    \"\"\" \"32.0\" -> 32.0 ; \"trente-deux\" -> 32.0. Un mot inconnu lève KeyError : mieux vaut une erreur visible\n    qu'une valeur fausse silencieuse (le jeu de test pourrait contenir une écriture absente de l'apprentissage).\"\"\"\n    try:\n        return float(texte)\n    except ValueError:\n        return float(sum(MOTS[mot] for mot in texte.split(\"-\")))\n\n\ndef nettoyer(df):\n    df = df.copy()\n    parties = df[\"debit_et_ligne\"].str.extract(MOTIF)\n    assert parties.notna().all().all(), \"une valeur de debit_et_ligne ne suit pas le format attendu\"\n    df[\"debit\"] = parties[0].map(en_nombre)\n    df[\"ligne\"] = parties[1]                      # laissée en chaîne : c'est une étiquette, pas une quantité\n    df = df.drop(columns=\"debit_et_ligne\")\n    # 2c. Valeur impossible : une ancienneté négative est une erreur de saisie, donc une valeur manquante.\n    df.loc[df[\"anciennete_ans\"] < 0, \"anciennete_ans\"] = np.nan\n    # 2d. Catégories : mêmes modalités écrites différemment (\"ACIER\", \" acier \").\n    df[\"materiau\"] = df[\"materiau\"].str.strip().str.lower()\n    # 2e. Variable ajoutée (consigne) : la charge, produit de la pression par la durée de fonctionnement.\n    #     Une régression logistique additionne des effets colonne par colonne ; elle ne peut pas représenter\n    #     « la pression compte d'autant plus que la machine tourne longtemps » sans cette colonne produit.\n    df[\"charge\"] = df[\"pression_bar\"] * df[\"heures_semaine\"]\n    return df\n\n\ntrain_net = nettoyer(train)\ntest_net = nettoyer(test)\nprint(train_net[\"materiau\"].value_counts().to_string())\nprint(\"manquants après nettoyage :\", train_net.isna().sum().sum(), \"en apprentissage,\", test_net.isna().sum().sum(), \"en test\")\n\n# ------------------------------------------------------------------ 3. Valeurs manquantes\n# Apprentissage : la consigne demande de retirer les lignes incomplètes. À faire APRÈS le nettoyage,\n# sinon les anciennetés négatives, qui ne sont pas encore des NaN, restent dans le jeu.\navant = len(train_net)\ntrain_net = train_net.dropna()\nprint(\"lignes d'apprentissage retirées :\", avant - len(train_net), \"sur\", avant)\n# Test : on ne retire JAMAIS de ligne, chaque identifiant doit recevoir une prédiction. Ses valeurs manquantes\n# seront remplacées par la médiane apprise sur l'apprentissage (SimpleImputer, dans la chaîne ci-dessous).\n\n# ------------------------------------------------------------------ 4. Variables, cible, encodage\nNUMERIQUES = [\"debit\", \"pression_bar\", \"temperature_c\", \"anciennete_ans\", \"heures_semaine\", \"charge\"]\nCATEGORIELLES = [\"ligne\", \"materiau\"]\nX = train_net[NUMERIQUES + CATEGORIELLES]     # l'identifiant n'est pas une variable explicative\ny = train_net[\"panne\"]\nX_test = test_net[NUMERIQUES + CATEGORIELLES]\n\n\ndef chaine(modele):\n    \"\"\"Préparation + modèle dans un seul objet : tout ce qui s'apprend (médianes, moyennes, écarts-types, liste des\n    modalités) est appris par fit sur les seules lignes d'apprentissage qu'on lui donne, puis réappliqué tel quel.\"\"\"\n    preparation = ColumnTransformer([\n        (\"num\", Pipeline([(\"imputer\", SimpleImputer(strategy=\"median\")), (\"echelle\", StandardScaler())]), NUMERIQUES),\n        # Encodage un-parmi-n ; une modalité jamais vue à l'apprentissage donne une ligne de zéros au lieu d'une erreur.\n        (\"cat\", OneHotEncoder(handle_unknown=\"ignore\"), CATEGORIELLES),\n    ], sparse_threshold=0)   # sortie dense : HistGradientBoostingClassifier refuse les matrices creuses\n    return Pipeline([(\"preparation\", preparation), (\"modele\", modele)])\n\n\nCANDIDATS = {\n    \"régression logistique\": chaine(LogisticRegression(max_iter=1000)),\n    \"boosting par histogrammes\": chaine(HistGradientBoostingClassifier(random_state=0)),\n}\n\n# ------------------------------------------------------------------ 5. Découpage de validation stratifié\n# 20 % des lignes sont mises de côté, avec la même proportion de pannes que dans l'ensemble (stratify=y).\n# Elles ne servent ni à ajuster ni à choisir : seulement à estimer l'exactitude hors échantillon du modèle retenu.\nX_app, X_val, y_app, y_val = train_test_split(X, y, test_size=0.2, stratify=y, random_state=0)\n\n# Point de comparaison : prédire toujours la classe majoritaire de l'apprentissage.\nclasse_majoritaire = int(y_app.mean() >= 0.5)\nexactitude_majoritaire = float((y_val == classe_majoritaire).mean())\nprint(f\"classe majoritaire ({classe_majoritaire}) : exactitude de validation {exactitude_majoritaire:.4f}\")\n\n# ------------------------------------------------------------------ 6. Choisir le modèle par validation croisée\n# 5 plis stratifiés sur la partie d'apprentissage : à chaque pli, la chaîne entière est réajustée sur 4/5 des lignes.\nplis = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)\nscores_cv = {}\nfor nom, modele in CANDIDATS.items():\n    s = cross_val_score(modele, X_app, y_app, cv=plis, scoring=\"accuracy\")\n    scores_cv[nom] = float(s.mean())\n    print(f\"{nom} : exactitude en validation croisée {s.mean():.4f} (écart-type entre plis {s.std():.4f})\")\n# Lecture : un écart entre deux candidats plus petit que l'écart-type entre plis ne départage rien de façon fiable ;\n# dans ce cas l'un ou l'autre convient. On prend ici simplement la meilleure moyenne.\nmeilleur = max(scores_cv, key=scores_cv.get)\nprint(\"modèle retenu :\", meilleur)\n\n# ------------------------------------------------------------------ 7. Estimer l'exactitude hors échantillon\nmodele = CANDIDATS[meilleur].fit(X_app, y_app)\nexactitude_validation = float(modele.score(X_val, y_val))\nprint(f\"exactitude sur les 20 % mis de côté : {exactitude_validation:.4f}\")\n\n# ------------------------------------------------------------------ 8. Réajuster sur tout l'apprentissage, prédire, écrire\nmodele.fit(X, y)\npredictions = modele.predict(X_test)\nsoumission = pd.DataFrame({\"id\": test[\"id\"], \"panne\": predictions.astype(int)})\nsoumission.to_csv(\"submissions.csv\", index=False)   # index=False : sinon une colonne d'index s'ajoute au fichier\n\n# ------------------------------------------------------------------ 9. Relire le fichier écrit et le contrôler\nrelu = pd.read_csv(\"submissions.csv\")\nmodele_de_fichier = pd.read_csv(\"sample_submission.csv\")\nassert list(relu.columns) == list(modele_de_fichier.columns), \"colonnes différentes de sample_submission.csv\"\nassert len(relu) == len(test) and relu[\"id\"].tolist() == test[\"id\"].tolist(), \"une ligne par identifiant de test.csv\"\nassert relu[\"panne\"].isin([0, 1]).all() and relu[\"panne\"].notna().all()\nprint(relu.head().to_string(index=False))\nprint(\"part de pannes prédites :\", round(float(relu[\"panne\"].mean()), 4))   # à comparer à la part observée en apprentissage\n```"
+  },
+  {
+   "id": "T9-Q02",
+   "section": "math",
+   "theme": "Tests d'adéquation",
+   "difficulte": 2,
+   "temps_cible_s": 90,
+   "correctes": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 2. Un test d'adéquation confronte un échantillon à une loi théorique. Parmi les associations suivantes entre un test d'adéquation et le type de loi auquel on l'applique, lesquelles sont correctes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Test du khi-deux d'adéquation : loi binomiale",
+     "correcte": true,
+     "explication": "Juste. Le khi-deux compare, classe par classe, un effectif observé à un effectif attendu ; une loi binomiale a un nombre fini de valeurs, qui servent de classes."
+    },
+    {
+     "id": "b",
+     "texte": "Test de Kolmogorov-Smirnov : loi continue",
+     "correcte": true,
+     "explication": "Juste. La loi de sa statistique sous l'hypothèse nulle ne dépend pas de la loi testée précisément quand celle-ci est continue (étape 2 de la correction)."
+    },
+    {
+     "id": "c",
+     "texte": "Test du khi-deux d'adéquation : loi de Poisson",
+     "correcte": true,
+     "explication": "Juste. La loi de Poisson est discrète ; ses valeurs sont en nombre infini, on regroupe donc la queue en une classe « au moins tant » pour revenir à un nombre fini de classes."
+    },
+    {
+     "id": "d",
+     "texte": "Test d'Anderson-Darling : loi continue",
+     "correcte": true,
+     "explication": "Juste. Comme Kolmogorov-Smirnov, il compare la fonction de répartition empirique à celle de la loi continue testée, avec un poids plus fort dans les queues."
+    }
+   ],
+   "solution": "Réponse : les quatre associations sont correctes.\n\nNotations : \\(X_1, \\dots, X_n\\) sont les \\(n\\) observations, supposées indépendantes et de même loi ; \\(F\\) est la fonction de répartition de la loi testée, \\(F(x) = \\mathbb{P}(X \\le x)\\) ; \\(F_n\\) est la fonction de répartition empirique, \\(F_n(x)\\) étant la proportion d'observations inférieures ou égales à \\(x\\).\n\nÉtape 1, khi-deux. On découpe les valeurs possibles en \\(m\\) classes. Pour la classe \\(j\\), \\(O_j\\) est le nombre d'observations qui y tombent et \\(E_j = n\\,p_j\\) le nombre attendu, où \\(p_j\\) est la probabilité de la classe sous la loi testée. La statistique est \\(\\sum_{j=1}^{m} (O_j - E_j)^2 / E_j\\). Elle ne demande qu'un nombre fini de classes : elle convient à toute loi discrète (binomiale ; Poisson après regroupement de la queue), et aussi à une loi continue découpée en intervalles. Sa loi limite est un khi-deux à \\(m - 1 - r\\) degrés de liberté, où \\(r\\) est le nombre de paramètres estimés sur les classes (théorème de Pearson et Fisher, admis ici).\n\nÉtape 2, Kolmogorov-Smirnov. La statistique est \\(D_n = \\sup_x \\lvert F_n(x) - F(x) \\rvert\\). Si \\(F\\) est continue, les variables \\(U_i = F(X_i)\\) sont uniformes sur \\([0, 1]\\) sous l'hypothèse nulle. Preuve : pour \\(u\\) dans \\(]0, 1[\\), soit \\(x_u\\) le plus grand réel tel que \\(F(x_u) = u\\) (il existe car \\(F\\) est continue et croissante de limites 0 et 1) ; alors \\(F(X_i) \\le u\\) équivaut à \\(X_i \\le x_u\\), de probabilité \\(F(x_u) = u\\). Comme \\(D_n\\) ne dépend des données qu'à travers les \\(U_i\\) (c'est le plus grand écart entre la fonction de répartition empirique des \\(U_i\\) et celle de la loi uniforme), sa loi est la même pour toute loi continue : une seule table suffit. Pour une loi discrète, \\(F(X_i)\\) n'est plus uniforme et cette table rend le test trop prudent.\n\nÉtape 3, Anderson-Darling. La statistique est une distance quadratique entre \\(F_n\\) et \\(F\\), pondérée par \\(1 / \\big(F(x)\\,(1 - F(x))\\big)\\), poids qui grandit dans les queues. Le même argument (\\(F(X_i)\\) uniforme quand \\(F\\) est continue) justifie son emploi pour une loi continue entièrement spécifiée.\n\nPiège commun aux trois, constaté par simulation (script) : les tables supposent la loi testée **entièrement connue**. Sur 4000 échantillons gaussiens de taille 50, le test de Kolmogorov-Smirnov au niveau 5 % rejette à tort dans 0,047 des cas quand la moyenne et l'écart-type sont les vrais, et dans 0,000 des cas quand ils sont estimés sur l'échantillon : le test ne rejette alors presque plus jamais (il faut la correction de Lilliefors). Pour le khi-deux sur une loi de Poisson à paramètre estimé et 6 classes, le taux de rejet vaut 0,050 avec 4 degrés de liberté, et 0,030 si l'on oublie de retirer un degré pour le paramètre estimé.\n\nRemarque sur l'énoncé : il ne dit pas « s'applique uniquement à ». Le khi-deux s'applique aussi à une loi continue découpée en classes ; cela ne rend fausse aucune des quatre associations.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Test du khi-deux d'adéquation : loi binomiale ; Test de Kolmogorov-Smirnov : loi continue ; Test du khi-deux d'adéquation : loi de Poisson ; Test d'Anderson-Darling : loi continue",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q02_chi_bon",
+     "Q02_chi_classes",
+     "Q02_chi_ddl",
+     "Q02_chi_naif",
+     "Q02_ks_estimes",
+     "Q02_ks_vrais",
+     "Q02_n",
+     "Q02_rep"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q03",
+   "section": "math",
+   "theme": "Hypothèses de la régression linéaire",
+   "difficulte": 1,
+   "temps_cible_s": 60,
+   "conceptuelle": true,
+   "ordre_origine": [
+    "b",
+    "c",
+    "d",
+    "a"
+   ],
+   "enonce": "Question 3. Laquelle des propositions suivantes **n'est pas** une hypothèse valide de la régression linéaire ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "La variance autour de la droite de régression varie avec les valeurs de la variable explicative.",
+     "correcte": true,
+     "explication": "Oui : c'est l'hétéroscédasticité, c'est-à-dire la violation de l'hypothèse de variance constante des erreurs."
+    },
+    {
+     "id": "b",
+     "texte": "Il existe une relation linéaire entre la variable dépendante et les régresseurs.",
+     "correcte": false,
+     "explication": "C'est l'hypothèse de linéarité, la première du modèle : l'espérance de la variable expliquée est une fonction linéaire des régresseurs."
+    },
+    {
+     "id": "c",
+     "texte": "Les erreurs (ou résidus) sont distribuées normalement et indépendantes les unes des autres.",
+     "correcte": false,
+     "explication": "Ce sont deux hypothèses classiques : l'indépendance des erreurs, et leur normalité, cette dernière n'étant nécessaire que pour les tests exacts à petit échantillon."
+    },
+    {
+     "id": "d",
+     "texte": "La multicolinéarité entre variables explicatives est minimale.",
+     "correcte": false,
+     "explication": "C'est l'hypothèse d'absence de colinéarité : avec des régresseurs presque liés, les coefficients restent calculables mais leur variance devient très grande."
+    }
+   ],
+   "solution": "Réponse : « la variance autour de la droite de régression varie avec les valeurs de la variable explicative ». C'est l'énoncé de l'hétéroscédasticité, le contraire de l'hypothèse d'homoscédasticité.\n\nLe modèle. Pour l'observation \\(i\\), \\(Y_i\\) est la variable expliquée, \\(\\mathbf{x}_i\\) le vecteur de ses régresseurs, \\(\\boldsymbol{\\beta}\\) le vecteur des coefficients inconnus et \\(\\varepsilon_i\\) l'erreur aléatoire : \\(Y_i = \\mathbf{x}_i^{\\top} \\boldsymbol{\\beta} + \\varepsilon_i\\). Les hypothèses classiques sont : (1) linéarité, c'est la forme du modèle ; (2) erreurs centrées sachant les régresseurs ; (3) erreurs de même variance \\(\\sigma^2\\) quel que soit \\(\\mathbf{x}_i\\) (homoscédasticité) ; (4) erreurs non corrélées entre elles ; (5) régresseurs non colinéaires ; et, pour les tests exacts à petit échantillon seulement, (6) erreurs gaussiennes.\n\nLes options « relation linéaire », « erreurs normales et indépendantes » et « multicolinéarité minimale » reprennent (1), (4) et (6), puis (5). L'option restante affirme le contraire de (3).\n\nCe que coûte la violation de (3), sous (1), (2), (4), (5) : l'estimateur des moindres carrés reste sans biais, mais il n'est plus celui de variance minimale parmi les estimateurs linéaires sans biais, et les erreurs-types usuelles sont fausses, donc les tests et intervalles aussi. Remède : erreurs-types robustes, ou moindres carrés pondérés.\n\nRemarque sur l'énoncé : « multicolinéarité minimale » est une formulation lâche. L'hypothèse exacte est l'absence de colinéarité parfaite ; une forte colinéarité n'invalide pas le modèle, elle dégrade la précision.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "La variance autour de la droite de régression varie avec les valeurs de la variable explicative.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": []
+   }
+  },
+  {
+   "id": "T9-Q04",
+   "section": "math",
+   "theme": "Corrélation et covariance",
+   "difficulte": 2,
+   "temps_cible_s": 75,
+   "correctes": [
+    "a",
+    "d"
+   ],
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 4. Quelles affirmations sont correctes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "La corrélation n'est pas modifiée par un changement d'échelle, alors que la covariance l'est.",
+     "correcte": true,
+     "explication": "Juste : multiplier \\(X\\) par \\(a > 0\\) multiplie la covariance par \\(a\\) et laisse la corrélation inchangée (étapes 1 et 2)."
+    },
+    {
+     "id": "b",
+     "texte": "La corrélation et la covariance sont toutes deux indépendantes de l'échelle.",
+     "correcte": false,
+     "explication": "Faux pour la covariance : exprimer \\(X\\) en centimètres plutôt qu'en mètres la multiplie par 100 (de \\(0{,}75\\) à \\(75\\) dans l'exemple)."
+    },
+    {
+     "id": "c",
+     "texte": "La corrélation et la covariance sont sans dimension, c'est-à-dire sans unité.",
+     "correcte": false,
+     "explication": "Faux pour la covariance : son unité est le produit des unités de \\(X\\) et de \\(Y\\). Seule la corrélation, quotient de la covariance par le produit des écarts-types, est sans unité."
+    },
+    {
+     "id": "d",
+     "texte": "La corrélation et la covariance ne mesurent toutes deux qu'une relation linéaire entre les variables.",
+     "correcte": true,
+     "explication": "Juste : elles peuvent être nulles alors que \\(Y\\) est une fonction de \\(X\\) ; exemple \\(Y = X^2\\) avec \\(X\\) symétrique (étape 3)."
+    }
+   ],
+   "solution": "Réponse : « la corrélation n'est pas modifiée par un changement d'échelle, alors que la covariance l'est » et « toutes deux ne mesurent qu'une relation linéaire ».\n\nNotations : \\(X\\) et \\(Y\\) sont deux variables aléatoires de variances finies et non nulles ; \\(\\mathrm{Cov}(X, Y) = \\mathbb{E}[(X - \\mathbb{E}[X])(Y - \\mathbb{E}[Y])]\\) ; la corrélation est \\(\\rho(X, Y) = \\mathrm{Cov}(X, Y) / (\\sigma_X\\,\\sigma_Y)\\), où \\(\\sigma_X\\) et \\(\\sigma_Y\\) sont les écarts-types ; \\(a\\) et \\(b\\) sont des constantes.\n\nÉtape 1, covariance. \\(aX + b\\) a pour espérance \\(a\\,\\mathbb{E}[X] + b\\), donc \\(aX + b - \\mathbb{E}[aX + b] = a\\,(X - \\mathbb{E}[X])\\) et \\(\\mathrm{Cov}(aX + b, Y) = a\\,\\mathrm{Cov}(X, Y)\\) : la covariance change avec l'échelle, et son unité est le produit des unités de \\(X\\) et de \\(Y\\).\n\nÉtape 2, corrélation. L'écart-type de \\(aX + b\\) est \\(\\lvert a \\rvert\\,\\sigma_X\\), donc \\(\\rho(aX + b, Y) = \\dfrac{a}{\\lvert a \\rvert}\\,\\rho(X, Y)\\) : inchangée si \\(a > 0\\), de signe opposé si \\(a < 0\\). Un changement d'échelle (changement d'unité, \\(a > 0\\)) ne la modifie pas, et le quotient est sans unité.\n\nExemple (script, loi uniforme sur quatre couples) : \\(X\\) vaut 1, 2, 3, 4 et \\(Y\\) vaut 2, 1, 4, 3. Covariance \\(0{,}75\\), corrélation \\(0{,}6\\). Avec \\(100\\,X\\) : covariance \\(75\\), corrélation \\(0{,}6\\). Avec \\(-X\\) : corrélation \\(-0{,}6\\).\n\nÉtape 3, relation linéaire seulement. Par l'inégalité de Cauchy-Schwarz, \\(\\lvert \\rho \\rvert \\le 1\\), avec égalité si et seulement si \\(Y\\) est une fonction affine de \\(X\\) : \\(\\rho\\) mesure la proximité à une droite. Contre-exemple à toute lecture plus large : \\(X\\) uniforme sur \\(\\{-1, 0, 1\\}\\) et \\(Y = X^2\\). Alors \\(\\mathbb{E}[X] = 0\\) et \\(\\mathbb{E}[XY] = \\mathbb{E}[X^3] = 0\\), donc \\(\\mathrm{Cov}(X, Y) = 0\\) et la corrélation est nulle, alors que \\(Y\\) est entièrement déterminée par \\(X\\). Simulation de cette covariance : 0,0002 (erreur standard 0,0003).\n\nRemarque sur l'énoncé : « changement d'échelle » est pris au sens d'un facteur strictement positif. Avec un facteur négatif, la corrélation change de signe.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "La corrélation n'est pas modifiée par un changement d'échelle, alors que la covariance l'est. ; La corrélation et la covariance ne mesurent toutes deux qu'une relation linéaire entre les variables.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q04_corr",
+     "Q04_corr_cm",
+     "Q04_corr_oppose",
+     "Q04_cov",
+     "Q04_cov_carre",
+     "Q04_cov_carre_mc",
+     "Q04_cov_carre_se",
+     "Q04_cov_cm"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q05",
+   "section": "math",
+   "theme": "Loi de Poisson et probabilité a priori",
+   "difficulte": 4,
+   "temps_cible_s": 240,
+   "ordre_origine": [
+    "b",
+    "c",
+    "a",
+    "d"
+   ],
+   "enonce": "Question 5. Des crises financières surviennent à un taux moyen constant, et une nouvelle crise survient indépendamment du temps écoulé depuis la précédente. Pour laquelle des valeurs proposées la probabilité que les crises surviennent à un taux moyen égal à cette valeur **et** que 6 crises surviennent pendant les 10 prochaines années est-elle maximale ?\n\nOn sait que la probabilité a priori de \\(N\\) crises en 10 ans est proportionnelle à \\(1/N\\) (normalisée pour que les probabilités somment à 1 sur toutes les valeurs possibles de \\(N\\)).",
+   "options": [
+    {
+     "id": "a",
+     "texte": "6",
+     "correcte": true,
+     "explication": "Oui : la probabilité jointe est proportionnelle à \\(N^5 e^{-N}\\), qui vaut \\(19{,}27\\) en 6, la plus grande des quatre valeurs."
+    },
+    {
+     "id": "b",
+     "texte": "2",
+     "correcte": false,
+     "explication": "\\(N^5 e^{-N}\\) vaut \\(4{,}33\\) en 2, la plus petite des quatre valeurs. La valeur 2 ne l'emporte que si l'on lit les options comme des taux par an (moyenne de 20 crises en 10 ans pour la valeur 2) : voir la fin de la correction."
+    },
+    {
+     "id": "c",
+     "texte": "4",
+     "correcte": false,
+     "explication": "Le distracteur le plus proche : \\(N^5 e^{-N}\\) vaut \\(18{,}76\\) en 4 contre \\(19{,}27\\) en 6. Le maximum sur les réels est en 5, à égale distance de 4 et de 6, mais la fonction n'est pas symétrique autour de 5 : il faut comparer les deux valeurs."
+    },
+    {
+     "id": "d",
+     "texte": "8",
+     "correcte": false,
+     "explication": "\\(N^5 e^{-N}\\) vaut \\(10{,}99\\) en 8 : au-delà de 5 l'exponentielle l'emporte sur la puissance, et l'a priori en \\(1/N\\) pénalise encore les grandes valeurs."
+    }
+   ],
+   "solution": "Réponse : 6.\n\nLecture retenue. Taux constant et absence de mémoire : les crises forment un processus de Poisson, et le nombre \\(K\\) de crises en 10 ans suit une loi de Poisson. Son paramètre, le nombre moyen de crises en 10 ans, est inconnu : on le note \\(\\Lambda\\) (variable aléatoire, puisqu'on lui donne une loi a priori), et \\(n\\) désigne une valeur possible. L'a priori est \\(\\mathbb{P}(\\Lambda = n) = \\dfrac{1}{h\\,n}\\), où \\(h\\) est la constante de normalisation, somme des \\(1/n\\) sur les valeurs possibles.\n\nÉtape 1, la probabilité jointe. Par définition d'une probabilité conditionnelle, \\(\\mathbb{P}(\\Lambda = n,\\ K = 6) = \\mathbb{P}(\\Lambda = n)\\ \\mathbb{P}(K = 6 \\mid \\Lambda = n) = \\dfrac{1}{h\\,n} \\cdot \\dfrac{e^{-n}\\,n^6}{6!} = \\dfrac{n^5 e^{-n}}{h \\cdot 6!}\\).\n\nÉtape 2. Le dénominateur \\(h \\cdot 6!\\) ne dépend pas de \\(n\\) : il suffit de comparer \\(g(n) = n^5 e^{-n}\\) sur les quatre valeurs.\n\n| \\(n\\) | 2 | 4 | 6 | 8 |\n|---|---|---|---|---|\n| \\(g(n) = n^5 e^{-n}\\) | 4,33 | 18,76 | 19,27 | 10,99 |\n\nLe maximum est en \\(n = 6\\).\n\nÉtape 3, contrôle sans calculatrice. \\(g'(n) = n^4 e^{-n}\\,(5 - n)\\) : \\(g\\) croît jusqu'à 5 puis décroît, donc seuls 4 et 6 sont candidats. Leur rapport est \\(g(6)/g(4) = (3/2)^5\\,e^{-2} = 1,028\\), supérieur à 1 : 6 l'emporte, de peu.\n\nVérification (script). Si les valeurs possibles sont exactement 2, 4, 6, 8, alors \\(h = 25/24\\) et les probabilités jointes valent 0,00577, 0,02501, 0,02570 et 0,01466 ; simulation : 0,00574, 0,02512, 0,02564 et 0,01482 (erreur standard 0,00011 pour la troisième).\n\nCe qui est ambigu dans la question d'origine, et ce que cela change :\n\n1. « Toutes les valeurs possibles de \\(N\\) » n'est pas précisé. Si c'étaient tous les entiers strictement positifs, la somme des \\(1/N\\) serait infinie (série harmonique) et la normalisation impossible : l'ensemble doit être fini. La réponse n'en dépend pas, puisque \\(h\\) se simplifie.\n2. L'unité du taux n'est pas dite. La lecture retenue (les options sont des nombres moyens de crises **en 10 ans**) est celle que suggère la phrase sur l'a priori. Si les options étaient des taux **par an**, la moyenne sur 10 ans serait dix fois l'option, et la probabilité jointe, proportionnelle à \\((10\\lambda)^6 e^{-10\\lambda}/\\lambda\\) pour un taux annuel \\(\\lambda\\), serait maximale pour l'option 2.\n3. L'a priori est attribué au « nombre de crises », alors qu'il doit porter sur le taux pour que la question ait un sens : c'est la lecture faite ici.\n\nSans a priori (maximum de vraisemblance seul), la réponse serait aussi 6 : la vraisemblance \\(e^{-n} n^6/6!\\) est maximale en \\(n = 6\\).",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "6",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q05_H_den",
+     "Q05_H_num",
+     "Q05_alt",
+     "Q05_alt_moy_2",
+     "Q05_g_2",
+     "Q05_g_4",
+     "Q05_g_6",
+     "Q05_g_8",
+     "Q05_jointe_2",
+     "Q05_jointe_2_mc",
+     "Q05_jointe_4",
+     "Q05_jointe_4_mc",
+     "Q05_jointe_6",
+     "Q05_jointe_6_mc",
+     "Q05_jointe_6_se",
+     "Q05_jointe_8",
+     "Q05_jointe_8_mc",
+     "Q05_rapport_6_4",
+     "Q05_vrais_max"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q06",
+   "section": "math",
+   "theme": "Asymétrie d'une distribution",
+   "difficulte": 2,
+   "temps_cible_s": 60,
+   "correctes": [
+    "a",
+    "c"
+   ],
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 6. Pour une distribution asymétrique à droite (asymétrie positive), quelles affirmations sont correctes dans la plupart des cas ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "La moyenne est supérieure au mode.",
+     "correcte": true,
+     "explication": "Juste dans le cas type (une seule bosse, queue longue à droite) : la queue tire la moyenne vers la droite du sommet. Loi log-normale : mode \\(0{,}368\\), moyenne \\(1{,}649\\)."
+    },
+    {
+     "id": "b",
+     "texte": "La moyenne est inférieure au mode.",
+     "correcte": false,
+     "explication": "C'est la situation type d'une asymétrie à gauche (queue longue vers les petites valeurs), pas à droite."
+    },
+    {
+     "id": "c",
+     "texte": "La moyenne est supérieure à la médiane.",
+     "correcte": true,
+     "explication": "Juste dans le cas type : la médiane ne dépend que des rangs, la moyenne est tirée par les grandes valeurs. Loi log-normale : médiane \\(1\\), moyenne \\(1{,}649\\)."
+    },
+    {
+     "id": "d",
+     "texte": "La moyenne est inférieure à la médiane.",
+     "correcte": false,
+     "explication": "C'est la situation type d'une asymétrie à gauche. Elle peut se produire avec une asymétrie positive (contre-exemple de la correction), mais ce n'est pas le cas type que vise l'énoncé."
+    }
+   ],
+   "solution": "Réponse : « la moyenne est supérieure au mode » et « la moyenne est supérieure à la médiane ».\n\nDéfinitions. Pour une variable aléatoire \\(X\\) de moyenne \\(\\mu\\) et d'écart-type \\(\\sigma\\), le coefficient d'asymétrie est \\(\\mathbb{E}[(X - \\mu)^3] / \\sigma^3\\). Il est positif quand les grands écarts au-dessus de la moyenne pèsent plus que ceux d'en dessous : queue longue à droite. Le mode est la valeur la plus probable (le sommet de la densité), la médiane la valeur qui partage la probabilité en deux moitiés.\n\nLe cas type : une densité à une seule bosse, avec une queue longue à droite. L'ordre est alors mode, médiane, moyenne. Deux lois où il se calcule exactement (script) :\n\n- loi log-normale de paramètres 0 et 1 : mode \\(e^{-1} = 0{,}368\\), médiane \\(1\\), moyenne \\(e^{1/2} = 1{,}649\\), asymétrie \\(6{,}18\\) ; simulation de la moyenne : 1,648 ;\n- loi exponentielle de paramètre 1 : mode 0, médiane \\(\\ln 2 = 0{,}693\\), moyenne 1.\n\nPourquoi « dans la plupart des cas » et pas « toujours ». Ce n'est pas un théorème : le signe de l'asymétrie ne fixe pas l'ordre de la moyenne et de la médiane. Contre-exemple (script) : \\(X\\) vaut 0, 1 ou 5 avec probabilités 0,45, 0,47 et 0,08. Son asymétrie vaut \\(2{,}38\\), positive à cause de la valeur 5, mais sa moyenne \\(0{,}87\\) est **inférieure** à sa médiane et à son mode, tous deux égaux à 1.\n\nLa réponse retenue suit donc la formulation de l'énoncé : ce qui est vrai dans le cas type.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "La moyenne est supérieure au mode. ; La moyenne est supérieure à la médiane.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q06_ce_asym",
+     "Q06_ce_mediane",
+     "Q06_ce_moyenne",
+     "Q06_ce_p0",
+     "Q06_ce_p1",
+     "Q06_ce_p5",
+     "Q06_exp_mediane",
+     "Q06_ln_asym",
+     "Q06_ln_mediane",
+     "Q06_ln_mode",
+     "Q06_ln_moyenne",
+     "Q06_ln_moyenne_mc"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q07",
+   "section": "math",
+   "theme": "Statistiques d'ordre, corde coupée en trois",
+   "difficulte": 4,
+   "temps_cible_s": 210,
+   "ordre_origine": [
+    "b",
+    "c",
+    "d",
+    "a"
+   ],
+   "enonce": "Question 7. Une corde de longueur 1 est coupée au hasard en trois morceaux. Quelle est l'espérance de la longueur du morceau le plus **court** ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "1/9",
+     "correcte": true,
+     "explication": "Oui : \\(\\mathbb{P}(\\text{le plus court} > t) = (1 - 3t)^2\\), d'intégrale \\(1/9\\) sur \\([0, 1/3]\\)."
+    },
+    {
+     "id": "b",
+     "texte": "1/3",
+     "correcte": false,
+     "explication": "C'est l'espérance de la longueur d'un morceau désigné à l'avance (les trois ont la même loi et leur somme vaut 1). C'est aussi la plus grande valeur possible du morceau le plus court : son espérance est forcément plus petite."
+    },
+    {
+     "id": "c",
+     "texte": "1/6",
+     "correcte": false,
+     "explication": "C'est la longueur moyenne 1/3 divisée par 2. Pour trois morceaux, l'espérance du plus court est la longueur moyenne 1/3 divisée par 3, pas par 2 (pour \\(m\\) morceaux : \\(1/m^2\\), voir la correction)."
+    },
+    {
+     "id": "d",
+     "texte": "1/8",
+     "correcte": false,
+     "explication": "Valeur proche de la bonne, mais fausse : la simulation donne 0,1111 avec une erreur standard de 0,00008, incompatible avec 0,125. Pour comparaison, avec une seule coupe (deux morceaux) l'espérance du plus court est \\(1/4\\)."
+    }
+   ],
+   "solution": "Réponse : \\(1/9\\).\n\nModèle retenu (l'énoncé d'origine dit seulement « au hasard ») : deux points de coupe \\(U_1\\) et \\(U_2\\), indépendants, de loi uniforme sur \\([0, 1]\\). On note \\(A = \\min(U_1, U_2)\\) et \\(B = \\max(U_1, U_2)\\) ; les morceaux ont pour longueurs \\(A\\), \\(B - A\\) et \\(1 - B\\) ; \\(L\\) est la plus petite des trois.\n\nÉtape 1, loi du couple \\((A, B)\\). Le couple \\((U_1, U_2)\\) est uniforme sur le carré unité, d'aire 1. Le couple \\((A, B)\\) est donc uniforme sur le triangle \\(\\{0 \\le a \\le b \\le 1\\}\\), d'aire 1/2 : chaque point du triangle provient de deux points du carré, symétriques par rapport à la diagonale.\n\nÉtape 2, \\(\\mathbb{P}(L > t)\\) pour \\(0 \\le t \\le 1/3\\). L'événement \\(L > t\\) s'écrit \\(a > t\\), \\(b - a > t\\), \\(1 - b > t\\). Le changement de variables \\(a' = a - t\\), \\(b' = b - 2t\\) est une translation, qui conserve les aires ; il transforme ces trois conditions en \\(0 < a' < b' < 1 - 3t\\), triangle d'aire \\((1 - 3t)^2/2\\). En divisant par l'aire 1/2 du triangle total : \\(\\mathbb{P}(L > t) = (1 - 3t)^2\\). Pour \\(t > 1/3\\), la probabilité est nulle, car trois morceaux plus longs que 1/3 auraient une somme supérieure à 1.\n\nÉtape 3, espérance. Pour une variable positive, \\(\\mathbb{E}[L] = \\int_0^{\\infty} \\mathbb{P}(L > t)\\,dt\\) (formule de la queue : on écrit \\(L = \\int_0^{\\infty} I_{\\{L > t\\}}\\,dt\\) et on échange espérance et intégrale, par le théorème de Fubini, admis). Donc \\(\\mathbb{E}[L] = \\int_0^{1/3} (1 - 3t)^2\\,dt = \\Big[-\\dfrac{(1 - 3t)^3}{9}\\Big]_0^{1/3} = \\dfrac{1}{9}\\).\n\nVérifications (script) : intégrale double exacte pour \\(\\mathbb{P}(L > t)\\), et simulation : 0,1111 (erreur standard 0,00008). Pour \\(m\\) morceaux (\\(m - 1\\) coupes), le même argument de translation donne \\(\\mathbb{P}(L > t) = (1 - m\\,t)^{m-1}\\) et \\(\\mathbb{E}[L] = 1/m^2\\) ; ce cas général n'est pas rédigé ici, il est contrôlé par simulation pour \\(m\\) de 2 à 5 (script). Les deux autres morceaux ont pour espérances \\(5/18\\) (le moyen) et \\(11/18\\) (le plus long) ; la somme des trois vaut bien 1.\n\nCe qui est ambigu dans la question d'origine : « coupée au hasard » ne dit pas comment. Le modèle des deux points uniformes indépendants est la convention usuelle, et il donne une des quatre options. Un autre procédé donne une autre valeur : par exemple, couper une première fois uniformément, puis recouper uniformément le morceau de droite, donne par simulation 0,0945 (erreur standard 0,00008), qui n'est aucune des options.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "1/9",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q07_d_huitieme",
+     "Q07_d_huitieme_den",
+     "Q07_d_huitieme_num",
+     "Q07_d_moyen_den",
+     "Q07_d_moyen_num",
+     "Q07_d_sixieme_den",
+     "Q07_d_sixieme_num",
+     "Q07_deux_morceaux_den",
+     "Q07_deux_morceaux_num",
+     "Q07_exact_den",
+     "Q07_exact_mc",
+     "Q07_exact_num",
+     "Q07_exact_se",
+     "Q07_general_max",
+     "Q07_max_den",
+     "Q07_max_num",
+     "Q07_milieu_den",
+     "Q07_milieu_num",
+     "Q07_sequentiel_mc",
+     "Q07_sequentiel_se"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q08",
+   "section": "math",
+   "theme": "Densité conditionnelle",
+   "difficulte": 3,
+   "temps_cible_s": 180,
+   "ordre_origine": [
+    "b",
+    "c",
+    "d",
+    "a"
+   ],
+   "enonce": "Question 8. La densité de probabilité d'un vecteur aléatoire \\((X, Y)\\) de dimension 2 est\n\n\\(\\displaystyle f_{XY}(x, y) = \\frac{e^{-y/x}\\,e^{-x}}{x}\\) pour \\(0 < x < +\\infty\\) et \\(0 < y < +\\infty\\), et 0 ailleurs.\n\nQue vaut \\(\\mathbb{P}(Y > 1 \\mid X = x)\\), pour \\(x > 0\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(e^{-1/x}\\)",
+     "correcte": true,
+     "explication": "Oui : sachant \\(X = x\\), \\(Y\\) suit une loi exponentielle de moyenne \\(x\\), dont la queue en 1 est \\(e^{-1/x}\\)."
+    },
+    {
+     "id": "b",
+     "texte": "\\(e^{-x - 1/x}\\)",
+     "correcte": false,
+     "explication": "C'est \\(\\int_1^{\\infty} f_{XY}(x, y)\\,dy\\) : on a intégré la densité **jointe** sans la diviser par la densité marginale \\(f_X(x) = e^{-x}\\). Pour \\(x = 2\\) : \\(0{,}082\\) au lieu de \\(0{,}607\\)."
+    },
+    {
+     "id": "c",
+     "texte": "\\(e^{1/x}\\)",
+     "correcte": false,
+     "explication": "Erreur de signe dans l'exposant : cette quantité dépasse 1 pour tout \\(x > 0\\) (\\(1{,}649\\) pour \\(x = 2\\)), ce ne peut pas être une probabilité."
+    },
+    {
+     "id": "d",
+     "texte": "\\(e^{1/y}\\)",
+     "correcte": false,
+     "explication": "La réponse ne peut pas dépendre de \\(y\\) : \\(y\\) est la variable d'intégration, elle disparaît quand on calcule la probabilité de l'événement \\(Y > 1\\). Seul \\(x\\), la valeur sur laquelle on conditionne, peut rester."
+    }
+   ],
+   "solution": "Réponse : \\(e^{-1/x}\\).\n\nNotations : \\(f_X\\) est la densité marginale de \\(X\\) ; \\(f_{Y \\mid X}(y \\mid x) = f_{XY}(x, y) / f_X(x)\\) est la densité conditionnelle de \\(Y\\) sachant \\(X = x\\), définie quand \\(f_X(x) > 0\\).\n\nÉtape 1, densité marginale. Pour \\(x > 0\\), \\(f_X(x) = \\int_0^{\\infty} f_{XY}(x, y)\\,dy = \\dfrac{e^{-x}}{x} \\int_0^{\\infty} e^{-y/x}\\,dy = \\dfrac{e^{-x}}{x} \\cdot x = e^{-x}\\), car \\(\\int_0^{\\infty} e^{-y/x}\\,dy = x\\). \\(X\\) suit donc la loi exponentielle de paramètre 1, et l'intégrale totale de \\(f_{XY}\\) vaut bien 1.\n\nÉtape 2, densité conditionnelle. \\(f_{Y \\mid X}(y \\mid x) = \\dfrac{e^{-y/x}\\,e^{-x}/x}{e^{-x}} = \\dfrac{1}{x}\\,e^{-y/x}\\) pour \\(y > 0\\) : c'est la densité de la loi exponentielle de moyenne \\(x\\).\n\nÉtape 3. \\(\\mathbb{P}(Y > 1 \\mid X = x) = \\int_1^{\\infty} \\dfrac{1}{x}\\,e^{-y/x}\\,dy = \\big[-e^{-y/x}\\big]_1^{\\infty} = e^{-1/x}\\).\n\nContrôles de bon sens : quand \\(x\\) tend vers 0, la moyenne de \\(Y\\) tend vers 0 et la probabilité tend vers 0 ; quand \\(x\\) grandit, elle tend vers 1.\n\nVérifications (script) : calcul symbolique des trois étapes ; pour \\(x = 2\\), \\(e^{-1/2} = 0{,}6065\\), et l'intégration numérique de la densité jointe sur la bande \\(1{,}9 < x < 2{,}1\\) donne 0,6058 (simulation : 0,6033, erreur standard 0,0015) ; sans conditionner, \\(\\mathbb{P}(Y > 1) = 0{,}2797\\) (simulation : 0,2789).\n\nRemarque sur l'énoncé : la fin de la ligne qui donne le domaine de \\(y\\) manque dans la version disponible. Le domaine \\(0 < y < +\\infty\\) est la lecture retenue ; c'est avec lui que la densité s'intègre à 1.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\(e^{-1/x}\\)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q08_bande",
+     "Q08_bande_mc",
+     "Q08_bande_se",
+     "Q08_d_joint_x2",
+     "Q08_d_plus_x2",
+     "Q08_p_y1",
+     "Q08_p_y1_mc",
+     "Q08_val_x2",
+     "Q08_x_ex"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q09",
+   "section": "math",
+   "theme": "Densité jointe, constante de normalisation",
+   "difficulte": 2,
+   "temps_cible_s": 120,
+   "ordre_origine": [
+    "b",
+    "a",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 9. On considère la densité de probabilité jointe \\(f(x, y) = c\\,x^2\\,(1 + y)\\) pour \\(0 \\le x \\le 3\\) et \\(0 \\le y \\le 3\\) (et 0 ailleurs), où \\(c\\) est une constante inconnue. Que vaut \\(c\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "2/135",
+     "correcte": true,
+     "explication": "Oui : l'intégrale de \\(x^2 (1 + y)\\) sur le carré vaut \\(9 \\times 15/2 = 135/2\\), et \\(c\\) en est l'inverse."
+    },
+    {
+     "id": "b",
+     "texte": "3/97",
+     "correcte": false,
+     "explication": "Avec cette valeur, l'intégrale de la densité sur le carré vaudrait \\(405/194 \\approx 2{,}088\\) au lieu de 1."
+    },
+    {
+     "id": "c",
+     "texte": "2/65",
+     "correcte": false,
+     "explication": "Avec cette valeur, l'intégrale de la densité vaudrait \\(27/13 \\approx 2{,}077\\) au lieu de 1. L'écriture ressemble à la bonne (même numérateur 2) : il faut finir le produit \\(9 \\times 15/2\\) avant de choisir."
+    },
+    {
+     "id": "d",
+     "texte": "1/10",
+     "correcte": false,
+     "explication": "Avec cette valeur, l'intégrale de la densité vaudrait \\(27/4 = 6{,}75\\) : la masse totale serait près de 7 fois trop grande."
+    }
+   ],
+   "solution": "Réponse : \\(c = 2/135\\).\n\nUne densité est positive et d'intégrale 1 : \\(c\\) est l'inverse de l'intégrale de \\(x^2 (1 + y)\\) sur le carré \\([0, 3]^2\\).\n\nÉtape 1. La fonction est un produit d'une fonction de \\(x\\) par une fonction de \\(y\\) et le domaine est un rectangle : l'intégrale double est le produit des deux intégrales simples (théorème de Fubini, admis).\n\nÉtape 2. \\(\\int_0^3 x^2\\,dx = \\Big[\\dfrac{x^3}{3}\\Big]_0^3 = 9\\) et \\(\\int_0^3 (1 + y)\\,dy = \\Big[y + \\dfrac{y^2}{2}\\Big]_0^3 = 3 + \\dfrac{9}{2} = \\dfrac{15}{2}\\).\n\nÉtape 3. Produit : \\(9 \\times \\dfrac{15}{2} = \\dfrac{135}{2} = 67{,}5\\), donc \\(c = \\dfrac{2}{135}\\).\n\nVérification (script) : intégrales exactes, et estimation de l'intégrale par tirages uniformes dans le carré : 67,52 (erreur standard 0,07), compatible avec 67,5.\n\nContrôle rapide à faire en test : multiplier l'option choisie par \\(135/2\\) doit donner 1.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "2/135",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q09_d_10_den",
+     "Q09_d_10_masse",
+     "Q09_d_10_masse_den",
+     "Q09_d_10_masse_num",
+     "Q09_d_10_num",
+     "Q09_d_65_den",
+     "Q09_d_65_masse",
+     "Q09_d_65_masse_den",
+     "Q09_d_65_masse_num",
+     "Q09_d_65_num",
+     "Q09_d_97_den",
+     "Q09_d_97_masse",
+     "Q09_d_97_masse_den",
+     "Q09_d_97_masse_num",
+     "Q09_d_97_num",
+     "Q09_exact_den",
+     "Q09_exact_num",
+     "Q09_ix",
+     "Q09_iy_den",
+     "Q09_iy_num",
+     "Q09_total",
+     "Q09_total_den",
+     "Q09_total_mc",
+     "Q09_total_num",
+     "Q09_total_se"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q10",
+   "section": "math",
+   "theme": "Probabilités conditionnelles, deux enfants",
+   "difficulte": 2,
+   "temps_cible_s": 90,
+   "ordre_origine": [
+    "b",
+    "a",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 10. Affirmation 1 : A a deux enfants. L'aîné est une fille. La probabilité que les deux enfants soient des filles est \\(p_1\\).\n\nAffirmation 2 : B a deux enfants. Au moins l'un d'eux est un garçon. La probabilité que les deux enfants soient des garçons est \\(p_2\\).\n\nQuelle relation lie \\(p_1\\) et \\(p_2\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(p_1 > p_2\\)",
+     "correcte": true,
+     "explication": "Oui : \\(p_1 = 1/2\\) et \\(p_2 = 1/3\\)."
+    },
+    {
+     "id": "b",
+     "texte": "\\(p_1 = p_2\\)",
+     "correcte": false,
+     "explication": "C'est traiter « au moins un garçon » comme « tel enfant précis est un garçon ». Désigner un enfant laisse 2 cas équiprobables ; « au moins un » en laisse 3, dont un seul favorable."
+    },
+    {
+     "id": "c",
+     "texte": "\\(p_2 > p_1\\)",
+     "correcte": false,
+     "explication": "L'ordre est inversé : l'information « au moins un garçon » est moins précise que « l'aîné est une fille », elle laisse plus de cas possibles (3 contre 2) pour un seul cas favorable, donc une probabilité plus petite."
+    },
+    {
+     "id": "d",
+     "texte": "On ne peut pas le déterminer.",
+     "correcte": false,
+     "explication": "Avec les conventions usuelles (sexes indépendants et équiprobables, conditionnement par l'événement énoncé), les deux probabilités se calculent : \\(1/2\\) et \\(1/3\\). Cette option ne se défend que si l'on refuse de fixer la façon dont l'information a été obtenue (fin de la correction)."
+    }
+   ],
+   "solution": "Réponse : \\(p_1 > p_2\\), avec \\(p_1 = 1/2\\) et \\(p_2 = 1/3\\).\n\nHypothèses, non écrites dans la question d'origine mais nécessaires : chaque enfant est une fille (F) ou un garçon (G) avec probabilité 1/2, indépendamment de l'autre ; et l'on conditionne par l'événement énoncé. Les couples (aîné, cadet) FF, FG, GF, GG sont alors équiprobables, de probabilité 1/4.\n\nÉtape 1. « L'aîné est une fille » : restent FF et FG, soit 2 cas équiprobables, dont FF. Donc \\(p_1 = 1/2\\).\n\nÉtape 2. « Au moins un garçon » : restent FG, GF et GG, soit 3 cas équiprobables, dont GG. Donc \\(p_2 = \\dfrac{1/4}{3/4} = \\dfrac{1}{3}\\).\n\nVérification (script) : énumération exacte et simulation, 0,4985 et 0,3330.\n\nCe qui est ambigu dans la question d'origine : la façon dont on apprend « au moins l'un d'eux est un garçon ». Si quelqu'un qui connaît les deux enfants répond « oui » à la question « y a-t-il au moins un garçon ? », on conditionne par l'événement et \\(p_2 = 1/3\\). Si l'on a aperçu un enfant pris au hasard parmi les deux et que c'est un garçon, la formule de Bayes donne \\(p_2 = 1/2\\) (simulation : 0,4998), et l'on aurait \\(p_1 = p_2\\). La lecture retenue est la première, celle du conditionnement par l'événement tel qu'il est écrit.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\(p_1 > p_2\\)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q10_cas1",
+     "Q10_cas2",
+     "Q10_p1_den",
+     "Q10_p1_mc",
+     "Q10_p1_num",
+     "Q10_p2_alt_den",
+     "Q10_p2_alt_mc",
+     "Q10_p2_alt_num",
+     "Q10_p2_den",
+     "Q10_p2_mc",
+     "Q10_p2_num"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q11",
+   "section": "math",
+   "theme": "Écart réduit, comparaison de notes",
+   "difficulte": 1,
+   "temps_cible_s": 75,
+   "ordre_origine": [
+    "b",
+    "c",
+    "a"
+   ],
+   "enonce": "Question 11. Un étudiant a obtenu les notes suivantes à deux examens. On suppose que, dans chaque matière, les notes de l'ensemble des candidats suivent une loi normale, de moyenne et d'écart-type donnés dans le tableau.\n\n| Matière | Note obtenue (sur 100) | Moyenne | Écart-type |\n|---|---|---|---|\n| Mathématiques | 70 | 60 | 15 |\n| Sciences | 72 | 68 | 6 |\n\nDans quelle matière sa performance relative est-elle la meilleure ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "La performance est la même dans les deux matières.",
+     "correcte": true,
+     "explication": "Oui : les deux écarts réduits valent \\(2/3\\)."
+    },
+    {
+     "id": "b",
+     "texte": "Mathématiques",
+     "correcte": false,
+     "explication": "C'est comparer les écarts bruts à la moyenne, 10 points contre 4. Mais les notes de mathématiques sont plus dispersées (écart-type 15 contre 6) : rapportés à l'écart-type, les deux écarts sont égaux."
+    },
+    {
+     "id": "c",
+     "texte": "Sciences",
+     "correcte": false,
+     "explication": "C'est comparer les notes brutes, 72 contre 70. Une performance relative se mesure par la position dans la distribution de chaque matière, pas par la note elle-même."
+    }
+   ],
+   "solution": "Réponse : la performance est la même dans les deux matières.\n\nNotations : pour une note \\(x\\), dans une matière de moyenne \\(\\mu\\) et d'écart-type \\(\\sigma\\), l'écart réduit (ou cote z) est \\(z = (x - \\mu)/\\sigma\\) : le nombre d'écarts-types qui séparent la note de la moyenne.\n\nÉtape 1. Mathématiques : \\(z = (70 - 60)/15 = 2/3\\). Sciences : \\(z = (72 - 68)/6 = 2/3\\).\n\nÉtape 2. Si la note \\(X\\) d'un candidat suit la loi normale de moyenne \\(\\mu\\) et d'écart-type \\(\\sigma\\), alors \\((X - \\mu)/\\sigma\\) suit la loi normale centrée réduite, quelle que soit la matière. La proportion de candidats moins bien notés que l'étudiant est donc \\(\\Phi(z)\\) dans les deux cas, où \\(\\Phi\\) est la fonction de répartition de la loi normale centrée réduite : \\(\\Phi(2/3) = 0{,}7475\\), soit le même rang dans les deux matières (environ 74,8 % des candidats derrière lui).\n\nVérification (script) : simulation de la proportion de notes inférieures, 0,7481 en mathématiques et 0,7472 en sciences.\n\nL'hypothèse de normalité sert à l'étape 2 : sans elle, deux écarts réduits égaux ne garantissent pas le même rang.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "La performance est la même dans les deux matières.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q11_ecart_maths",
+     "Q11_ecart_sciences",
+     "Q11_rang",
+     "Q11_rang_maths_mc",
+     "Q11_rang_pct",
+     "Q11_rang_sciences_mc",
+     "Q11_z_maths_den",
+     "Q11_z_maths_num",
+     "Q11_z_sciences_den",
+     "Q11_z_sciences_num"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q12",
+   "section": "mlf",
+   "theme": "Réseau convolutif : formes des tenseurs, concaténation",
+   "difficulte": 3,
+   "temps_cible_s": 150,
+   "ordre_origine": [
+    "b",
+    "a",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 12. Un réseau de neurones convolutif enchaîne les couches décrites par une figure et par une liste. Les deux sont reproduites telles qu'elles apparaissent dans la question d'origine.\n\nLa figure, de gauche à droite : une entrée (256, 256, 3) ; un bloc « Conv 2D, 64, (3 x 3) » ; un bloc « Conv 2D, 128, (3 x 3) » ; un bloc de concaténation, qui reçoit la sortie du deuxième bloc de convolution et, par une flèche de contournement, la sortie du premier ; un bloc « Max. Pool / 2 » ; la sortie.\n\nLa liste :\n\n- l'entrée, de taille 256 x 256 x 3 ;\n- convolution 2D, 64 filtres 3 x 3 ;\n- convolution 2D, 64 filtres 3 x 3 ;\n- concaténation selon l'axe de la profondeur ;\n- max pooling, filtre 2 x 2, pas (stride) de 2.\n\nQuelle est la forme de la sortie (largeur x hauteur x profondeur) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "128 x 128 x 192",
+     "correcte": true,
+     "explication": "Oui, en suivant la figure et en supposant que les convolutions conservent la hauteur et la largeur : concaténation de 64 et 128 canaux, puis division par 2 de chaque côté."
+    },
+    {
+     "id": "b",
+     "texte": "Aucune sortie, à cause d'une incompatibilité de formes entre tenseurs dans le réseau.",
+     "correcte": false,
+     "explication": "La concaténation en profondeur exige la même hauteur et la même largeur, pas le même nombre de canaux : 64 et 128 canaux se concatènent sans difficulté. Cette option ne devient juste que si les convolutions n'ont aucune marge (tailles 254 puis 252), ce que la question d'origine ne précise pas."
+    },
+    {
+     "id": "c",
+     "texte": "256 x 256 x 128",
+     "correcte": false,
+     "explication": "Deux oublis : la concaténation (seuls les 128 canaux de la deuxième convolution sont comptés) et le pooling, qui divise la hauteur et la largeur par 2."
+    },
+    {
+     "id": "d",
+     "texte": "128 x 128 x 128",
+     "correcte": false,
+     "explication": "En suivant la figure, c'est oublier la concaténation : le pooling reçoit \\(64 + 128\\) canaux, pas 128. C'est en revanche la réponse si l'on suit la liste écrite (deux convolutions à 64 filtres, \\(64 + 64\\)) plutôt que la figure."
+    }
+   ],
+   "solution": "Réponse : 128 x 128 x 192, en suivant la figure et en supposant que les convolutions conservent la hauteur et la largeur. La question d'origine contient une incohérence et une omission, détaillées à la fin.\n\nRègles de calcul. On note \\(n\\) la taille d'entrée le long d'un axe spatial (hauteur ou largeur), \\(k\\) la taille du filtre, \\(p\\) le nombre de zéros ajoutés de chaque côté (la marge, padding) et \\(s\\) le pas (stride). La taille de sortie le long de cet axe est \\(\\lfloor (n + 2p - k)/s \\rfloor + 1\\) : le filtre occupe \\(k\\) positions, il reste \\(n + 2p - k\\) décalages possibles, dont on garde un sur \\(s\\), plus la position de départ. La profondeur de sortie d'une convolution est son nombre de filtres, quelle que soit la profondeur d'entrée. La concaténation en profondeur exige des hauteurs et des largeurs égales, et additionne les profondeurs. Le pooling agit canal par canal : il ne change pas la profondeur.\n\nÉtape 1, première convolution, 64 filtres 3 x 3. Avec une marge de 1 et un pas de 1 (convolution dite « same ») : \\((256 + 2 - 3)/1 + 1 = 256\\). Sortie 256 x 256 x 64.\n\nÉtape 2, deuxième convolution, 128 filtres selon la figure : 256 x 256 x 128.\n\nÉtape 3, concaténation des sorties des étapes 1 et 2 : mêmes hauteur et largeur, profondeur \\(64 + 128 = 192\\). Sortie 256 x 256 x 192.\n\nÉtape 4, max pooling 2 x 2 de pas 2, sans marge : \\((256 - 2)/2 + 1 = 128\\). Sortie 128 x 128 x 192.\n\nVérification (script) : la formule, puis une vraie convolution numpy sur un modèle réduit (entrée 16 x 16 x 3, 4 puis 8 filtres) : sortie 8 x 8 x 12, comme le prévoit la formule.\n\nCe qui ne va pas dans la question d'origine, et ce que cela change :\n\n1. **La figure et la liste se contredisent.** La figure donne 128 filtres à la deuxième convolution, la liste 64. Avec la liste : \\(64 + 64 = 128\\) canaux, et la sortie serait 128 x 128 x 128, qui figure aussi parmi les options.\n2. **La marge des convolutions n'est pas donnée.** Sans marge (\\(p = 0\\)), la première convolution sort en \\(256 - 3 + 1 = 254\\) de côté et la deuxième en 252 : les deux tenseurs à concaténer n'ont plus la même taille et la concaténation échoue (constaté sur le modèle réduit : 14 contre 12, erreur de numpy). La réponse serait alors « aucune sortie ».\n\nPourquoi retenir 128 x 128 x 192 : toutes les options chiffrées ont des côtés de 256 ou de 128, ce qui suppose des convolutions qui conservent la taille ; et les trois options chiffrées se lisent comme la bonne réponse et deux oublis à partir de la figure (oublier la concaténation, oublier aussi le pooling). C'est un raisonnement sur l'intention de l'auteur, pas une preuve : la réponse attendue par le correcteur n'est pas connue.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "128 x 128 x 192",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q12_avant_pool",
+     "Q12_cote",
+     "Q12_petit_cote",
+     "Q12_petit_f1",
+     "Q12_petit_f2",
+     "Q12_petit_n",
+     "Q12_petit_prof",
+     "Q12_petit_valid_1",
+     "Q12_petit_valid_2",
+     "Q12_prof_figure",
+     "Q12_prof_liste",
+     "Q12_valid_1",
+     "Q12_valid_2"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q13",
+   "section": "mlf",
+   "theme": "Réglages d'entraînement d'une segmentation",
+   "difficulte": 2,
+   "temps_cible_s": 120,
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 13. On prépare un modèle de segmentation d'images, qui classe chaque pixel dans l'une de 2 catégories (objet ou fond). On dispose de 2000 paires formées d'une image d'entrée et de son masque (l'étiquette de chaque pixel).\n\nQuel réglage d'entraînement relève de la bonne pratique dans cette situation ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Entraînement : 1600 paires, validation : 200, test : 200 ; 100 pas par époque ; lots de 16 ; pas d'apprentissage 0,001 ; perte : entropie croisée binaire.",
+     "correcte": true,
+     "explication": "Oui : découpage 80 % / 10 % / 10 %, \\(100 \\times 16 = 1600\\) paires par époque, soit exactement l'ensemble d'entraînement, et une perte adaptée à deux classes."
+    },
+    {
+     "id": "b",
+     "texte": "Entraînement : 1600 paires, validation : 200, test : 200 ; 150 pas par époque ; lots de 10 ; pas d'apprentissage 0,01 ; perte : entropie croisée catégorielle.",
+     "correcte": false,
+     "explication": "Le découpage est bon, mais \\(150 \\times 10 = 1500\\) : chaque époque laisse de côté 100 paires d'entraînement, et la perte catégorielle suppose un masque codé sur deux canaux, ce qui n'est pas le codage naturel d'un masque objet ou fond."
+    },
+    {
+     "id": "c",
+     "texte": "Entraînement : 1000 paires, validation : 800, test : 200 ; 100 pas par époque ; lots de 8 ; pas d'apprentissage 0,001 ; perte : entropie croisée binaire.",
+     "correcte": false,
+     "explication": "La perte est adaptée, mais 40 % des données partent en validation au lieu de servir à l'apprentissage, et \\(100 \\times 8 = 800\\) : une époque ne parcourt même pas les 1000 paires d'entraînement (il en manque 200)."
+    },
+    {
+     "id": "d",
+     "texte": "Entraînement : 1000 paires, validation : 800, test : 200 ; 50 pas par époque ; lots de 20 ; pas d'apprentissage 0,01 ; perte : entropie croisée catégorielle.",
+     "correcte": false,
+     "explication": "Ici \\(50 \\times 20 = 1000\\) couvre bien l'ensemble d'entraînement, mais celui-ci ne contient que 50 % des données, et la perte catégorielle n'est pas le choix direct pour deux classes."
+    }
+   ],
+   "solution": "Réponse : 1600 / 200 / 200, 100 pas par époque, lots de 16, pas d'apprentissage 0,001, entropie croisée binaire.\n\nVocabulaire. Un lot (batch) est le groupe d'exemples utilisé pour un pas de gradient. Une époque est un passage sur l'ensemble d'entraînement : le nombre de pas par époque doit donc valoir (taille de l'ensemble d'entraînement) / (taille du lot). L'ensemble de validation sert à choisir les réglages et à arrêter l'entraînement, l'ensemble de test à estimer la performance finale, une seule fois.\n\nCritère 1, le découpage. Les quatre réglages gardent 200 paires de test (10 %). Deux n'entraînent que sur 1000 paires et en consacrent 800 à la validation : la validation n'a pas besoin de 40 % des données pour comparer des réglages, et le modèle perd 600 exemples d'apprentissage par rapport au découpage 1600 / 200 / 200.\n\nCritère 2, la cohérence pas par époque fois taille de lot (script) :\n\n| Réglage | Entraînement | Pas par époque x lot | Écart |\n|---|---|---|---|\n| 1600, 100 pas, lots de 16 | 1600 | 1600 | 0 |\n| 1600, 150 pas, lots de 10 | 1600 | 1500 | 100 paires jamais vues dans l'époque |\n| 1000, 100 pas, lots de 8 | 1000 | 800 | 200 paires jamais vues dans l'époque |\n| 1000, 50 pas, lots de 20 | 1000 | 1000 | 0 |\n\nCritère 3, la perte. Avec deux classes, le masque est un seul canal de 0 et de 1, la sortie du réseau une probabilité par pixel (sigmoïde), et la perte adaptée est l'entropie croisée binaire. L'entropie croisée catégorielle attend un masque codé sur autant de canaux que de classes.\n\nSeul le premier réglage satisfait les trois critères.\n\nDeux nuances, pour ne pas affirmer plus que ce qui est vrai :\n\n- L'entropie croisée catégorielle n'est pas « fausse » pour deux classes : avec un masque codé sur deux canaux et une sortie softmax, elle est **égale** à l'entropie croisée binaire appliquée à la sigmoïde de la différence des deux scores (\\(e^{s_1}/(e^{s_0} + e^{s_1}) = 1/(1 + e^{-(s_1 - s_0)})\\), vérifié numériquement par le script). Elle demande seulement un codage que l'énoncé ne suggère pas.\n- Le pas d'apprentissage ne départage pas les réglages à lui seul : 0,001 ou 0,01 peuvent convenir selon l'optimiseur. La question d'origine juge plusieurs critères à la fois sans dire lesquels comptent ; les trois critères ci-dessus désignent le même réglage, ce qui rend la réponse sûre.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "Entraînement : 1600 paires, validation : 200, test : 200 ; 100 pas par époque ; lots de 16 ; pas d'apprentissage 0,001 ; perte : entropie croisée binaire.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q13_manque_B",
+     "Q13_manque_C",
+     "Q13_part_test",
+     "Q13_part_train_A",
+     "Q13_part_train_D",
+     "Q13_part_val_A",
+     "Q13_part_val_C",
+     "Q13_vus_A",
+     "Q13_vus_B",
+     "Q13_vus_C",
+     "Q13_vus_D"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q14",
+   "section": "mlf",
+   "theme": "Matrice de confusion, rappel et précision",
+   "difficulte": 2,
+   "temps_cible_s": 90,
+   "enonce": "Question de remplacement (la question d'origine n'a pas été capturée). Question 14. Un détecteur de fraude est évalué sur 1000 transactions, dont 50 sont réellement frauduleuses. Il en signale 80 comme frauduleuses ; parmi ces 80, 30 le sont réellement.\n\nQue vaut le rappel (recall) du détecteur pour la classe « fraude » ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,6",
+     "correcte": true,
+     "explication": "Oui : 30 fraudes détectées sur les 50 fraudes réelles."
+    },
+    {
+     "id": "b",
+     "texte": "0,375",
+     "correcte": false,
+     "explication": "C'est la précision, 30 / 80 : la proportion de signalements qui sont de vraies fraudes. Le rappel se rapporte aux fraudes réelles, pas aux signalements."
+    },
+    {
+     "id": "c",
+     "texte": "0,93",
+     "correcte": false,
+     "explication": "C'est l'exactitude (accuracy), \\((30 + 900)/1000\\), dominée par les 900 transactions honnêtes non signalées. Un détecteur qui ne signale jamais rien aurait déjà une exactitude de 0,95."
+    },
+    {
+     "id": "d",
+     "texte": "0,462",
+     "correcte": false,
+     "explication": "C'est le score F1, moyenne harmonique de la précision et du rappel. Il résume les deux, mais ce n'est pas le rappel."
+    }
+   ],
+   "solution": "Réponse : 0,6.\n\nNotations : VP (vrais positifs) est le nombre de fraudes signalées, FP (faux positifs) le nombre de transactions honnêtes signalées, FN (faux négatifs) le nombre de fraudes non signalées, VN (vrais négatifs) le nombre de transactions honnêtes non signalées.\n\nÉtape 1, la matrice de confusion. VP = 30. FP = \\(80 - 30 = 50\\). FN = \\(50 - 30 = 20\\). VN = \\(1000 - 30 - 50 - 20 = 900\\).\n\nÉtape 2. Le rappel est la proportion des fraudes réelles qui sont détectées : VP / (VP + FN) = \\(30/50 = 0{,}6\\).\n\nPour comparaison : précision VP / (VP + FP) = \\(30/80 = 0{,}375\\) ; exactitude (VP + VN) / 1000 = \\(0{,}93\\) ; score F1 = \\(6/13 \\approx 0{,}462\\).\n\nLecture probabiliste, vérifiée par simulation (script) : le rappel est la probabilité qu'une fraude tirée au hasard parmi les fraudes ait été signalée, 0,600 sur un million de tirages.\n\nAvec 5 % de fraudes, l'exactitude est trompeuse : elle récompense surtout la classe majoritaire. C'est le rappel et la précision de la classe rare qu'il faut regarder.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,6",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q14_exactitude",
+     "Q14_f1",
+     "Q14_f1_den",
+     "Q14_f1_num",
+     "Q14_fn",
+     "Q14_fp",
+     "Q14_precision",
+     "Q14_rappel",
+     "Q14_rappel_mc",
+     "Q14_tout_negatif",
+     "Q14_vn"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q15",
+   "section": "mlf",
+   "theme": "k plus proches voisins : rôle de k",
+   "difficulte": 3,
+   "temps_cible_s": 105,
+   "enonce": "Question de remplacement (la question d'origine n'a pas été capturée). Question 15. Un classifieur des \\(k\\) plus proches voisins (distance euclidienne, vote à la majorité parmi les \\(k\\) voisins) est entraîné sur 200 points deux à deux distincts : 120 de la classe 0 et 80 de la classe 1. On mesure son exactitude (proportion de prédictions correctes) **sur ces mêmes 200 points** ; chaque point fait partie de ses propres voisins, à distance nulle.\n\nQue valent l'exactitude pour \\(k = 1\\), puis pour \\(k = 200\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "1 pour k = 1, puis 0,6 pour k = 200",
+     "correcte": true,
+     "explication": "Oui : avec \\(k = 1\\) chaque point se retrouve lui-même ; avec \\(k = 200\\) tous les points votent, et la classe 0 gagne partout."
+    },
+    {
+     "id": "b",
+     "texte": "1 pour k = 1, puis 0,4 pour k = 200",
+     "correcte": false,
+     "explication": "Le cas \\(k = 1\\) est juste, mais avec \\(k = 200\\) le vote donne la classe **majoritaire**, qui est correcte pour 120 points sur 200 ; 0,4 est la part de la classe minoritaire."
+    },
+    {
+     "id": "c",
+     "texte": "0,6 pour k = 1, puis 1 pour k = 200",
+     "correcte": false,
+     "explication": "Les deux cas sont inversés : c'est le petit \\(k\\) qui colle parfaitement aux données d'entraînement, et le grand \\(k\\) qui les ignore au profit de la classe majoritaire."
+    },
+    {
+     "id": "d",
+     "texte": "1 pour k = 1, puis 0,5 pour k = 200",
+     "correcte": false,
+     "explication": "0,5 serait l'exactitude d'un tirage à pile ou face entre deux classes équilibrées. Ici le vote est déterministe (120 voix contre 80) et les classes ne sont pas équilibrées."
+    }
+   ],
+   "solution": "Réponse : 1 pour \\(k = 1\\), puis 0,6 pour \\(k = 200\\).\n\nÉtape 1, \\(k = 1\\). Le plus proche voisin d'un point d'entraînement est ce point lui-même, à distance 0 ; aucun autre point n'est à distance 0 puisque les points sont distincts. La prédiction est donc l'étiquette du point : exactitude 1 sur l'ensemble d'entraînement, quelle que soit la qualité du modèle.\n\nÉtape 2, \\(k = 200\\). Les \\(k\\) voisins de n'importe quel point sont les 200 points : le vote est toujours 120 voix pour la classe 0 contre 80, et le classifieur prédit 0 partout. Il a raison sur les 120 points de classe 0 : exactitude \\(120/200 = 0{,}6\\).\n\nVérification (script) : implémentation numpy sur 200 points gaussiens, exactitude 1 pour \\(k = 1\\), 0,635 pour \\(k = 15\\), 0,6 pour \\(k = 200\\).\n\nCe que cela montre. \\(k\\) règle le compromis biais-variance : \\(k = 1\\) donne un modèle très flexible (biais faible, variance forte, erreur d'entraînement nulle qui ne dit rien de l'erreur sur de nouvelles données) ; \\(k\\) égal à la taille de l'échantillon donne un modèle constant (variance minimale, biais maximal). On choisit \\(k\\) par validation, jamais sur l'erreur d'entraînement.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "1 pour k = 1, puis 0,6 pour k = 200",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q15_d_hasard",
+     "Q15_d_minoritaire",
+     "Q15_k1",
+     "Q15_k15",
+     "Q15_kn",
+     "Q15_n",
+     "Q15_n0",
+     "Q15_n1"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q16",
+   "section": "mlf",
+   "theme": "Biais et variance : les quatre cibles",
+   "difficulte": 1,
+   "temps_cible_s": 60,
+   "conceptuelle": true,
+   "correctes": [
+    "b",
+    "c"
+   ],
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 16. Quatre cibles de tir, notées A, B, C et D, illustrent le biais et la variance d'un modèle ; le centre de la cible représente la vraie valeur, chaque impact une prédiction.\n\n- Cible A : les impacts sont très groupés, sur le centre.\n- Cible B : les impacts sont dispersés tout autour du centre, leur nuage est centré sur lui.\n- Cible C : les impacts sont très groupés, mais loin du centre (en haut de la cible).\n- Cible D : les impacts sont dispersés, et leur nuage est loin du centre (en haut à gauche).\n\nQuelles affirmations sont correctes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "A a un biais élevé et une variance élevée.",
+     "correcte": false,
+     "explication": "Faux : A est le cas idéal, impacts groupés (variance faible) sur le centre (biais faible). C'est D qui cumule biais élevé et variance élevée."
+    },
+    {
+     "id": "b",
+     "texte": "B a un biais faible et une variance élevée.",
+     "correcte": true,
+     "explication": "Juste : le nuage est centré sur la cible (en moyenne, on vise juste), mais les impacts sont dispersés."
+    },
+    {
+     "id": "c",
+     "texte": "C a un biais élevé et une variance faible.",
+     "correcte": true,
+     "explication": "Juste : les impacts sont groupés (peu de dispersion), mais tous décalés du centre de la même façon (erreur systématique)."
+    },
+    {
+     "id": "d",
+     "texte": "D a un biais faible et une variance faible.",
+     "correcte": false,
+     "explication": "Faux : D est dispersé et décalé, donc biais élevé et variance élevée. La description « biais faible, variance faible » est celle de A."
+    }
+   ],
+   "solution": "Réponse : « B a un biais faible et une variance élevée » et « C a un biais élevé et une variance faible ».\n\nLecture de l'image. Chaque impact représente la prédiction d'un modèle entraîné sur un échantillon différent ; le centre est la valeur à prédire. On note \\(\\mathbf{P}\\) la position aléatoire d'un impact, \\(\\mathbf{c}\\) le centre (fixe) et \\(\\mathbf{m} = \\mathbb{E}[\\mathbf{P}]\\) la position moyenne des impacts.\n\n- Le **biais** est l'écart \\(\\mathbf{m} - \\mathbf{c}\\) entre la position moyenne des impacts et le centre : une erreur systématique.\n- La **variance** est \\(\\mathbb{E}[\\lVert \\mathbf{P} - \\mathbf{m} \\rVert^2]\\), la dispersion des impacts autour de leur propre moyenne.\n\n| Cible | Nuage centré sur la cible ? | Impacts groupés ? | Biais | Variance |\n|---|---|---|---|---|\n| A | oui | oui | faible | faible |\n| B | oui | non | faible | élevée |\n| C | non | oui | élevé | faible |\n| D | non | non | élevé | élevée |\n\nLes deux se combinent dans l'erreur quadratique moyenne : \\(\\mathbb{E}[\\lVert \\mathbf{P} - \\mathbf{c} \\rVert^2] = \\lVert \\mathbf{m} - \\mathbf{c} \\rVert^2 + \\mathbb{E}[\\lVert \\mathbf{P} - \\mathbf{m} \\rVert^2]\\). Preuve : on écrit \\(\\mathbf{P} - \\mathbf{c} = (\\mathbf{P} - \\mathbf{m}) + (\\mathbf{m} - \\mathbf{c})\\) et on développe le carré de la norme ; le terme croisé \\(2\\,(\\mathbf{m} - \\mathbf{c})^{\\top}\\,\\mathbb{E}[\\mathbf{P} - \\mathbf{m}]\\) est nul, car \\(\\mathbb{E}[\\mathbf{P} - \\mathbf{m}] = \\mathbf{0}\\) par définition de \\(\\mathbf{m}\\).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "B a un biais faible et une variance élevée. ; C a un biais élevé et une variance faible.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": []
+   }
+  },
+  {
+   "id": "T9-Q17",
+   "section": "mla",
+   "theme": "Apprentissage par renforcement",
+   "difficulte": 2,
+   "temps_cible_s": 90,
+   "conceptuelle": true,
+   "correctes": [
+    "a",
+    "b",
+    "c"
+   ],
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 17. Quelles affirmations sur l'apprentissage par renforcement sont correctes ? (Choisis toutes celles qui conviennent.)",
+   "options": [
+    {
+     "id": "a",
+     "texte": "En apprentissage par renforcement, l'agent apprend en recevant un retour sous forme de récompenses ou de pénalités, selon les actions qu'il effectue dans un environnement.",
+     "correcte": true,
+     "explication": "Juste : c'est la définition. Il n'y a pas d'étiquette donnant la bonne action, seulement un signal de récompense qui suit les actions."
+    },
+    {
+     "id": "b",
+     "texte": "L'objectif d'un agent est de maximiser la récompense cumulée, qu'on appelle le « retour » (return).",
+     "correcte": true,
+     "explication": "Juste : le retour est la somme (actualisée) des récompenses futures, et l'agent cherche la politique qui en maximise l'espérance."
+    },
+    {
+     "id": "c",
+     "texte": "Dans les méthodes de gradient de politique, la politique est paramétrée et optimisée directement, plutôt que déduite d'une estimation de la fonction de valeur.",
+     "correcte": true,
+     "explication": "Juste : c'est ce qui les oppose aux méthodes fondées sur la valeur (Q-learning), où la politique se déduit d'une fonction de valeur estimée."
+    },
+    {
+     "id": "d",
+     "texte": "Le compromis exploration-exploitation consiste à choisir les actions au hasard pour que toutes les actions possibles soient explorées également.",
+     "correcte": false,
+     "explication": "Faux : choisir au hasard uniformément, c'est de l'exploration pure, sans exploitation. Le compromis consiste à doser les deux : exploiter l'action estimée la meilleure, tout en essayant parfois les autres."
+    }
+   ],
+   "solution": "Réponse : les trois premières affirmations (récompenses et pénalités ; maximisation du retour ; gradient de politique). La quatrième est fausse.\n\nLe cadre. À chaque instant \\(t\\), l'agent observe un état \\(S_t\\), choisit une action \\(A_t\\), reçoit une récompense \\(R_{t+1}\\) (un nombre, négatif pour une pénalité) et passe à l'état \\(S_{t+1}\\). Une politique \\(\\pi\\) est la règle qui donne la probabilité de chaque action dans chaque état. Le retour depuis l'instant \\(t\\) est \\(G_t = R_{t+1} + \\gamma R_{t+2} + \\gamma^2 R_{t+3} + \\dots\\), où \\(\\gamma\\), entre 0 et 1, est le facteur d'actualisation. L'objectif est de trouver la politique qui maximise \\(\\mathbb{E}[G_t]\\).\n\nAffirmation 1 : c'est la définition de l'apprentissage par renforcement ; il n'y a pas d'étiquette donnant la bonne action.\n\nAffirmation 2 : juste, avec une précision. C'est l'**espérance** du retour qui est maximisée (les récompenses sont aléatoires), et le retour est actualisé par \\(\\gamma\\) quand l'horizon est infini.\n\nAffirmation 3 : juste. Deux familles de méthodes. Fondées sur la valeur : on estime \\(q(s, a)\\), l'espérance du retour quand on fait l'action \\(a\\) dans l'état \\(s\\), et la politique s'en déduit (prendre l'action de plus grande valeur). Gradient de politique : la politique \\(\\pi_{\\boldsymbol{\\theta}}\\) dépend d'un vecteur de paramètres \\(\\boldsymbol{\\theta}\\), ajusté par montée de gradient sur l'espérance du retour. Nuance : les méthodes acteur-critique estiment **aussi** une fonction de valeur, pour réduire la variance du gradient ; mais la politique y reste paramétrée et optimisée directement, ce qui est ce qu'affirme la phrase.\n\nAffirmation 4 : fausse. Exploiter, c'est choisir l'action que l'on estime la meilleure ; explorer, c'est en essayer d'autres pour améliorer ses estimations. Choisir toujours au hasard uniformément est de l'exploration pure : l'agent n'utilise jamais ce qu'il a appris. La stratégie epsilon-gloutonne illustre le compromis : avec probabilité \\(1 - \\epsilon\\) on exploite, avec probabilité \\(\\epsilon\\) on tire une action au hasard. Rien n'exige que toutes les actions soient explorées **également**.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "En apprentissage par renforcement, l'agent apprend en recevant un retour sous forme de récompenses ou de pénalités, selon les actions qu'il effectue dans un environnement. ; L'objectif d'un agent est de maximiser la récompense cumulée, qu'on appelle le « retour » (return). ; Dans les méthodes de gradient de politique, la politique est paramétrée et optimisée directement, plutôt que déduite d'une estimation de la fonction de valeur.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": []
+   }
+  },
+  {
+   "id": "T9-Q18",
+   "section": "mla",
+   "theme": "Dropout inversé",
+   "difficulte": 3,
+   "temps_cible_s": 120,
+   "enonce": "Question de remplacement (la question d'origine n'a pas été capturée). Question 18. Une couche de dropout « inversé » de taux \\(p = 0{,}2\\) fonctionne ainsi pendant l'entraînement : chaque activation est, indépendamment des autres, mise à 0 avec probabilité \\(p\\), et sinon divisée par \\(1 - p\\). On considère une activation dont la valeur avant dropout est fixée à \\(a = 3\\).\n\nQue valent l'espérance et la variance de sa valeur après dropout, pendant l'entraînement ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Espérance 3, variance 2,25",
+     "correcte": true,
+     "explication": "Oui : la valeur est \\(3/0{,}8 = 3{,}75\\) avec probabilité 0,8 et 0 sinon."
+    },
+    {
+     "id": "b",
+     "texte": "Espérance 2,4, variance 1,44",
+     "correcte": false,
+     "explication": "C'est le dropout **sans** remise à l'échelle : la valeur est 3 avec probabilité 0,8 et 0 sinon. La division par \\(1 - p\\) sert justement à ramener l'espérance à 3."
+    },
+    {
+     "id": "c",
+     "texte": "Espérance 3, variance 1,44",
+     "correcte": false,
+     "explication": "L'espérance est juste, mais la variance est celle de \\(3M\\), où \\(M\\) vaut 1 avec probabilité 0,8 : il manque le carré du facteur \\(1/(1 - p)\\). La variance exacte est \\(a^2\\,p/(1 - p)\\), pas \\(a^2\\,p\\,(1 - p)\\)."
+    },
+    {
+     "id": "d",
+     "texte": "Espérance 3,75, variance 0",
+     "correcte": false,
+     "explication": "C'est supposer que l'activation est toujours conservée et divisée par \\(1 - p\\). Elle est mise à 0 avec probabilité 0,2 : la sortie est aléatoire, donc de variance non nulle."
+    }
+   ],
+   "solution": "Réponse : espérance 3, variance 2,25.\n\nNotations : \\(M\\) est le masque de l'activation, variable aléatoire qui vaut 1 avec probabilité \\(1 - p = 0{,}8\\) (activation conservée) et 0 avec probabilité \\(p = 0{,}2\\). La valeur après dropout est \\(Z = \\dfrac{M\\,a}{1 - p}\\) : elle vaut \\(3/0{,}8 = 3{,}75\\) ou 0.\n\nÉtape 1, espérance. \\(\\mathbb{E}[Z] = \\dfrac{a}{1 - p}\\,\\mathbb{E}[M] = \\dfrac{a}{1 - p}\\,(1 - p) = a = 3\\). C'est le rôle de la division par \\(1 - p\\) : l'espérance de l'activation est la même à l'entraînement (avec dropout) et à l'inférence (sans dropout, sans facteur).\n\nÉtape 2, variance. \\(M\\) est une variable de Bernoulli, de variance \\(p\\,(1 - p)\\). Donc \\(\\mathrm{Var}(Z) = \\dfrac{a^2}{(1 - p)^2}\\,p\\,(1 - p) = \\dfrac{a^2\\,p}{1 - p} = \\dfrac{9 \\times 0{,}2}{0{,}8} = 2{,}25\\).\n\nVérification (script) : calcul exact en fractions, et simulation d'un million de masques : moyenne 3,000, variance 2,250.\n\nÀ l'inférence, le dropout est désactivé : la sortie vaut \\(a\\), sans bruit. Le dropout ajoute donc du bruit pendant l'entraînement seulement, ce qui agit comme une régularisation.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "Espérance 3, variance 2,25",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q18_d_esp_sans",
+     "Q18_d_var_p",
+     "Q18_d_var_sans",
+     "Q18_esp",
+     "Q18_esp_mc",
+     "Q18_garde",
+     "Q18_p",
+     "Q18_valeur_gardee",
+     "Q18_var",
+     "Q18_var_mc"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q19",
+   "section": "mla",
+   "theme": "Classes déséquilibrées et variance",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "ordre_origine": [
+    "b",
+    "c",
+    "d",
+    "a"
+   ],
+   "enonce": "Question 19. On dispose d'un jeu de données dans lequel le nombre d'observations diffère nettement d'une classe à l'autre. Quelle technique est la plus appropriée pour améliorer la performance d'un modèle en traitant d'éventuels problèmes de variance ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Appliquer des techniques de régularisation pour réduire la complexité du modèle et éviter le surapprentissage.",
+     "correcte": true,
+     "explication": "Oui, dans la lecture retenue : un « problème de variance » d'un modèle est un surapprentissage, et la régularisation est la technique qui réduit la variance d'un modèle."
+    },
+    {
+     "id": "b",
+     "texte": "Augmenter la complexité du modèle pour capter plus précisément les structures sous-jacentes des données.",
+     "correcte": false,
+     "explication": "Augmenter la complexité réduit le biais et augmente la variance : c'est le remède au sous-apprentissage, l'inverse de ce qui est demandé."
+    },
+    {
+     "id": "c",
+     "texte": "Recourir à des tests d'hypothèses pour repérer les différences significatives entre classes et ajuster le modèle en conséquence.",
+     "correcte": false,
+     "explication": "Un test d'hypothèse dit si une différence observée est compatible avec le hasard ; il ne modifie ni la flexibilité du modèle ni sa variance."
+    },
+    {
+     "id": "d",
+     "texte": "Utiliser un échantillonnage stratifié pour que les ensembles d'entraînement et de test aient une répartition des classes similaire.",
+     "correcte": false,
+     "explication": "C'est l'autre réponse défendable : la stratification est la précaution propre au déséquilibre des classes, et elle réduit la variance de l'**évaluation** (composition des ensembles). Mais elle ne change pas le modèle et ne réduit pas sa variance ; voir la discussion dans la correction."
+    }
+   ],
+   "solution": "Réponse : appliquer des techniques de régularisation. C'est la réponse la plus défendable, pas une réponse certaine : la question d'origine est ambiguë, et l'échantillonnage stratifié se défend aussi.\n\nPourquoi la question est ambiguë. Elle réunit deux éléments qui ne pointent pas vers la même option :\n\n- la situation décrite, des classes déséquilibrées, appelle la précaution spécifique à ce cas : l'échantillonnage stratifié ;\n- le but annoncé, « améliorer la performance en traitant des problèmes de variance », et le titre de la question d'origine, qui nomme la régularisation, appellent la régularisation.\n\nCe que fait chaque technique, précisément.\n\n- **Régularisation.** La variance d'un modèle est la sensibilité de ses prédictions à l'échantillon d'entraînement ; un modèle de forte variance surapprend. Pénaliser la taille des coefficients (ou limiter la profondeur d'un arbre, etc.) réduit cette variance au prix d'un peu de biais. Expérience (script, celle de la question 22) : sur 30 points, un polynôme de degré 10 sans pénalité a une erreur de test de 0,453 ; avec une pénalité ridge, 0,181.\n- **Échantillonnage stratifié.** Découper au hasard un jeu déséquilibré peut laisser très peu d'exemples de la classe rare dans l'un des ensembles ; stratifier impose la même proportion de chaque classe dans chaque ensemble. Cela réduit la variance de l'**estimation de la performance** d'un découpage à l'autre. Cela ne modifie pas le modèle, donc pas sa variance au sens du compromis biais-variance, et n'« améliore » sa performance que dans la mesure où l'entraînement dispose d'une part garantie de la classe rare.\n\nPourquoi retenir la régularisation : c'est la seule option qui traite la variance **du modèle**, et qui améliore sa performance sur de nouvelles données ; le titre de la question d'origine va dans le même sens. Pourquoi l'autre lecture se défend : si « problèmes de variance » désigne l'instabilité due à la composition aléatoire des ensembles quand une classe est rare, la stratification est la réponse, et c'est la seule option qui utilise la donnée de l'énoncé (le déséquilibre). La réponse attendue par le correcteur n'est pas connue.\n\nLes deux autres options s'écartent sans hésiter : augmenter la complexité augmente la variance, et un test d'hypothèse ne la traite pas.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "Appliquer des techniques de régularisation pour réduire la complexité du modèle et éviter le surapprentissage.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q22_degre",
+     "Q22_n",
+     "Q22_test_ridge",
+     "Q22_test_sans"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q20",
+   "section": "mla",
+   "theme": "Arbres de décision : mécanique",
+   "difficulte": 2,
+   "temps_cible_s": 90,
+   "correctes": [
+    "a",
+    "c"
+   ],
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 20. Quelles affirmations sur le fonctionnement des arbres de décision sont correctes ? (Choisis toutes celles qui conviennent.)",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Dans un arbre de décision, le nœud racine est l'endroit où est choisie la variable la plus significative pour découper les données.",
+     "correcte": true,
+     "explication": "Juste, au sens suivant : la racine porte la coupure qui réduit le plus l'impureté sur l'ensemble des données. « La plus significative » est une formulation vague, discutée dans la correction."
+    },
+    {
+     "id": "b",
+     "texte": "Les arbres de décision ne traitent que des données catégorielles et exigent que toutes les données numériques soient discrétisées avant l'entraînement.",
+     "correcte": false,
+     "explication": "Faux : sur une variable numérique, l'arbre cherche lui-même un seuil \\(s\\) et coupe selon « valeur inférieure ou égale à \\(s\\) ». Aucune discrétisation préalable n'est nécessaire (l'arbre de l'expérience est entraîné sur deux variables numériques brutes)."
+    },
+    {
+     "id": "c",
+     "texte": "À chaque nœud, un arbre de décision découpe les données en choisissant la variable qui produit la plus grande réduction d'impureté (par exemple l'impureté de Gini ou l'entropie).",
+     "correcte": true,
+     "explication": "Juste : c'est le critère glouton de construction. Plus précisément, il choisit le couple (variable, seuil) qui maximise cette réduction."
+    },
+    {
+     "id": "d",
+     "texte": "La profondeur d'un arbre de décision est déterminée par le nombre de variables du jeu de données.",
+     "correcte": false,
+     "explication": "Faux : une même variable peut servir à plusieurs niveaux. Expérience (script) : avec 2 variables et 500 points, un arbre non limité atteint la profondeur 24. La profondeur dépend des données et des critères d'arrêt."
+    }
+   ],
+   "solution": "Réponse : « le nœud racine est l'endroit où est choisie la variable la plus significative » et « à chaque nœud, l'arbre choisit la variable qui produit la plus grande réduction d'impureté ».\n\nConstruction d'un arbre (algorithme CART). À un nœud contenant un ensemble d'observations, on note \\(i\\) son impureté : pour la classification, l'impureté de Gini \\(1 - \\sum_c p_c^2\\) ou l'entropie \\(-\\sum_c p_c \\ln p_c\\), où \\(p_c\\) est la proportion de la classe \\(c\\) dans le nœud. Pour chaque variable et chaque seuil possibles, on calcule la réduction d'impureté : l'impureté du nœud moins la moyenne des impuretés des deux nœuds fils, pondérée par leurs effectifs. On retient la coupure qui la maximise, puis on recommence dans chaque fils, jusqu'à un critère d'arrêt (profondeur maximale, effectif minimal, nœud pur).\n\nAffirmation 3 : c'est exactement cette règle. Juste.\n\nAffirmation 1 : la racine applique la règle à l'ensemble des données ; la variable qui y est choisie est celle qui, seule et en une coupure, sépare le mieux les classes. C'est le sens dans lequel elle est « la plus significative », et l'affirmation est retenue comme juste. Réserve : ce n'est pas un test statistique, et ce n'est pas forcément la variable la plus importante de l'arbre entier (une variable peut ne servir qu'en interaction avec une autre, plus bas dans l'arbre).\n\nAffirmation 2 : fausse. Une variable numérique est traitée par seuil, sans discrétisation préalable.\n\nAffirmation 4 : fausse. Expérience (script) : sur 500 points décrits par 2 variables numériques, avec des étiquettes tirées au hasard, un arbre sans limite de profondeur atteint la profondeur 24 et classe parfaitement ses données d'entraînement (exactitude 1) : la profondeur n'est pas bornée par le nombre de variables. Elle est bornée par le nombre d'observations et fixée par les critères d'arrêt.\n\nRemarque sur la question d'origine : l'affirmation 1 est formulée de façon vague. Si le correcteur l'a jugée fausse (au motif que « significative » n'est pas le critère), la seule affirmation juste serait la troisième. La lecture retenue ici est la plus courante.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Dans un arbre de décision, le nœud racine est l'endroit où est choisie la variable la plus significative pour découper les données. ; À chaque nœud, un arbre de décision découpe les données en choisissant la variable qui produit la plus grande réduction d'impureté (par exemple l'impureté de Gini ou l'entropie).",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q20_exactitude_train",
+     "Q20_n",
+     "Q20_nb_variables",
+     "Q20_profondeur"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q21",
+   "section": "mla",
+   "theme": "Importance des variables",
+   "difficulte": 3,
+   "temps_cible_s": 120,
+   "correctes": [
+    "a",
+    "c",
+    "d"
+   ],
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 21. Quelles affirmations sur l'importance des variables dans les modèles d'apprentissage automatique sont correctes ? (Choisis toutes celles qui conviennent.)",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Dans les arbres de décision, l'importance d'une variable est calculée à partir de la réduction totale d'impureté (impureté de Gini ou entropie, par exemple) sur tous les nœuds où la variable est utilisée.",
+     "correcte": true,
+     "explication": "Juste : c'est la définition de l'importance par réduction d'impureté, chaque réduction étant pondérée par la part des observations qui passent par le nœud."
+    },
+    {
+     "id": "b",
+     "texte": "Les importances issues de modèles à base d'arbres, comme les forêts aléatoires, sont toujours fiables et doivent être interprétées directement comme l'importance des variables dans le monde réel.",
+     "correcte": false,
+     "explication": "Faux. Expérience (script) : dans une forêt, une variable de pur bruit reçoit une importance par impureté de 0,43, alors que la mélanger ne dégrade pas la performance sur des données de test."
+    },
+    {
+     "id": "c",
+     "texte": "L'importance par permutation mesure l'importance d'une variable par la baisse de performance du modèle quand les valeurs de cette variable sont mélangées au hasard.",
+     "correcte": true,
+     "explication": "Juste : c'est sa définition. Mélanger la colonne casse son lien avec la cible en conservant sa loi ; la baisse de performance mesure ce que le modèle tirait de cette variable."
+    },
+    {
+     "id": "d",
+     "texte": "Une limite des importances tirées de modèles linéaires, comme la régression logistique, est qu'elles supposent des relations linéaires entre les variables et la cible.",
+     "correcte": true,
+     "explication": "Juste : un coefficient résume l'effet d'une variable par une seule pente. Si l'effet réel n'est pas linéaire (ou passe par une interaction), le coefficient le décrit mal. Précision : pour la régression logistique, la linéarité porte sur le logarithme des cotes."
+    }
+   ],
+   "solution": "Réponse : les affirmations sur la réduction d'impureté, sur l'importance par permutation et sur la limite des modèles linéaires. Celle qui déclare les importances des forêts « toujours fiables » est fausse.\n\nAffirmation 1, juste. L'importance par réduction d'impureté d'une variable est la somme, sur tous les nœuds où elle sert à couper, de la réduction d'impureté obtenue, pondérée par la proportion des observations d'entraînement qui atteignent le nœud ; dans une forêt, on fait la moyenne sur les arbres, puis on normalise pour que les importances somment à 1.\n\nAffirmation 3, juste. Importance par permutation : on mesure la performance du modèle sur un jeu de données, on mélange au hasard les valeurs d'une colonne, on mesure à nouveau ; l'importance est la baisse de performance.\n\nAffirmation 4, juste. Dans un modèle linéaire, l'importance d'une variable est lue sur son coefficient (après mise à la même échelle des variables). Le modèle suppose que la cible, ou le logarithme des cotes pour la régression logistique, est une fonction linéaire des variables : un effet en U, par exemple, donne un coefficient proche de 0 pour une variable pourtant déterminante.\n\nAffirmation 2, fausse : le mot « toujours » suffit à la réfuter, par un contre-exemple. Expérience (script) : une cible binaire dépend d'une seule variable utile ; on ajoute une variable de bruit continue et une variable de bruit binaire, sans lien avec la cible. Une forêt de 200 arbres non limités donne :\n\n| Variable | Importance par impureté | Importance par permutation, sur données de test |\n|---|---|---|\n| utile | 0,559 | 0,078 |\n| bruit continu | 0,426 | -0,034 |\n| bruit binaire | 0,016 | -0,003 |\n\nLe bruit continu reçoit une importance par impureté du même ordre que la variable utile : les arbres profonds s'en servent pour mémoriser le bruit des données d'entraînement, et une variable continue offre beaucoup plus de seuils qu'une variable binaire. Son importance par permutation sur des données de test est négative ou nulle : elle n'aide pas à prédire. C'est une constatation sur cette expérience, qui suffit comme contre-exemple. Autres causes connues de mauvaise lecture : variables corrélées qui se partagent l'importance, et confusion entre importance pour le modèle et effet causal.\n\nRemarque : cocher les affirmations 1 et 4 seulement laisse de côté la 3, qui est une définition exacte.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Dans les arbres de décision, l'importance d'une variable est calculée à partir de la réduction totale d'impureté (impureté de Gini ou entropie, par exemple) sur tous les nœuds où la variable est utilisée. ; L'importance par permutation mesure l'importance d'une variable par la baisse de performance du modèle quand les valeurs de cette variable sont mélangées au hasard. ; Une limite des importances tirées de modèles linéaires, comme la régression logistique, est qu'elles supposent des relations linéaires entre les variables et la cible.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q21_mdi_bruit_binaire",
+     "Q21_mdi_bruit_continu",
+     "Q21_mdi_utile",
+     "Q21_perm_bruit_binaire",
+     "Q21_perm_bruit_continu",
+     "Q21_perm_utile"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q22",
+   "section": "mla",
+   "theme": "Surapprentissage et régularisation",
+   "difficulte": 2,
+   "temps_cible_s": 75,
+   "ordre_origine": [
+    "b",
+    "a",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 22. On dispose d'un jeu de données présentant une variance importante, et l'on veut construire un modèle prédictif de grande exactitude. Quelle technique serait la plus efficace pour traiter le surapprentissage tout en préservant la capacité du modèle à généraliser ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Appliquer des techniques de régularisation pour réduire la complexité du modèle.",
+     "correcte": true,
+     "explication": "Oui : la régularisation réduit la variance du modèle, donc le surapprentissage, en conservant toutes les données et toutes les variables."
+    },
+    {
+     "id": "b",
+     "texte": "Augmenter la complexité du modèle pour capter davantage de variance.",
+     "correcte": false,
+     "explication": "C'est le remède au **sous**-apprentissage. Un modèle plus complexe colle encore mieux aux données d'entraînement, bruit compris : dans l'expérience, passer du degré 10 au degré 15 fait passer l'erreur de test de 0,45 à 18,57."
+    },
+    {
+     "id": "c",
+     "texte": "Retirer des variables au hasard pour réduire la dimension.",
+     "correcte": false,
+     "explication": "Réduire la dimension peut réduire la variance, mais retirer des variables au hasard risque d'écarter les plus utiles. Une sélection doit être guidée par un critère (pénalité L1, validation)."
+    },
+    {
+     "id": "d",
+     "texte": "S'en remettre uniquement à des tests d'hypothèses pour sélectionner les variables pertinentes.",
+     "correcte": false,
+     "explication": "Les tests variable par variable ignorent les interactions et, répétés sur beaucoup de variables, laissent passer des faux positifs ; « uniquement » exclut la validation sur des données non vues, qui est le vrai garde-fou."
+    }
+   ],
+   "solution": "Réponse : appliquer des techniques de régularisation.\n\nDéfinitions. Un modèle surapprend quand il reproduit le bruit de son échantillon d'entraînement : son erreur d'entraînement est faible, son erreur sur de nouvelles données est grande. Dans la décomposition de l'erreur de prédiction en biais au carré, variance et bruit irréductible, le surapprentissage est un excès de **variance** (sensibilité des prédictions à l'échantillon tiré). Régulariser, c'est ajouter à la perte une pénalité sur la taille des paramètres, ce qui réduit la variance au prix d'un biais.\n\nExpérience (script). Données : 30 points, \\(y = \\sin(3x)\\) plus un bruit de variance 0,09 (aucun modèle ne peut descendre sous cette erreur de test). Modèle : polynôme en \\(x\\), ajusté par moindres carrés.\n\n| Modèle | Erreur quadratique d'entraînement | Erreur quadratique de test |\n|---|---|---|\n| degré 10, sans pénalité | 0,0454 | 0,453 |\n| degré 10, pénalité ridge de coefficient 0,1 | 0,0477 | 0,181 |\n| degré 15, sans pénalité (plus complexe) | 0,0348 | 18,57 |\n\nLa pénalité augmente un peu l'erreur d'entraînement et réduit nettement l'erreur de test. Augmenter la complexité fait l'inverse : l'erreur d'entraînement baisse, l'erreur de test explose. Ce sont des constatations sur un tirage ; le sens de l'effet est celui que prévoit la décomposition biais-variance.\n\nLe piège de formulation. L'option « augmenter la complexité pour capter davantage de variance » joue sur le mot variance : « capter la variance des données » sonne comme une qualité, mais un modèle plus complexe augmente la variance **du modèle**, donc le surapprentissage que la question demande de traiter.\n\nRemarque sur la question d'origine : « un jeu de données présentant une variance importante » ne dit pas de quelle variance il s'agit (dispersion de la cible, bruit, ou variance du modèle). Cela ne change pas la réponse, puisque la question demande explicitement de traiter le surapprentissage.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "Appliquer des techniques de régularisation pour réduire la complexité du modèle.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q22_bruit_var",
+     "Q22_degre",
+     "Q22_degre_plus",
+     "Q22_lambda",
+     "Q22_n",
+     "Q22_test_plus",
+     "Q22_test_ridge",
+     "Q22_test_sans",
+     "Q22_train_plus",
+     "Q22_train_ridge",
+     "Q22_train_sans"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q23",
+   "section": "mla",
+   "theme": "Analyse en composantes principales",
+   "difficulte": 3,
+   "temps_cible_s": 120,
+   "correctes": [
+    "a",
+    "b",
+    "d"
+   ],
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 23. Quelles affirmations sur l'usage de l'analyse en composantes principales (ACP) sont correctes ? (Choisis toutes celles qui conviennent.)",
+   "options": [
+    {
+     "id": "a",
+     "texte": "L'ACP sert principalement à réduire la dimension, en transformant les variables d'origine en un ensemble de composantes orthogonales qui captent le maximum de variance des données.",
+     "correcte": true,
+     "explication": "Juste : les composantes sont les projections sur les vecteurs propres de la matrice de covariance, orthogonaux entre eux, rangés par variance décroissante."
+    },
+    {
+     "id": "b",
+     "texte": "Avant d'appliquer l'ACP, il est essentiel de standardiser les variables (moyenne nulle, variance 1), car l'ACP est sensible à l'échelle des données.",
+     "correcte": true,
+     "explication": "Retenue comme juste : l'ACP est sensible à l'échelle (multiplier une variable par 100 fait passer la part de la première composante de 0,5 à 0,9999 dans l'exemple). Réserve : « essentiel » est trop fort quand toutes les variables ont la même unité ; voir la correction."
+    },
+    {
+     "id": "c",
+     "texte": "La première composante principale capte toujours plus de 90 % de la variance, quelle que soit la complexité ou la structure des données.",
+     "correcte": false,
+     "explication": "Faux : avec 10 variables non corrélées de même variance, la première composante porte \\(1/10\\) de la variance, soit 10 %."
+    },
+    {
+     "id": "d",
+     "texte": "Les composantes principales obtenues par ACP sont des combinaisons linéaires des variables d'origine.",
+     "correcte": true,
+     "explication": "Juste : chaque composante est le produit scalaire du vecteur des variables centrées par un vecteur propre de la matrice de covariance."
+    }
+   ],
+   "solution": "Réponse : les affirmations sur la réduction de dimension, sur la standardisation et sur les combinaisons linéaires. Celle des « plus de 90 % » est fausse.\n\nRappel. On note \\(\\mathbf{X}\\) le vecteur aléatoire des \\(d\\) variables, \\(\\boldsymbol{\\Sigma}\\) sa matrice de covariance, de valeurs propres \\(\\lambda_1 \\ge \\dots \\ge \\lambda_d \\ge 0\\) et de vecteurs propres orthonormés \\(\\mathbf{w}_1, \\dots, \\mathbf{w}_d\\) (théorème spectral). La \\(j\\)-ième composante principale est \\(\\mathbf{w}_j^{\\top}(\\mathbf{X} - \\mathbb{E}[\\mathbf{X}])\\) ; sa variance vaut \\(\\lambda_j\\) et la part de variance qu'elle porte est \\(\\lambda_j / (\\lambda_1 + \\dots + \\lambda_d)\\).\n\nAffirmation 1, juste : les directions \\(\\mathbf{w}_j\\) sont orthogonales, les composantes sont non corrélées, et \\(\\mathbf{w}_1\\) est la direction de variance maximale. Garder les premières composantes réduit la dimension.\n\nAffirmation 4, juste : \\(\\mathbf{w}_j^{\\top}(\\mathbf{X} - \\mathbb{E}[\\mathbf{X}])\\) est une combinaison linéaire des variables centrées, de coefficients les coordonnées de \\(\\mathbf{w}_j\\). Vérifié sur un échantillon par le script (vecteurs propres orthonormés, composantes non corrélées).\n\nAffirmation 3, fausse, par un contre-exemple exact : si \\(\\boldsymbol{\\Sigma}\\) est la matrice identité de taille 10, toutes les valeurs propres valent 1 et la première composante porte 0,1 de la variance.\n\nAffirmation 2, retenue comme juste, avec une réserve.\n\n- Ce qui est vrai sans réserve : l'ACP dépend de l'échelle. Exemple exact : deux variables non corrélées de variance 1 ; la première composante porte 0,5 de la variance. On exprime la première variable dans une unité 100 fois plus petite : sa variance devient 10000, et la première composante, qui est alors cette variable seule, porte \\(10000/(10000 + 1) = 0{,}9999\\) de la variance. Le résultat reflète le choix d'unité, pas la structure des données. Standardiser revient à faire l'ACP sur la matrice de corrélation.\n- La réserve : « essentiel » est trop général. Le centrage est toujours nécessaire. La réduction à variance 1 l'est quand les variables ont des unités ou des ordres de grandeur différents ; quand elles ont la même unité (des rendements d'actifs, par exemple), l'ACP sur la covariance est légitime et garde l'information de volatilité que la standardisation efface.\n\nConséquence : si le correcteur a jugé l'affirmation 2 fausse à cause du mot « essentiel », la réponse attendue serait réduite aux affirmations 1 et 4. La lecture retenue ici (affirmation 2 juste) est celle de la justification donnée dans la phrase elle-même, « car l'ACP est sensible à l'échelle ».\n\nDans tous les cas, l'affirmation 4 est juste et devait être cochée.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "L'ACP sert principalement à réduire la dimension, en transformant les variables d'origine en un ensemble de composantes orthogonales qui captent le maximum de variance des données. ; Avant d'appliquer l'ACP, il est essentiel de standardiser les variables (moyenne nulle, variance 1), car l'ACP est sensible à l'échelle des données. ; Les composantes principales obtenues par ACP sont des combinaisons linéaires des variables d'origine.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q23_dim_iso",
+     "Q23_facteur",
+     "Q23_part_echelle",
+     "Q23_part_egales",
+     "Q23_part_iso",
+     "Q23_part_iso_pct",
+     "Q23_var_apres"
+    ]
+   }
+  },
+  {
+   "id": "T9-Q24",
+   "section": "mla",
+   "theme": "Régularisation L1, L2, Elastic Net",
+   "difficulte": 2,
+   "temps_cible_s": 75,
+   "ordre_origine": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "enonce": "Question 24. On dispose d'un jeu de données dont l'espace des variables est de grande dimension. Quelle technique de régularisation appliquer pour éviter le surapprentissage tout en conservant l'interprétabilité du modèle ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Régularisation L1 (Lasso)",
+     "correcte": true,
+     "explication": "Oui : la pénalité L1 annule exactement une partie des coefficients. Le modèle ne garde que quelques variables, ce qui le rend lisible."
+    },
+    {
+     "id": "b",
+     "texte": "Régularisation L2 (Ridge)",
+     "correcte": false,
+     "explication": "Ridge évite le surapprentissage, mais il rétrécit les coefficients sans en annuler aucun : dans l'expérience, les 200 coefficients restent non nuls. Un modèle à 200 variables n'est pas plus interprétable qu'avant."
+    },
+    {
+     "id": "c",
+     "texte": "Régularisation Elastic Net (combinaison de L1 et L2)",
+     "correcte": false,
+     "explication": "Elle annule aussi des coefficients, mais moins que le Lasso à pénalité égale (48 coefficients non nuls contre 11 dans l'expérience). C'est le second choix défendable, utile quand des variables sont très corrélées ; pour l'interprétabilité seule, le Lasso est plus direct."
+    },
+    {
+     "id": "d",
+     "texte": "Aucune régularisation n'est nécessaire",
+     "correcte": false,
+     "explication": "En grande dimension, c'est l'inverse : avec plus de variables que d'observations (200 contre 50 dans l'expérience), les moindres carrés sans pénalité reproduisent exactement les données d'entraînement, bruit compris."
+    }
+   ],
+   "solution": "Réponse : la régularisation L1 (Lasso).\n\nNotations : \\(\\boldsymbol{\\beta}\\) est le vecteur des coefficients du modèle linéaire, \\(\\beta_j\\) son \\(j\\)-ième coefficient, \\(\\lambda > 0\\) le coefficient de pénalité. Ridge ajoute à la somme des carrés des résidus la pénalité \\(\\lambda \\sum_j \\beta_j^2\\) (norme L2 au carré) ; le Lasso ajoute \\(\\lambda \\sum_j \\lvert \\beta_j \\rvert\\) (norme L1) ; Elastic Net ajoute une combinaison des deux.\n\nLes deux mots de l'énoncé. « Éviter le surapprentissage » : les trois pénalités le font, en réduisant la variance. « Conserver l'interprétabilité » en grande dimension : il faut un modèle qui n'utilise que peu de variables, donc des coefficients **exactement nuls**. C'est ce qui distingue L1 de L2.\n\nPourquoi L1 annule et pas L2, dans le cas où les colonnes de la matrice des variables sont orthonormées (cas démontré dans la séance de ML 1, partie Lasso). On note \\(b_j\\) le coefficient des moindres carrés sans pénalité. La solution Ridge est \\(b_j / (1 + \\lambda)\\) : nulle seulement si \\(b_j\\) l'est. La solution du Lasso, pour la perte \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\boldsymbol{\\beta} \\rVert^2 + \\lambda \\sum_j \\lvert \\beta_j \\rvert\\), est le seuillage doux : \\(b_j - \\lambda\\) si \\(b_j > \\lambda\\), \\(b_j + \\lambda\\) si \\(b_j < -\\lambda\\), et **0** si \\(\\lvert b_j \\rvert \\le \\lambda\\). Tout coefficient plus petit que le seuil est annulé.\n\nExpérience (script) : 50 observations, 200 variables, dont 5 seulement agissent sur la cible.\n\n| Méthode | Coefficients non nuls sur 200 |\n|---|---|\n| Lasso | 11 (dont les 5 variables utiles) |\n| Elastic Net, même coefficient de pénalité, moitié L1 | 48 |\n| Ridge | 200 |\n\nC'est une constatation sur un tirage et un réglage ; le fait que Ridge n'annule aucun coefficient, lui, est général (presque sûrement, pour des données continues).\n\nNuance : Elastic Net est aussi parcimonieux et se défend quand des groupes de variables sont très corrélés (le Lasso en garde alors une par groupe, de façon instable). La question demande une seule technique et met en avant l'interprétabilité : le Lasso est la réponse la plus directe.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "Régularisation L1 (Lasso)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/test_9_octobre.py",
+    "cles": [
+     "Q24_lasso_retrouve",
+     "Q24_n",
+     "Q24_nz_enet",
+     "Q24_nz_lasso",
+     "Q24_nz_ridge",
+     "Q24_p",
+     "Q24_utiles"
+    ]
+   }
+  }
+ ]
+}

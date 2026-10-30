@@ -53,7 +53,7 @@ def textes(objet):
 
 
 # 1. Scripts de vérification -------------------------------------------------
-for nom in ["diagnostic", "seance_code_1", "seance_math_1", "seance_ml_1", "seance_ml_2", "seance_algebre_1", "seance_math_3", "seance_math_2", "seance_code_2", "seance_ml_3", "seance_math_4", "seance_quant_1", "seance_ml_4", "examen_blanc_1", "examen_blanc_2", "seance_math_5", "seance_ml_5", "seance_code_3"]:
+for nom in ["diagnostic", "seance_code_1", "seance_math_1", "seance_ml_1", "seance_ml_2", "seance_algebre_1", "seance_math_3", "seance_math_2", "seance_code_2", "seance_ml_3", "seance_math_4", "seance_quant_1", "seance_ml_4", "examen_blanc_1", "examen_blanc_2", "seance_math_5", "seance_ml_5", "seance_code_3", "code_test_9_octobre", "test_9_octobre", "seance_mm_1", "seance_mm_2", "seance_mm_3", "seance_mm_4", "seance_mm_5"]:
     avant = (RACINE / "verif" / f"{nom}.out.json").read_text(encoding="utf-8")
     r = lancer(RACINE / "verif" / f"{nom}.py")
     apres = (RACINE / "verif" / f"{nom}.out.json").read_text(encoding="utf-8")

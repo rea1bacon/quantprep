@@ -1,0 +1,156 @@
+{
+ "id": "seance-mm-4",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-MM-4",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon : cointégration, z-score, demi-vie et coûts d'un arbitrage",
+   "difficulte": 4,
+   "temps_cible_s": 1800,
+   "contenu": "## Leçon : parier sur la fermeture d'un écart\n\nDurée visée : 30 minutes. Exception aux conventions : \\(\\hat\\phi\\), calculé sur des données aléatoires, est aléatoire malgré sa minuscule grecque.\n\n### 1. Le prix synthétique\n\n#### Le problème\n\nUn ETF représente un panier d'actions. Il se négocie pourtant sur son propre carnet, et son prix peut s'écarter un moment de la valeur du panier. Si l'écart se referme, il y a un gain presque indépendant du marché : vendre le côté cher, acheter le côté bon marché.\n\n#### Définitions\n\nLe **prix synthétique** est \\(\\sum_i w_i p_i\\), où \\(p_i\\) est le prix du composant \\(i\\) (euros) et \\(w_i\\) sa quantité par part. L'**écart relatif** (mispricing) vaut \\(x_t = \\text{prix de l'ETF}/\\text{prix synthétique} - 1\\), sans unité. \\(x_t > 0\\) : l'ETF est cher, on vend l'ETF et on achète le panier.\n\n#### Exemple\n\n\\(w = (0{,}4 ; 0{,}6)\\), prix 10 et 20 euros : le synthétique vaut 16 euros.\n\n### 2. La cointégration\n\n#### Le problème\n\nTout écart ne se referme pas. Parier sur la fermeture n'a de sens que s'il existe une force de rappel.\n\n#### Définition\n\nDeux séries de prix sont **cointégrées** si chacune est non stationnaire, mais qu'une combinaison linéaire d'elles est stationnaire : individuellement elles errent, leur écart reste autour d'un niveau fixe.\n\n#### Intuition\n\nPour un ETF, la force de rappel a un mécanisme concret : un participant habilité peut échanger des parts contre le panier, et inversement, ce qui pousse les deux prix à converger quand l'écart dépasse les frais. Pour une paire quelconque d'actions, il n'existe pas de tel mécanisme : la stationnarité passée n'est qu'une constatation, qui peut cesser.\n\n#### Le modèle des données\n\nLe générateur `generate_etf_basket` fabrique \\(x_t\\) par \\(x_t = x_{t-1} - \\theta x_{t-1}\\Delta + \\eta\\sqrt{\\Delta}\\,Z_t\\), discrétisation d'un processus d'Ornstein-Uhlenbeck, avec \\(\\theta = 4\\) par an, \\(\\eta = 0{,}004\\) par racine d'année, \\(\\Delta = 1/252\\) an, et \\(Z_t\\) normales centrées réduites indépendantes. C'est un AR(1) de coefficient \\(\\phi = 1 - \\theta\\Delta = 0{,}98413\\). Son écart-type stationnaire vaut \\(\\eta\\sqrt{\\Delta}/\\sqrt{1-\\phi^2}\\), soit \\(14{,}2\\) pb. La relation est donc vraie par construction : sur des données réelles, elle serait à tester.\n\n### 3. Le z-score\n\n#### Le problème\n\nUn écart de 10 centimes ne dit rien sans son échelle habituelle.\n\n#### Définition\n\nPour une fenêtre \\(x_1, \\dots, x_n\\) dont le dernier point est l'observation courante, de moyenne \\(m\\) et d'écart-type de population \\(e\\) (`ddof=0`) : \\(z = (x_n - m)/e\\).\n\n#### Exemple\n\n\\((0, 0, 0, 0, 0{,}02)\\) : \\(m = 0{,}004\\), \\(e = 0{,}008\\), \\(z = 2{,}0\\).\n\n#### Énoncé\n\nSi la fenêtre contient l'observation courante, alors \\(\\lvert z\\rvert \\leq \\sqrt{n-1}\\), quelles que soient les données.\n\n#### Preuve\n\n1. Posons \\(d_i = x_i - m\\), de somme nulle. Alors \\(d_n = -\\sum_{i<n} d_i\\).\n2. Par l'inégalité de Cauchy-Schwarz, \\(d_n^2 \\leq (n-1)\\sum_{i<n} d_i^2\\).\n3. Donc \\(n e^2 = \\sum_{i \\leq n} d_i^2 \\geq d_n^2 + d_n^2/(n-1) = d_n^2\\,n/(n-1)\\).\n4. Soit \\(z^2 = d_n^2/e^2 \\leq n-1\\).\n\n#### Pièges\n\nL'exemple ci-dessus atteint la borne : avec \\(n = 5\\), aucun z ne peut dépasser 2, donc un seuil de 2 ne se déclenche que sur ce cas extrême. Pour \\(n = 61\\), la borne vaut \\(7{,}75\\) et ne gêne plus. Un z-score glissant se compare aussi à une référence qui contient déjà le choc : le choc gonfle \\(e\\) et son propre z.\n\n[[controle:borne]]\n\n### 4. La demi-vie\n\n#### Le problème\n\nUne position immobilise du capital tant que l'écart ne s'est pas refermé. Combien de temps attendre ?\n\n#### Énoncé\n\nPour \\(X_t = \\phi X_{t-1} + E_t\\), avec \\(0 < \\phi < 1\\) et \\(E_t\\) centrée indépendante du passé, l'espérance de \\(X_{t+h}\\) sachant \\(X_t\\) vaut \\(\\phi^h X_t\\), et elle est divisée par deux en \\(h = \\ln 2 / (-\\ln\\phi)\\) pas.\n\n#### Preuve\n\n1. Par récurrence, \\(\\mathbb{E}[X_{t+h} \\mid X_t] = \\phi\\,\\mathbb{E}[X_{t+h-1} \\mid X_t]\\), car \\(E_{t+h}\\) est centrée et indépendante du passé.\n2. Donc \\(\\mathbb{E}[X_{t+h} \\mid X_t] = \\phi^h X_t\\).\n3. \\(\\phi^h = 1/2\\) donne la formule par passage au logarithme.\n\n#### Exemple\n\n\\(\\phi = 0{,}98413\\) donne \\(43{,}32\\) jours. Le générateur déclare \\(\\ln 2/\\theta \\times 252 = 43{,}67\\) jours : la valeur du processus continu, légèrement différente parce que le pas de temps n'est pas infinitésimal.\n\n#### L'estimation et son biais\n\nOn estime \\(\\phi\\) par la pente de la régression de \\(x_t\\) sur \\(x_{t-1}\\), constante comprise. Cet estimateur est **biaisé vers le bas** quand \\(\\phi\\) est proche de 1 (biais de Kendall, approximativement \\(-(1+3\\phi)/n\\) pour \\(n\\) observations, résultat asymptotique admis). Le biais se traduit fortement sur la demi-vie :\n\n| Observations | \\(\\phi\\) moyen simulé | Approximation de Kendall | Demi-vie médiane (vraie : \\(43{,}3\\)) |\n|---|---|---|---|\n| 252 | \\(0{,}9658\\) | \\(0{,}9684\\) | \\(22{,}7\\) |\n| 3000 | \\(0{,}9828\\) | \\(0{,}9828\\) | \\(40{,}8\\) |\n\nSur un an de données, la demi-vie estimée est environ la moitié de la vraie : le retour à la moyenne paraît deux fois plus rapide qu'il ne l'est. L'approximation est bonne à 3000 observations, moins à 252, où \\(n\\) n'est que quelques fois la demi-vie. Sur la série de 3000 jours du test, l'estimation vaut \\(41{,}3\\).\n\n#### Cas limites\n\n- \\(\\hat\\phi \\geq 1\\) : aucun retour à la moyenne n'est détecté, la demi-vie n'est pas finie.\n- \\(\\hat\\phi \\leq 0\\) : aucune persistance, l'écart disparaît dès le pas suivant ; on rend 0.\n\n[[controle:demi]]\n\n### 5. Deux barres et un compte de coûts\n\n#### Le problème\n\nUn écart inhabituel peut être trop petit pour payer. Un écart grand peut être normal pour cette paire. Il faut franchir **deux** barres.\n\n#### Règle\n\nAvec \\(c\\) la commission par jambe, en fraction du notionnel, et \\(m\\) un multiple de sécurité :\n\n1. Barre statistique : \\(\\lvert z\\rvert \\geq z_e\\).\n2. Barre économique : \\(\\lvert x\\rvert \\geq m \\times 2c\\).\n\n#### Le compte exact\n\nUn aller-retour compte **quatre** jambes : deux à l'entrée, deux à la sortie. Son coût vaut donc \\(4c\\), et un multiple \\(m = 2\\) ne couvre le coût que tout juste si l'écart se referme entièrement. Dans le test, \\(c = 2\\) pb et \\(m = 4\\) : le seuil vaut \\(16\\) pb, le coût d'un aller-retour \\(8\\) pb, et l'écart-type de l'écart \\(14{,}2\\) pb, de sorte qu'il faut un écart d'au moins \\(1{,}13\\) écart-type. Cette comptabilité reste optimiste : un panier réel a une jambe par composant, et non une seule.\n\n#### Exemple\n\nDans la stratégie du test, sur 3000 jours, avec une entrée sur les deux barres, une sortie aux 70 % de fermeture ou après 40 jours : 24 opérations, pour un gain cumulé de \\(82{,}7\\) pb de notionnel, après coûts. Ce nombre décrit des données construites pour être cointégrées, avec le vrai prix synthétique connu. Il ne dit rien d'un marché réel.\n\n#### Pièges\n\n**La latence n'est pas modélisée dans cette évaluation.** Un ordre à plusieurs jambes s'exécute jambe après jambe ; le marché peut bouger entre-temps, c'est le risque de jambe (legging risk). La méthode `Exchange.execute_with_latency` du paquet permet de le simuler, mais le test ci-dessus suppose toutes les jambes exécutées au prix de décision. Le gain affiché est donc un plafond du résultat exécutable, et non une estimation de celui-ci.\n\n### 6. Réflexes et acquis\n\n#### Réflexes en 30 secondes\n\n- ETF cher : vendre l'ETF, acheter le panier.\n- Demi-vie : \\(\\ln 2 / (-\\ln\\phi)\\) pas.\n- Fenêtre de \\(n\\) points incluant le présent : \\(\\lvert z\\rvert \\leq \\sqrt{n-1}\\).\n- Aller-retour : quatre jambes au minimum.\n- Un backtest sans latence est un plafond.\n\n#### À savoir refaire\n\n- La borne du z-score par Cauchy-Schwarz.\n- La demi-vie d'un AR(1), en partant de l'espérance conditionnelle.\n- Le compte des coûts d'un aller-retour et le lien entre le seuil d'entrée et l'écart-type de l'écart.\n\n[[controle:cout]]\n",
+   "controles": {
+    "borne": {
+     "question": "Quel est le plus grand \\(\\lvert z\\rvert\\) possible sur une fenêtre de 10 points incluant l'observation courante, en écart-type de population ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "3",
+       "correcte": true,
+       "explication": "Oui : \\(\\sqrt{10 - 1} = 3\\), atteint quand les neuf premiers points sont égaux."
+      },
+      {
+       "id": "b",
+       "texte": "10",
+       "correcte": false,
+       "explication": "Cette valeur oublie que l'observation courante entre dans la moyenne et dans l'écart-type, ce qui limite z."
+      },
+      {
+       "id": "c",
+       "texte": "Infini",
+       "correcte": false,
+       "explication": "Ce serait vrai si la fenêtre excluait l'observation courante : ici, un choc gonfle aussi le dénominateur."
+      },
+      {
+       "id": "d",
+       "texte": "1",
+       "correcte": false,
+       "explication": "Une série peut largement dépasser un écart-type : la borne ne vaut 1 que pour une fenêtre de deux points."
+      }
+     ]
+    },
+    "demi": {
+     "question": "Un AR(1) a pour coefficient \\(\\phi = 0{,}5\\) par jour. Quelle est sa demi-vie ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "1 jour",
+       "correcte": true,
+       "explication": "Oui : \\(\\ln 2/(-\\ln 0{,}5) = 1\\), l'espérance est divisée par deux à chaque pas."
+      },
+      {
+       "id": "b",
+       "texte": "2 jours",
+       "correcte": false,
+       "explication": "Cette valeur confond demi-vie et durée moyenne : en un pas, l'espérance a déjà été multipliée par \\(\\phi = 1/2\\)."
+      },
+      {
+       "id": "c",
+       "texte": "0,5 jour",
+       "correcte": false,
+       "explication": "Le coefficient n'est pas une durée : \\(\\phi\\) est un facteur de rappel par pas, sans unité de temps."
+      },
+      {
+       "id": "d",
+       "texte": "0,69 jour",
+       "correcte": false,
+       "explication": "Cette valeur est \\(\\ln 2\\) seul : il manque la division par \\(-\\ln\\phi\\)."
+      }
+     ]
+    },
+    "cout": {
+     "question": "Commission de 5 pb par jambe, ETF contre un seul instrument synthétique. Un écart de 15 pb se referme entièrement. Quel est le gain net ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "-5 pb",
+       "correcte": true,
+       "explication": "Oui : quatre jambes coûtent 20 pb, pour un gain brut de 15 pb. L'opération perd."
+      },
+      {
+       "id": "b",
+       "texte": "5 pb",
+       "correcte": false,
+       "explication": "Ce calcul ne compte que deux jambes : il oublie la sortie de la position."
+      },
+      {
+       "id": "c",
+       "texte": "10 pb",
+       "correcte": false,
+       "explication": "Ce calcul ne compte qu'une jambe : l'ETF et le panier paient tous deux, à l'entrée et à la sortie."
+      },
+      {
+       "id": "d",
+       "texte": "15 pb",
+       "correcte": false,
+       "explication": "Ce calcul oublie les commissions, soit justement le risque visé par la barre économique."
+      }
+     ]
+    }
+   },
+   "verif": {
+    "script": "verif/seance_mm_4.py"
+   }
+  },
+  {
+   "id": "MM4-E1",
+   "type": "code",
+   "section": "code",
+   "theme": "Demi-vie d'un écart par une régression AR(1)",
+   "difficulte": 3,
+   "temps_cible_s": 900,
+   "enonce": "## Exercice 1 : estimer une demi-vie\n\nÉcris `estimate_half_life(mispricing)`. L'entrée est une `Series` d'au moins trois flottants sans valeur manquante, d'index quelconque.\n\n1. Ajuste \\(x_t = \\phi x_{t-1} + c\\) par moindres carrés, avec constante : `np.polyfit(x[:-1], x[1:], 1)` sur les valeurs, sans passer par l'index.\n2. Si \\(\\hat\\phi \\geq 1\\), rends `float(\"inf\")`. Si \\(\\hat\\phi \\leq 0\\), rends `0.0`.\n3. Sinon, rends `np.log(2) / -np.log(phi)` en flottant, exprimé en pas de la série.\n\n**Exemple.** Pour \\(x_t = 0{,}5^t\\), le résultat vaut 1.\n\n**Ce que vérifient les tests.** Le cas exact, les deux cas dégénérés, et la série du générateur sur 3000 jours, où l'estimation doit tomber à 35 % près de la demi-vie déclarée.\n\n\n**Fonctionnement.** **Tests visibles** exécute 1 test(s). **Soumettre** exécute les 4 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm4_e1.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd\nfrom amplify_quant_trading import generate_etf_basket",
+    "def estimate_half_life(mispricing):\n    pass  # À compléter",
+    "estimate_half_life(pd.Series(0.5 ** np.arange(30)))"
+   ],
+   "tests_visibles": 1,
+   "tests_caches": 4,
+   "fichier_correction": "coding/millennium/corrections/mm_4.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm4_e1.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_4.py`) :\n\n```python\n\"\"\"Correction de la séance MM 4 : demi-vie d'un écart, et décision d'arbitrage entre un ETF et son panier.\"\"\"\nimport numpy as np\n\nfrom amplify_quant_trading import ArbitrageBotBase\n\n\ndef estimate_half_life(mispricing):\n    x = np.asarray(mispricing, dtype=float)\n    phi, _constante = np.polyfit(x[:-1], x[1:], 1)\n    if phi >= 1:          # aucun retour à la moyenne détecté : la demi-vie n'est pas finie\n        return float(\"inf\")\n    if phi <= 0:          # aucune persistance : l'écart disparaît dès le pas suivant\n        return 0.0\n    return float(np.log(2) / -np.log(phi))\n\n\nclass CointegrationArbBot(ArbitrageBotBase):\n    def __init__(self, entry_z=2.0, commission_pct=0.001, min_edge_multiple=2.0):\n        self.entry_z = entry_z\n        self.commission_pct = commission_pct\n        self.min_edge_multiple = min_edge_multiple\n\n    def synthetic_price(self, weights, prices):\n        return sum(w * prices[ticker] for ticker, w in weights.items())\n\n    def zscore(self, mispricing_history):\n        h = np.asarray(mispricing_history, dtype=float)\n        ecart_type = h.std()      # écart-type de population, ddof=0, comme le fixe l'énoncé\n        return 0.0 if ecart_type == 0 else float((h[-1] - h.mean()) / ecart_type)\n\n    def signal(self, mispricing_pct, z_score):\n        if abs(z_score) < self.entry_z:                                             # barre statistique\n            return \"no_trade\"\n        if abs(mispricing_pct) < self.min_edge_multiple * (2 * self.commission_pct):  # barre économique\n            return \"no_trade\"\n        return \"sell_etf_buy_basket\" if mispricing_pct > 0 else \"buy_etf_sell_basket\"\n```"
+  },
+  {
+   "id": "MM4-E2",
+   "type": "code",
+   "section": "code",
+   "theme": "Décision d'arbitrage à deux barres",
+   "difficulte": 4,
+   "temps_cible_s": 1500,
+   "enonce": "## Exercice 2 : la décision d'arbitrage\n\nComplète `CointegrationArbBot`, sous-classe de `ArbitrageBotBase`, de constructeur `(entry_z=2.0, commission_pct=0.001, min_edge_multiple=2.0)`.\n\n- **`synthetic_price(weights, prices)`** : somme des `weights[t] * prices[t]` sur les clés `t` de `weights`, deux dictionnaires.\n- **`zscore(mispricing_history)`** : pour une `Series` non vide, (dernière valeur moins moyenne) divisé par l'écart-type de **population** (`ddof=0`), calculés sur toute la série fournie. Si cet écart-type est nul, rendre `0.0`.\n- **`signal(mispricing_pct, z_score)`** : `mispricing_pct` est l'écart relatif \\(x\\) (0.01 pour 1 %). Rendre `\"no_trade\"` si `abs(z_score) < entry_z`, ou si `abs(mispricing_pct) < min_edge_multiple * 2 * commission_pct`. Sinon, rendre `\"sell_etf_buy_basket\"` si l'écart est positif et `\"buy_etf_sell_basket\"` s'il est négatif. Les deux seuils sont donc inclusifs : une valeur égale au seuil passe.\n\n**Exemple.** `zscore(pd.Series([0.0, 0.0, 0.0, 0.0, 0.02]))` vaut 2.\n\n**Ce que vérifient les tests.** Les trois méthodes, puis la stratégie de la partie 5 sur 3000 jours, qui doit produire au moins 3 opérations et un gain cumulé positif après coûts.\n\n\n**Fonctionnement.** **Tests visibles** exécute 2 test(s). **Soumettre** exécute les 9 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm4_e2.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd\nfrom amplify_quant_trading import ArbitrageBotBase",
+    "class CointegrationArbBot(ArbitrageBotBase):\n    def __init__(self, entry_z=2.0, commission_pct=0.001, min_edge_multiple=2.0):\n        pass  # À compléter\n\n    def synthetic_price(self, weights, prices):\n        pass  # À compléter\n\n    def zscore(self, mispricing_history):\n        pass  # À compléter\n\n    def signal(self, mispricing_pct, z_score):\n        pass  # À compléter"
+   ],
+   "tests_visibles": 2,
+   "tests_caches": 9,
+   "fichier_correction": "coding/millennium/corrections/mm_4.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm4_e2.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_4.py`) :\n\n```python\n\"\"\"Correction de la séance MM 4 : demi-vie d'un écart, et décision d'arbitrage entre un ETF et son panier.\"\"\"\nimport numpy as np\n\nfrom amplify_quant_trading import ArbitrageBotBase\n\n\ndef estimate_half_life(mispricing):\n    x = np.asarray(mispricing, dtype=float)\n    phi, _constante = np.polyfit(x[:-1], x[1:], 1)\n    if phi >= 1:          # aucun retour à la moyenne détecté : la demi-vie n'est pas finie\n        return float(\"inf\")\n    if phi <= 0:          # aucune persistance : l'écart disparaît dès le pas suivant\n        return 0.0\n    return float(np.log(2) / -np.log(phi))\n\n\nclass CointegrationArbBot(ArbitrageBotBase):\n    def __init__(self, entry_z=2.0, commission_pct=0.001, min_edge_multiple=2.0):\n        self.entry_z = entry_z\n        self.commission_pct = commission_pct\n        self.min_edge_multiple = min_edge_multiple\n\n    def synthetic_price(self, weights, prices):\n        return sum(w * prices[ticker] for ticker, w in weights.items())\n\n    def zscore(self, mispricing_history):\n        h = np.asarray(mispricing_history, dtype=float)\n        ecart_type = h.std()      # écart-type de population, ddof=0, comme le fixe l'énoncé\n        return 0.0 if ecart_type == 0 else float((h[-1] - h.mean()) / ecart_type)\n\n    def signal(self, mispricing_pct, z_score):\n        if abs(z_score) < self.entry_z:                                             # barre statistique\n            return \"no_trade\"\n        if abs(mispricing_pct) < self.min_edge_multiple * (2 * self.commission_pct):  # barre économique\n            return \"no_trade\"\n        return \"sell_etf_buy_basket\" if mispricing_pct > 0 else \"buy_etf_sell_basket\"\n```"
+  }
+ ]
+}

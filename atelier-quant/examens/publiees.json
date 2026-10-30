@@ -80,6 +80,46 @@
   "duree_min": 82
  },
  {
+  "id": "seance-mm-1",
+  "titre": "Market making 1 : cotation, écart et sélection adverse",
+  "duree_min": 75
+ },
+ {
+  "id": "seance-mm-2",
+  "titre": "Market making 2 : inventaire et modèle d'Avellaneda-Stoikov",
+  "duree_min": 75
+ },
+ {
+  "id": "seance-mm-3",
+  "titre": "Market making 3 : couverture et bêta",
+  "duree_min": 65
+ },
+ {
+  "id": "seance-mm-4",
+  "titre": "Market making 4 : arbitrage statistique entre un ETF et son panier",
+  "duree_min": 70
+ },
+ {
+  "id": "seance-mm-5",
+  "titre": "Market making 5 : nettoyer un export de transactions",
+  "duree_min": 50
+ },
+ {
+  "id": "oa-millennium",
+  "titre": "OA Millennium x AmplifyME Market Making : examen",
+  "duree_min": 120
+ },
+ {
+  "id": "oa-millennium-desk",
+  "titre": "OA Millennium : entraînement, utilitaires de desk",
+  "duree_min": 120
+ },
+ {
+  "id": "oa-millennium-numpy",
+  "titre": "OA Millennium : entraînement, vectorisation numpy",
+  "duree_min": 120
+ },
+ {
   "id": "examen-blanc-1",
   "titre": "Examen blanc 1",
   "duree_min": 72
@@ -88,6 +128,16 @@
   "id": "examen-blanc-2",
   "titre": "Examen blanc 2",
   "duree_min": 72
+ },
+ {
+  "id": "test-9-octobre",
+  "titre": "OA QRT Quant Researcher : examen",
+  "duree_min": 82
+ },
+ {
+  "id": "debrief-test-9-octobre",
+  "titre": "OA QRT Quant Researcher : corrigé",
+  "duree_min": 90
  },
  {
   "id": "fiche-derniere-heure",

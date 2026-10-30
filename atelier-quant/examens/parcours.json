@@ -1,5 +1,16 @@
 [
  {
+  "bloc": "OA de recrutement",
+  "note": "Évaluations en ligne reconstituées, non officielles : examen en conditions réelles, corrigé et entraînements.",
+  "ids": [
+   "test-9-octobre",
+   "debrief-test-9-octobre",
+   "oa-millennium",
+   "oa-millennium-desk",
+   "oa-millennium-numpy"
+  ]
+ },
+ {
   "bloc": "Probabilités et statistique",
   "note": "Conditionnement, lois, espérance, chaînes de Markov, martingales, estimation et tests.",
   "ids": [
@@ -33,6 +44,17 @@
   "note": "Covariance en grande dimension, coefficient d'information, surapprentissage de backtest, ratio de Sharpe.",
   "ids": [
    "seance-quant-1"
+  ]
+ },
+ {
+  "bloc": "Market making",
+  "note": "Écart et sélection adverse, inventaire, couverture, arbitrage statistique, nettoyage de données.",
+  "ids": [
+   "seance-mm-1",
+   "seance-mm-2",
+   "seance-mm-3",
+   "seance-mm-4",
+   "seance-mm-5"
   ]
  },
  {

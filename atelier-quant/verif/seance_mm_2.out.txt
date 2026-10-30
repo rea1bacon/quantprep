@@ -1,0 +1,2 @@
+équivalent certain exact 495.5357 ; Monte-Carlo 495.5416 ; erreur standard 0.0054
+rapport des écarts-types d'inventaire 0.564 (erreur standard 0.059) sur 20 journées

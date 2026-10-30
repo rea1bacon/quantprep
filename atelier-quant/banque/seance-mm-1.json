@@ -1,0 +1,157 @@
+{
+ "id": "seance-mm-1",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-MM-1",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon : le métier de teneur de marché, l'écart et la sélection adverse",
+   "difficulte": 3,
+   "temps_cible_s": 1800,
+   "contenu": "## Leçon : pourquoi un écart existe\n\nDurée visée : 30 minutes. Exception aux conventions : \\(s\\) est le prix observé à l'instant de la décision, une valeur fixe ; les prix futurs, aléatoires, sont en majuscules.\n\n### 1. Le métier et son vocabulaire\n\n#### Le problème\n\nUne personne qui veut acheter ou vendre maintenant a besoin d'une contrepartie disponible maintenant. Le **teneur de marché** (market maker) rend ce service : il affiche en permanence deux prix et accepte de traiter à l'un ou à l'autre.\n\n#### Définitions\n\n- **Bid** : le prix auquel le teneur achète. **Ask** : le prix auquel il vend. L'ask est strictement supérieur au bid.\n- **Écart** (spread) : ask moins bid, en euros ; c'est le revenu brut d'un aller-retour d'une unité. **Prix médian** (mid) : la moyenne du bid et de l'ask.\n- **Point de base** (pb, en anglais bps) : un dix-millième. Un écart de 100 pb sur un prix de 100 euros vaut 1 euro.\n- **Exécution** (fill) : une contrepartie traite contre l'un des deux prix. **Inventaire** : le nombre d'unités détenues, net des achats et des ventes.\n- **Valeur de référence** (`ref_price` dans le code) : l'estimation de la juste valeur autour de laquelle on cote.\n\n#### Intuition\n\nUn revendeur qui achète une paire de chaussures à 90 euros et la revend à 92 euros gagne 2 euros sans parier sur le prix : il est payé pour être disponible. Si ce service était sans risque, la concurrence ramènerait l'écart à zéro. Un écart positif et durable signale donc un risque rémunéré. Il y en a deux, indépendants : la **sélection adverse** (cette séance) et le **risque d'inventaire** (séance suivante).\n\n### 2. La sélection adverse, démontrée\n\n#### Le problème\n\nLe teneur ne sait pas à qui il parle. Certaines contreparties, dites **informées**, connaissent mieux que lui la valeur future. Chaque exécution, prise isolément, a l'air d'acheter bas et de vendre haut, et pourtant elle peut perdre en moyenne. Quel écart rend l'activité viable ?\n\n#### Le modèle de Glosten et Milgrom (1985)\n\nHypothèses, toutes nécessaires à ce qui suit :\n\n1. La valeur future \\(V\\), variable aléatoire, vaut \\(v_h\\) avec probabilité \\(p\\) et \\(v_b\\) sinon, avec \\(v_b < v_h\\) (euros).\n2. Une seule contrepartie se présente, pour une unité. Elle est informée avec probabilité \\(a\\), indépendamment de \\(V\\).\n3. Une contrepartie informée connaît \\(V\\) : elle achète si \\(V = v_h\\), vend si \\(V = v_b\\).\n4. Une contrepartie non informée achète ou vend avec probabilité \\(1/2\\), indépendamment de \\(V\\).\n5. La concurrence entre teneurs annule leur gain espéré, et ils sont neutres au risque : leur prix est l'espérance de la valeur **sachant l'ordre reçu**.\n\n#### Intuition\n\nUn ordre d'achat est une information : il est plus probable quand la valeur est haute. Le teneur doit coter en supposant que l'ordre qu'il reçoit est celui qu'il aurait préféré ne pas recevoir. L'ask est sa valeur estimée après avoir vu un achat, le bid après avoir vu une vente.\n\n#### Énoncé\n\nPour \\(p = 1/2\\) :\n\n\\(\\displaystyle \\text{ask} = \\frac{v_h + v_b}{2} + a\\,\\frac{v_h - v_b}{2}, \\qquad \\text{bid} = \\frac{v_h + v_b}{2} - a\\,\\frac{v_h - v_b}{2}, \\qquad \\text{ask} - \\text{bid} = a\\,(v_h - v_b).\\)\n\nL'écart est proportionnel à la part de flux informé et à l'amplitude de l'incertitude. Pour \\(p\\) quelconque, les prix sont donnés par l'étape 3 de la preuve.\n\n#### Preuve\n\n1. Par les hypothèses 3 et 4, \\(\\mathbb{P}(\\text{achat} \\mid V = v_h) = a + (1-a)/2 = (1+a)/2\\) : soit la contrepartie est informée, et elle achète, soit elle ne l'est pas, et elle achète une fois sur deux. De même, \\(\\mathbb{P}(\\text{achat} \\mid V = v_b) = (1-a)/2\\).\n2. Par la formule de Bayes, \\(\\mathbb{P}(V = v_h \\mid \\text{achat}) = \\dfrac{p\\,(1+a)/2}{p\\,(1+a)/2 + (1-p)\\,(1-a)/2}\\).\n3. L'hypothèse 5 donne \\(\\text{ask} = \\mathbb{E}[V \\mid \\text{achat}] = v_h\\,\\mathbb{P}(V = v_h \\mid \\text{achat}) + v_b\\,\\mathbb{P}(V = v_b \\mid \\text{achat})\\), et de même pour le bid en échangeant les rôles de \\((1+a)/2\\) et \\((1-a)/2\\).\n4. Pour \\(p = 1/2\\), le dénominateur de l'étape 2 vaut \\(1/2\\), donc \\(\\mathbb{P}(V = v_h \\mid \\text{achat}) = (1+a)/2\\).\n5. Alors \\(\\text{ask} = v_h(1+a)/2 + v_b(1-a)/2 = (v_h+v_b)/2 + a(v_h-v_b)/2\\). Le calcul du bid est symétrique, et la différence donne l'écart.\n\n#### Exemple entièrement calculé\n\n\\(v_b = 98\\), \\(v_h = 102\\), \\(p = 1/2\\), \\(a = 0{,}25\\). Alors \\(\\mathbb{P}(\\text{achat} \\mid V = v_h) = 0{,}625\\) et \\(\\mathbb{P}(\\text{achat} \\mid V = v_b) = 0{,}375\\). L'ask vaut \\(100{,}50\\), le bid \\(99{,}50\\), l'écart \\(1{,}00\\).\n\nContrôle du gain nul sur un achat. La contrepartie est informée avec probabilité \\(0{,}25\\) sachant l'achat : le teneur vend alors à \\(100{,}50\\) ce qui vaut \\(102\\), et perd \\(1{,}50\\). Sinon, avec probabilité \\(0{,}75\\), il gagne \\(0{,}50\\) contre une valeur moyenne de 100. L'espérance est \\(0{,}75 \\times 0{,}5 - 0{,}25 \\times 1{,}5 = 0\\). Une simulation de deux millions d'ordres donne \\(\\mathbb{E}[V \\mid \\text{achat}] \\approx 100{,}4980\\), avec une erreur standard de \\(0{,}0019\\), cohérente avec la valeur exacte.\n\n#### Cas limites\n\n- \\(a = 0\\) : personne n'est informé et l'écart est nul dans ce modèle. Un écart observé s'expliquerait alors par d'autres coûts (inventaire, frais).\n- \\(a = 1\\) : l'ask vaut \\(v_h\\) et le bid \\(v_b\\), et le marché n'apporte plus aucun gain à quiconque.\n- \\(p = 0\\) ou \\(p = 1\\) : la valeur est certaine et les deux prix se confondent avec elle.\n\n#### Pièges\n\n- Le modèle ne dit **pas** que l'écart suit toujours la volatilité : il dit qu'il suit \\(a(v_h - v_b)\\). L'amplitude \\(v_h - v_b\\) joue le rôle d'une incertitude sur la valeur. Si la volatilité augmente sans que la part de flux informé \\(a\\) change, l'écart de ce modèle augmente proportionnellement ; si \\(a\\) diminue en même temps, le résultat peut s'inverser.\n- Le prix d'un ordre intègre l'information de cet ordre : le prix se déplace après chaque exécution. C'est ce déplacement qui fait perdre à qui cote trop serré.\n\n[[controle:gm]]\n\n### 3. Faire suivre la volatilité à l'écart\n\n#### Le problème\n\nLe teneur n'observe ni \\(a\\) ni \\(v_h - v_b\\). Il observe en revanche la **volatilité réalisée** : l'écart-type des rendements logarithmiques récents, annualisé. Elle sert d'approximation de l'incertitude. C'est une règle de décision, pas un théorème : le lien entre volatilité réalisée et danger du prochain ordre n'est pas démontré ici.\n\n#### La règle de l'exercice\n\n\\(\\displaystyle \\text{écart}_{\\text{pb}} = \\min\\bigl(\\max(e_0 + c\\,\\hat{\\sigma},\\ e_{\\min}),\\ e_{\\max}\\bigr)\\)\n\noù \\(e_0\\) est l'écart de base en points de base, \\(c\\) la sensibilité (points de base par unité de volatilité annualisée), \\(\\hat{\\sigma}\\) la volatilité réalisée annualisée, sans unité (0,20 signifie 20 % par an), \\(e_{\\min}\\) et \\(e_{\\max}\\) le plancher et le plafond.\n\nAvec \\(e_0 = 300\\) et \\(c = 800\\) : 20 % de volatilité ajoute \\(160\\) pb ; l'écart vaut \\(420\\) pb à 15 % et \\(740\\) pb à 55 %. Sur une journée simulée de 4000 pas, l'écart moyen est de 417,6 pb hors de la période de tension et de 735,9 pb pendant celle-ci.\n\nLe plafond a une raison d'être : au-delà d'une certaine largeur, un prix n'est plus une offre réelle de traiter, et un desk préfère cesser de coter.\n\n#### Ce que l'estimateur ne voit pas\n\nLa volatilité réalisée est calculée sur une fenêtre passée : elle est en retard. Sur l'exemple, l'écart met 18 pas à franchir la moitié du chemin entre ses niveaux moyens après le début de la tension. Ce retard est une caractéristique de l'estimateur et de la fenêtre de 30 pas du moteur, pas une anomalie à corriger.\n\n### 4. Le moteur de simulation et ses limites\n\n#### Le modèle\n\nLa fonction `simulate_market_making` déroule un chemin de prix. À chaque pas, elle appelle `quote`, puis l'ask est levé avec probabilité \\(b\\,e^{-d\\,h}\\), où \\(b = 0{,}35\\) est l'intensité de base, \\(d = 140\\) la décroissance et \\(h\\) la distance relative entre le prix coté et la juste valeur. Le bid suit la même règle.\n\n#### Exemple\n\nÀ 420 pb d'écart, \\(h = 0{,}021\\) et la probabilité par pas et par côté vaut \\(0{,}0185\\). Le gain espéré par pas et par côté, en fraction du prix, est \\(h\\,b\\,e^{-d h}\\) : sa dérivée s'annule en \\(h = 1/d\\), soit un demi-écart de \\(71{,}4\\) pb et un écart de \\(142{,}9\\) pb. Les valeurs par défaut de l'exercice cotent bien plus large : elles ne maximisent pas ce gain, elles répondent à un cahier des charges.\n\n#### Pièges\n\n**Ce moteur ne contient aucun flux informé.** Les exécutions ne dépendent pas du mouvement suivant : sur 30 journées, la corrélation entre le sens net des exécutions et le rendement des 20 pas suivants vaut \\(-0{,}0002\\), avec une erreur standard de \\(0{,}0020\\). La sélection adverse de la partie 2 n'y existe donc pas, et l'exercice entraîne la mécanique de la cotation, pas la mesure de ce risque. Le backtest ne prouve pas qu'élargir l'écart protège d'un flux informé.\n\n[[controle:moteur]]\n\n### 5. Réflexes et acquis\n\n#### Réflexes en 30 secondes\n\n- Un client achète : le teneur vend, à l'ask.\n- Écart en euros : prix multiplié par les points de base, divisé par 10 000.\n- Prix de Glosten-Milgrom : espérance de la valeur sachant l'ordre, donc une formule de Bayes.\n- \\(p = 1/2\\) : écart égal à \\(a(v_h - v_b)\\).\n- Une volatilité estimée sur le passé est en retard sur un changement de régime.\n\n#### À savoir refaire\n\n- La démonstration de l'écart de Glosten-Milgrom, et le contrôle du gain nul sur un achat.\n- Le passage des points de base à un bid et un ask autour d'un prix de référence.\n- La dérivation du demi-écart \\(1/d\\) qui maximise le gain espéré du moteur.\n\n[[controle:unites]]\n",
+   "controles": {
+    "gm": {
+     "question": "Dans le modèle de la partie 2, \\(v_b = 90\\), \\(v_h = 110\\), \\(p = 1/2\\), \\(a = 0{,}1\\). Quel est l'écart ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "2",
+       "correcte": true,
+       "explication": "Oui : \\(a(v_h - v_b) = 0{,}1 \\times 20 = 2\\), soit un bid de 99 et un ask de 101."
+      },
+      {
+       "id": "b",
+       "texte": "1",
+       "correcte": false,
+       "explication": "Cette valeur est le demi-écart : elle sépare chaque prix de la valeur moyenne 100, pas le bid de l'ask."
+      },
+      {
+       "id": "c",
+       "texte": "20",
+       "correcte": false,
+       "explication": "C'est l'amplitude de la valeur, atteinte seulement si \\(a = 1\\), c'est-à-dire si tout le flux est informé."
+      },
+      {
+       "id": "d",
+       "texte": "0",
+       "correcte": false,
+       "explication": "Un écart nul suppose \\(a = 0\\). Ici un ordre sur dix est informé et il faut couvrir la perte correspondante."
+      }
+     ]
+    },
+    "moteur": {
+     "question": "Un backtest sur `simulate_market_making` montre un gain positif avec un écart serré. Que peut-on en conclure sur la sélection adverse ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Rien : le moteur n'en contient pas",
+       "correcte": true,
+       "explication": "Oui : les exécutions y sont indépendantes du mouvement suivant, comme le confirme la corrélation mesurée, nulle aux erreurs près."
+      },
+      {
+       "id": "b",
+       "texte": "Qu'elle est faible sur cet actif",
+       "correcte": false,
+       "explication": "Les données sont simulées et aucun flux informé n'y est généré : on ne peut rien apprendre sur un risque absent du modèle."
+      },
+      {
+       "id": "c",
+       "texte": "Que l'écart la couvre exactement",
+       "correcte": false,
+       "explication": "Cette propriété est celle de l'équilibre de Glosten-Milgrom, un modèle différent, où le gain espéré est nul par construction."
+      },
+      {
+       "id": "d",
+       "texte": "Que la volatilité la mesure bien",
+       "correcte": false,
+       "explication": "Le moteur n'établit aucun lien entre volatilité et information : il n'y a pas d'information du tout dans ses exécutions."
+      }
+     ]
+    },
+    "unites": {
+     "question": "Prix de référence 250 euros, écart de 300 pb. Quels sont le bid et l'ask ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "246,25 et 253,75",
+       "correcte": true,
+       "explication": "Oui : l'écart vaut \\(250 \\times 0{,}03 = 7{,}5\\) euros, soit 3,75 de chaque côté."
+      },
+      {
+       "id": "b",
+       "texte": "242,50 et 257,50",
+       "correcte": false,
+       "explication": "Ce calcul place l'écart entier de chaque côté : le total serait de 600 pb, le double de ce qui est demandé."
+      },
+      {
+       "id": "c",
+       "texte": "247,00 et 253,00",
+       "correcte": false,
+       "explication": "Ce calcul prend 3 euros au lieu de 3 % : il confond une distance en euros et une distance relative au prix."
+      },
+      {
+       "id": "d",
+       "texte": "249,25 et 250,75",
+       "correcte": false,
+       "explication": "Ce calcul prend 300 pb pour 0,3 % : 1 pb vaut un dix-millième, donc 300 pb valent 3 %, pas 0,3 %."
+      }
+     ]
+    }
+   },
+   "verif": {
+    "script": "verif/seance_mm_1.py"
+   }
+  },
+  {
+   "id": "MM1-E1",
+   "type": "code",
+   "section": "code",
+   "theme": "Coter un écart qui suit la volatilité",
+   "difficulte": 3,
+   "temps_cible_s": 1500,
+   "enonce": "## Exercice 1 : un teneur de marché sensible à la volatilité\n\nComplète la classe `VolAwareMarketMaker`, sous-classe de `MarketMakerBase`.\n\n**Objets fournis.** `MarketState` porte les attributs `ref_price` (prix de référence, en euros, au moins égal à 1), `realized_vol` (volatilité réalisée annualisée, positive ou nulle, 0.20 pour 20 %), `time_remaining` et `inventory`, ces deux derniers étant inutiles ici. `Quote(bid, ask)` est un prix double : il lève `ValueError` si un prix n'est pas strictement positif ou si `bid >= ask` ; il a les propriétés `mid`, `spread` et `spread_bps`.\n\n**Constructeur.** `VolAwareMarketMaker(base_spread_bps=300.0, vol_sensitivity=800.0, min_spread_bps=100.0, max_spread_bps=900.0)` conserve ses quatre paramètres.\n\n**Méthode `quote(state)`.**\n\n1. Si `state.ref_price` n'est pas strictement positif, lever `ValueError`.\n2. Calculer `s = base_spread_bps + vol_sensitivity * state.realized_vol`, puis le ramener dans l'intervalle `[min_spread_bps, max_spread_bps]`.\n3. Le demi-écart en euros vaut `ref_price * s / 10000 / 2`.\n4. Rendre `Quote(bid=round(ref_price - demi_ecart, 2), ask=round(ref_price + demi_ecart, 2))`.\n\n`quote` est une fonction pure de `state` et de la configuration : deux appels identiques rendent le même résultat, sans hasard ni modification d'état.\n\n**Exemple.** Avec les valeurs par défaut, `ref_price=100.0` et `realized_vol=0.20`, l'écart vaut 460 pb, donc `Quote(bid=97.7, ask=102.3)`.\n\n**Ce que vérifient les tests.** Validité du prix double, écart strictement positif à volatilité nulle, écart croissant avec la volatilité, plafond, prix de référence compris entre le bid et l'ask, et trois simulations : l'écart moyen pendant la période de tension dépasse 1,15 fois l'écart moyen hors tension, les exécutions dépassent 1 % des pas, et le résultat reste fini.\n\n\n**Fonctionnement.** **Tests visibles** exécute 2 test(s). **Soumettre** exécute les 11 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm1_e1.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd\nfrom amplify_quant_trading import MarketMakerBase, MarketState, Quote",
+    "class VolAwareMarketMaker(MarketMakerBase):\n    def __init__(self, base_spread_bps=300.0, vol_sensitivity=800.0, min_spread_bps=100.0, max_spread_bps=900.0):\n        pass  # À compléter\n\n    def quote(self, state):\n        pass  # À compléter",
+    "VolAwareMarketMaker().quote(MarketState(timestamp=0, ref_price=100.0, realized_vol=0.20, time_remaining=1.0))"
+   ],
+   "tests_visibles": 2,
+   "tests_caches": 11,
+   "fichier_correction": "coding/millennium/corrections/mm_1.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm1_e1.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_1.py`) :\n\n```python\n\"\"\"Correction de la séance MM 1 : teneur de marché sensible à la volatilité, et modèle de Glosten-Milgrom.\"\"\"\nfrom amplify_quant_trading import MarketMakerBase, MarketState, Quote\n\n\nclass VolAwareMarketMaker(MarketMakerBase):\n    def __init__(self, base_spread_bps=300.0, vol_sensitivity=800.0, min_spread_bps=100.0, max_spread_bps=900.0):\n        self.base_spread_bps = base_spread_bps\n        self.vol_sensitivity = vol_sensitivity\n        self.min_spread_bps = min_spread_bps\n        self.max_spread_bps = max_spread_bps\n\n    def quote(self, state: MarketState) -> Quote:\n        if state.ref_price <= 0:\n            raise ValueError(\"ref_price doit être strictement positif\")\n        # L'écart dépend de l'état seul : aucune mémoire, donc une fonction pure, comme le demande l'énoncé.\n        spread_bps = self.base_spread_bps + self.vol_sensitivity * state.realized_vol\n        spread_bps = min(max(spread_bps, self.min_spread_bps), self.max_spread_bps)\n        # 1 point de base vaut 1/10000 ; la moitié de l'écart de chaque côté du prix de référence.\n        demi_ecart = state.ref_price * (spread_bps / 10_000) / 2\n        return Quote(bid=round(state.ref_price - demi_ecart, 2), ask=round(state.ref_price + demi_ecart, 2))\n\n\ndef glosten_milgrom(v_bas, v_haut, proba_haut, part_informes):\n    \"\"\"Rend (bid, ask) : les espérances de la valeur sachant une vente, puis sachant un achat.\"\"\"\n    if not v_bas < v_haut or not 0 <= proba_haut <= 1 or not 0 <= part_informes <= 1:\n        raise ValueError(\"paramètres hors de leur domaine\")\n    p, a = proba_haut, part_informes\n    # Probabilité d'un achat sachant la valeur : l'informé achète si et seulement si la valeur est haute,\n    # le non-informé achète avec probabilité 1/2.\n    achat_si_haut, achat_si_bas = a + (1 - a) / 2, (1 - a) / 2\n    vente_si_haut, vente_si_bas = (1 - a) / 2, a + (1 - a) / 2\n\n    def esperance(vraisemblance_haut, vraisemblance_bas):\n        numerateur_haut = p * vraisemblance_haut      # formule de Bayes, numérateur pour la valeur haute\n        numerateur_bas = (1 - p) * vraisemblance_bas\n        total = numerateur_haut + numerateur_bas\n        if total == 0:                                # ordre impossible : le prix ne peut être que la valeur certaine\n            return v_haut if p == 1 else v_bas\n        return (numerateur_haut * v_haut + numerateur_bas * v_bas) / total\n\n    return esperance(vente_si_haut, vente_si_bas), esperance(achat_si_haut, achat_si_bas)\n```"
+  },
+  {
+   "id": "MM1-E2",
+   "type": "code",
+   "section": "code",
+   "theme": "Prix de Glosten-Milgrom par la formule de Bayes",
+   "difficulte": 4,
+   "temps_cible_s": 1200,
+   "enonce": "## Exercice 2 : les prix de Glosten-Milgrom\n\nÉcris `glosten_milgrom(v_bas, v_haut, proba_haut, part_informes)`, qui rend le couple `(bid, ask)` en flottants, pour le modèle de la partie 2 de la leçon, avec une probabilité \\(p\\) quelconque.\n\n**Entrées.** `v_bas` et `v_haut` sont les deux valeurs possibles, `proba_haut` est \\(p\\), `part_informes` est \\(a\\). Si `v_bas >= v_haut`, ou si `proba_haut` ou `part_informes` sort de l'intervalle fermé \\([0, 1]\\), lever `ValueError`.\n\n**Sortie.** `ask` est \\(\\mathbb{E}[V \\mid \\text{achat}]\\) et `bid` est \\(\\mathbb{E}[V \\mid \\text{vente}]\\). Si un ordre a une probabilité nulle (par exemple \\(p = 1\\) et \\(a = 1\\) pour une vente), le prix correspondant est la valeur certaine : `v_haut` si \\(p = 1\\), `v_bas` sinon.\n\n**Exemple.** `glosten_milgrom(98.0, 102.0, 0.5, 0.25)` rend `(99.5, 100.5)`.\n\n\n**Fonctionnement.** **Tests visibles** exécute 1 test(s). **Soumettre** exécute les 6 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm1_e2.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd",
+    "def glosten_milgrom(v_bas, v_haut, proba_haut, part_informes):\n    pass  # À compléter",
+    "glosten_milgrom(98.0, 102.0, 0.5, 0.25)"
+   ],
+   "tests_visibles": 1,
+   "tests_caches": 6,
+   "fichier_correction": "coding/millennium/corrections/mm_1.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm1_e2.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_1.py`) :\n\n```python\n\"\"\"Correction de la séance MM 1 : teneur de marché sensible à la volatilité, et modèle de Glosten-Milgrom.\"\"\"\nfrom amplify_quant_trading import MarketMakerBase, MarketState, Quote\n\n\nclass VolAwareMarketMaker(MarketMakerBase):\n    def __init__(self, base_spread_bps=300.0, vol_sensitivity=800.0, min_spread_bps=100.0, max_spread_bps=900.0):\n        self.base_spread_bps = base_spread_bps\n        self.vol_sensitivity = vol_sensitivity\n        self.min_spread_bps = min_spread_bps\n        self.max_spread_bps = max_spread_bps\n\n    def quote(self, state: MarketState) -> Quote:\n        if state.ref_price <= 0:\n            raise ValueError(\"ref_price doit être strictement positif\")\n        # L'écart dépend de l'état seul : aucune mémoire, donc une fonction pure, comme le demande l'énoncé.\n        spread_bps = self.base_spread_bps + self.vol_sensitivity * state.realized_vol\n        spread_bps = min(max(spread_bps, self.min_spread_bps), self.max_spread_bps)\n        # 1 point de base vaut 1/10000 ; la moitié de l'écart de chaque côté du prix de référence.\n        demi_ecart = state.ref_price * (spread_bps / 10_000) / 2\n        return Quote(bid=round(state.ref_price - demi_ecart, 2), ask=round(state.ref_price + demi_ecart, 2))\n\n\ndef glosten_milgrom(v_bas, v_haut, proba_haut, part_informes):\n    \"\"\"Rend (bid, ask) : les espérances de la valeur sachant une vente, puis sachant un achat.\"\"\"\n    if not v_bas < v_haut or not 0 <= proba_haut <= 1 or not 0 <= part_informes <= 1:\n        raise ValueError(\"paramètres hors de leur domaine\")\n    p, a = proba_haut, part_informes\n    # Probabilité d'un achat sachant la valeur : l'informé achète si et seulement si la valeur est haute,\n    # le non-informé achète avec probabilité 1/2.\n    achat_si_haut, achat_si_bas = a + (1 - a) / 2, (1 - a) / 2\n    vente_si_haut, vente_si_bas = (1 - a) / 2, a + (1 - a) / 2\n\n    def esperance(vraisemblance_haut, vraisemblance_bas):\n        numerateur_haut = p * vraisemblance_haut      # formule de Bayes, numérateur pour la valeur haute\n        numerateur_bas = (1 - p) * vraisemblance_bas\n        total = numerateur_haut + numerateur_bas\n        if total == 0:                                # ordre impossible : le prix ne peut être que la valeur certaine\n            return v_haut if p == 1 else v_bas\n        return (numerateur_haut * v_haut + numerateur_bas * v_bas) / total\n\n    return esperance(vente_si_haut, vente_si_bas), esperance(achat_si_haut, achat_si_bas)\n```"
+  }
+ ]
+}

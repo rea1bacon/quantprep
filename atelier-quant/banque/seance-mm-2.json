@@ -1,0 +1,157 @@
+{
+ "id": "seance-mm-2",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-MM-2",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon : équivalent certain, prix d'indifférence, Avellaneda-Stoikov",
+   "difficulte": 4,
+   "temps_cible_s": 2100,
+   "contenu": "## Leçon : gérer un inventaire subi\n\nDurée visée : 35 minutes. Exception aux conventions : \\(W\\), \\(S_T\\) sont aléatoires ; \\(s\\), \\(q\\) sont le prix et l'inventaire observés à l'instant de la décision, donc fixes.\n\n### 1. Le risque d'inventaire\n\n#### Le problème\n\nSans aucun flux informé, un flux d'ordres déséquilibré laisse le teneur avec une position qu'il n'a pas choisie. Exemple : cotant 99,50 et 100,50, il subit 200 achats de clients et se retrouve à 200 unités vendues à découvert. Si le prix passe à 103 euros, racheter coûte 600 euros de plus, sans qu'aucune exécution n'ait été mauvaise isolément.\n\n#### Intuition\n\nLe remède est de faire travailler ses propres prix contre l'accumulation. Détenteur de stock, le teneur baisse ses deux prix : son ask plus bas attire les acheteurs, son bid plus bas décourage les vendeurs. En position courte, il les monte. On déplace le **centre** de la cotation ; sa **largeur** relève d'une autre décision.\n\nReste à savoir de combien déplacer. La réponse vient d'un calcul d'indifférence.\n\n### 2. L'équivalent certain\n\n#### Cadre\n\n\\(\\gamma > 0\\) est l'**aversion au risque** (inverse d'euros). La satisfaction d'une richesse \\(w\\) (euros) est \\(u(w) = -e^{-\\gamma w}\\), l'utilité dite CARA. L'**équivalent certain** d'une richesse aléatoire \\(W\\) est le montant sûr qui donne la même utilité espérée.\n\n#### Énoncé\n\nSi \\(W\\) suit une loi normale de moyenne \\(m\\) et de variance \\(v\\), alors son équivalent certain vaut \\(m - \\gamma v/2\\).\n\n#### Preuve\n\n1. La transformée de Laplace de la loi normale donne \\(\\mathbb{E}[e^{-\\gamma W}] = e^{-\\gamma m + \\gamma^2 v/2}\\) : on complète le carré dans l'intégrale de la densité (vérifié symboliquement dans `verif/seance_mm_2.py`).\n2. L'équivalent certain \\(c\\) vérifie \\(-e^{-\\gamma c} = -e^{-\\gamma m + \\gamma^2 v/2}\\).\n3. Le logarithme donne \\(c = m - \\gamma v/2\\).\n\n#### Exemple\n\nUne position de 5 unités à 100 euros, \\(\\gamma = 0{,}1\\), une variance du prix de \\(3{,}5714\\) euros carrés sur l'horizon : \\(m = 500\\), \\(v = 25 \\times 3{,}5714\\) et l'équivalent certain vaut \\(495{,}5357\\). Une simulation de cinq millions de tirages donne \\(495{,}5416\\), erreur standard \\(0{,}0054\\).\n\n### 3. Le prix d'indifférence\n\n#### Hypothèses\n\nLe prix suit une marche sans dérive, à volatilité constante : \\(S_T\\) suit une loi normale de moyenne \\(s\\) et de variance \\(\\sigma^2\\tau\\), où \\(\\sigma\\) est en euros par racine d'année et \\(\\tau\\) le temps restant en années. Le teneur ne traite plus d'ici l'horizon : c'est l'approximation du calcul, qui néglige les exécutions futures.\n\n#### Énoncé\n\nPour un inventaire \\(q\\), le prix maximal d'achat d'une unité et le prix minimal de vente valent\n\n\\(\\displaystyle r_a = s - \\tfrac{1}{2}(2q+1)\\gamma\\sigma^2\\tau, \\qquad r_v = s - \\tfrac{1}{2}(2q-1)\\gamma\\sigma^2\\tau.\\)\n\nLeur moyenne est le **prix de réservation** \\(r = s - q\\gamma\\sigma^2\\tau\\), et leur différence vaut \\(r_v - r_a = \\gamma\\sigma^2\\tau\\).\n\n#### Preuve\n\n1. La position vaut \\(q S_T\\), normale de moyenne \\(qs\\) et de variance \\(q^2\\sigma^2\\tau\\). Par la partie 2, sa valeur certaine est \\(c(q) = qs - \\tfrac{\\gamma}{2} q^2 \\sigma^2\\tau\\).\n2. Acheter une unité à \\(r_a\\) laisse indifférent si \\(c(q+1) - r_a = c(q)\\). L'utilité CARA permet cette soustraction, car l'argent certain s'ajoute à l'équivalent certain.\n3. Donc \\(r_a = c(q+1) - c(q) = s - \\tfrac{\\gamma}{2}\\sigma^2\\tau\\,((q+1)^2 - q^2) = s - \\tfrac{\\gamma}{2}(2q+1)\\sigma^2\\tau\\).\n4. De même, \\(r_v = c(q) - c(q-1) = s - \\tfrac{\\gamma}{2}(2q-1)\\sigma^2\\tau\\).\n5. La moyenne donne \\(r\\), et la différence donne \\(\\gamma\\sigma^2\\tau\\).\n\n#### Cas limites\n\n- \\(q = 0\\) : \\(r = s\\) et aucun décalage. \\(\\tau = 0\\) : plus de risque, plus de décalage.\n- \\(\\gamma\\) tendant vers 0 : neutralité au risque, \\(r = s\\) quel que soit le stock.\n\n### 4. Le terme de liquidité\n\n#### Le problème\n\nLe prix d'indifférence donne le centre, pas la distance à laquelle coter. Coter loin rapporte plus par exécution et moins d'exécutions. Il faut un modèle de ce compromis.\n\n#### Cadre\n\nLes exécutions à la distance \\(\\delta\\) (euros) d'un prix d'indifférence arrivent selon un processus de Poisson d'intensité \\(A e^{-k\\delta}\\), où \\(k\\) (inverse d'euros) mesure la sensibilité des contreparties au prix. **Un marché concurrentiel a un \\(k\\) grand** : la probabilité d'exécution chute vite avec la distance. Un marché captif a un \\(k\\) petit. Le moteur des exercices a la même forme : `fill_decay` vaut 140 par unité de prix relatif, soit \\(k = 1{,}4\\) par euro à un prix de 100 euros.\n\n#### Énoncé\n\nLe demi-écart qui maximise le gain d'utilité espéré par unité de temps est \\(\\delta^* = \\tfrac{1}{\\gamma}\\ln(1 + \\gamma/k)\\).\n\n#### Preuve\n\n1. Une exécution à la distance \\(\\delta\\) d'un prix d'indifférence donne au teneur un surplus certain de \\(\\delta\\) euros par rapport à sa situation de référence.\n2. L'utilité vaut \\(-e^{-\\gamma w}\\) : ajouter \\(\\delta\\) multiplie l'utilité (négative) par \\(e^{-\\gamma\\delta}\\). Le gain d'utilité vaut donc \\(U(1 - e^{-\\gamma\\delta})\\), où \\(U > 0\\) est la valeur absolue de l'utilité courante, indépendante de \\(\\delta\\).\n3. Le gain d'utilité espéré par unité de temps est proportionnel à \\(g(\\delta) = e^{-k\\delta}(1 - e^{-\\gamma\\delta})\\).\n4. \\(g'(\\delta) = e^{-k\\delta}\\bigl(-k + (k + \\gamma)e^{-\\gamma\\delta}\\bigr)\\), qui s'annule si et seulement si \\(e^{\\gamma\\delta} = 1 + \\gamma/k\\).\n5. \\(g'\\) passe du positif au négatif en ce point : c'est le maximum global sur \\(\\delta > 0\\), et \\(\\delta^*\\) est la valeur annoncée.\n\n**Statut.** C'est le calcul d'Avellaneda et Stoikov (2008) pour le premier ordre : il utilise la valeur « sans nouvelle exécution » de la partie 3 et ne prétend pas résoudre exactement le problème complet, qui s'exprime par une équation de Hamilton-Jacobi-Bellman. Les formules finales sont donc des approximations.\n\n#### Les formules d'Avellaneda et Stoikov\n\nLe bid est à \\(\\delta^*\\) sous \\(r_a\\), l'ask à \\(\\delta^*\\) au-dessus de \\(r_v\\). L'écart total vaut\n\n\\(\\displaystyle e = (r_v + \\delta^*) - (r_a - \\delta^*) = \\gamma\\sigma^2\\tau + \\tfrac{2}{\\gamma}\\ln\\bigl(1 + \\tfrac{\\gamma}{k}\\bigr), \\qquad \\text{bid} = r - e/2, \\quad \\text{ask} = r + e/2.\\)\n\nLe second terme ne dépend pas du niveau de prix : \\(k\\) et \\(\\delta\\) sont des grandeurs absolues, en euros. Il décroît avec \\(k\\) : plus le marché est concurrentiel, plus il faut coter serré.\n\n#### Exemple entièrement calculé\n\n\\(s = 100\\), \\(q = 5\\), \\(\\gamma = 0{,}1\\), \\(k = 1{,}5\\), volatilité annualisée de 30 %, soit \\(\\sigma = 30\\) euros, et une journée restante, \\(\\tau = 1/252\\).\n\n1. \\(\\sigma^2\\tau = 3{,}5714\\) et \\(\\gamma\\sigma^2\\tau = 0{,}3571\\).\n2. Décalage \\(q\\gamma\\sigma^2\\tau = 1{,}7857\\), donc \\(r = 98{,}2143\\) (avec \\(r_a = 98{,}0357\\) et \\(r_v = 98{,}3929\\)).\n3. Terme de liquidité \\(20 \\ln(1 + 0{,}1/1{,}5) = 1{,}2908\\), à comparer à sa limite \\(2/k = 1{,}3333\\) quand \\(\\gamma\\) tend vers 0.\n4. Écart \\(e = 1{,}6479\\), bid \\(97{,}39\\), ask \\(99{,}04\\).\n\nLe maximum de \\(g\\) trouvé sur une grille vaut \\(0{,}6454\\), égal à \\(\\delta^* = 0{,}6454\\).\n\n[[controle:signe]]\n\n### 5. Le piège des unités\n\n#### Pièges\n\n`state.realized_vol` est **relative et annualisée**. `state.time_remaining` est une **fraction de journée**. La formule attend une volatilité en euros et un temps en années. Deux conversions sont donc nécessaires :\n\n- `sigma = realized_vol * ref_price` ;\n- `tau = time_remaining / 252`, avec 252 jours de bourse par an.\n\nSur l'exemple, oublier la seconde donne un décalage de \\(450{,}0\\) euros au lieu de \\(1{,}7857\\). Oublier la première donne \\(0{,}0001786\\) euro. Aucune des deux erreurs ne provoque de message d'erreur : le code tourne et les nombres sont faux.\n\nLa formule du terme de liquidité vaut pour \\(k\\) en inverse d'euros. Dans l'exercice, \\(k\\) reste fixe alors que le moteur a une décroissance relative : l'équivalence \\(k = d/\\text{prix}\\) n'est exacte qu'au prix de 100 euros.\n\n#### Ce que la simulation montre\n\nSur 20 journées simulées de 5000 pas, avec un inventaire plafonné à 60, le rapport des écarts-types d'inventaire entre ce teneur et un écart fixe de 1,5 % de chaque côté vaut \\(0{,}564\\), erreur standard \\(0{,}059\\). L'inventaire est mieux tenu ; ce résultat ne dit rien du gain, et le moteur ignore la sélection adverse, comme expliqué dans la séance précédente.\n\n[[controle:unites]]\n\n### 6. Réflexes et acquis\n\n#### Réflexes en 30 secondes\n\n- Stock positif : les deux prix baissent. Position courte : ils montent.\n- Décalage : \\(q\\gamma\\sigma^2\\tau\\), en euros.\n- Écart : risque \\(\\gamma\\sigma^2\\tau\\) plus liquidité \\((2/\\gamma)\\ln(1+\\gamma/k)\\).\n- Convertir \\(\\sigma\\) en euros et \\(\\tau\\) en années avant tout calcul.\n- \\(k\\) grand : marché concurrentiel, cotation serrée.\n\n#### À savoir refaire\n\n- L'équivalent certain d'une richesse normale.\n- Les prix \\(r_a\\) et \\(r_v\\), leur moyenne et leur différence.\n- La maximisation de \\(e^{-k\\delta}(1 - e^{-\\gamma\\delta})\\).\n- L'exemple numérique complet, sans notes.\n\n[[controle:k]]\n",
+   "controles": {
+    "signe": {
+     "question": "Un teneur est en position courte de 10 unités. Par rapport au prix \\(s\\), son prix de réservation est :",
+     "options": [
+      {
+       "id": "a",
+       "texte": "supérieur à s",
+       "correcte": true,
+       "explication": "Oui : \\(q = -10\\) donne \\(r = s + 10\\gamma\\sigma^2\\tau\\). Il veut racheter, donc il monte ses prix."
+      },
+      {
+       "id": "b",
+       "texte": "inférieur à s",
+       "correcte": false,
+       "explication": "C'est le cas d'un stock positif. Ici \\(q < 0\\) inverse le signe de la pénalité : il faut encourager les ventes des clients."
+      },
+      {
+       "id": "c",
+       "texte": "égal à s",
+       "correcte": false,
+       "explication": "L'égalité demande \\(q = 0\\), ou \\(\\tau = 0\\), ou une neutralité au risque. Aucune de ces conditions n'est donnée."
+      },
+      {
+       "id": "d",
+       "texte": "indéterminé sans k",
+       "correcte": false,
+       "explication": "Le paramètre \\(k\\) n'intervient que dans la largeur de l'écart : le centre \\(r\\) ne dépend pas de lui."
+      }
+     ]
+    },
+    "unites": {
+     "question": "Dans l'exercice, `realized_vol=0.30`, `ref_price=200`, `time_remaining=0.5`. Que vaut \\(\\sigma^2\\tau\\) en euros carrés ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "1800/252",
+       "correcte": true,
+       "explication": "Oui : \\(\\sigma = 60\\) euros, \\(\\sigma^2 = 3600\\), \\(\\tau = 0{,}5/252\\), soit \\(1800/252\\)."
+      },
+      {
+       "id": "b",
+       "texte": "1800",
+       "correcte": false,
+       "explication": "La fraction de journée a été utilisée comme une fraction d'année : le facteur 252 manque, et la pénalité est 252 fois trop grande."
+      },
+      {
+       "id": "c",
+       "texte": "0,045/252",
+       "correcte": false,
+       "explication": "La volatilité est restée relative : il manque le facteur \\(200^2\\) qui la convertit en euros carrés."
+      },
+      {
+       "id": "d",
+       "texte": "3600/252",
+       "correcte": false,
+       "explication": "Ce calcul prend une journée entière : `time_remaining` vaut 0,5, donc il reste une demi-journée."
+      }
+     ]
+    },
+    "k": {
+     "question": "À \\(\\gamma\\) fixé, que devient le terme de liquidité \\((2/\\gamma)\\ln(1 + \\gamma/k)\\) quand \\(k\\) augmente ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Il diminue",
+       "correcte": true,
+       "explication": "Oui : \\(\\gamma/k\\) diminue, donc le logarithme aussi. Un marché concurrentiel impose une cotation plus serrée."
+      },
+      {
+       "id": "b",
+       "texte": "Il augmente",
+       "correcte": false,
+       "explication": "C'est l'erreur d'une lecture qui prend un grand \\(k\\) pour un marché étroit. Le logarithme décroît pourtant avec \\(k\\)."
+      },
+      {
+       "id": "c",
+       "texte": "Il ne change pas",
+       "correcte": false,
+       "explication": "Ce terme ne dépend ni de \\(\\sigma\\) ni de \\(q\\), mais il dépend bien de \\(k\\), puisqu'il vient de l'intensité des exécutions."
+      },
+      {
+       "id": "d",
+       "texte": "Il dépend du prix",
+       "correcte": false,
+       "explication": "Ni \\(k\\) ni \\(\\gamma\\) ne font intervenir le niveau de prix : ce terme est une distance en euros."
+      }
+     ]
+    }
+   },
+   "verif": {
+    "script": "verif/seance_mm_2.py"
+   }
+  },
+  {
+   "id": "MM2-E1",
+   "type": "code",
+   "section": "code",
+   "theme": "Prix d'indifférence d'un teneur de marché",
+   "difficulte": 2,
+   "temps_cible_s": 480,
+   "enonce": "## Exercice 1 : les prix d'indifférence\n\nÉcris `prix_indifference(s, q, gamma, sigma, tau)`, qui rend le triplet `(r_achat, r_vente, r)` défini dans la partie 3 de la leçon : \\(r_a\\), \\(r_v\\) et leur moyenne. `s` est le prix en euros, `q` l'inventaire (signé), `gamma` l'aversion au risque, `sigma` la volatilité en euros par racine d'année, `tau` le temps restant en années.\n\n**Exemple.** `prix_indifference(100.0, 2, 0.5, 2.0, 0.25)` rend `(98.75, 99.25, 99.0)`.\n\n\n**Fonctionnement.** **Tests visibles** exécute 1 test(s). **Soumettre** exécute les 3 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm2_e1.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd",
+    "def prix_indifference(s, q, gamma, sigma, tau):\n    pass  # À compléter",
+    "prix_indifference(100.0, 2, 0.5, 2.0, 0.25)"
+   ],
+   "tests_visibles": 1,
+   "tests_caches": 3,
+   "fichier_correction": "coding/millennium/corrections/mm_2.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm2_e1.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_2.py`) :\n\n```python\n\"\"\"Correction de la séance MM 2 : prix d'indifférence et teneur de marché d'Avellaneda-Stoikov.\"\"\"\nimport numpy as np\n\nfrom amplify_quant_trading import MarketMakerBase, MarketState, Quote\n\nJOURS_PAR_AN = 252\n\n\ndef prix_indifference(s, q, gamma, sigma, tau):\n    \"\"\"Rend (r_achat, r_vente, r) ; sigma en euros par racine d'année, tau en années.\"\"\"\n    penalite = gamma * sigma**2 * tau\n    return s - penalite * (2 * q + 1) / 2, s - penalite * (2 * q - 1) / 2, s - q * penalite\n\n\nclass AvellanedaStoikovMarketMaker(MarketMakerBase):\n    def __init__(self, gamma=0.1, k=1.5, max_skew_bps=400.0):\n        self.gamma = gamma\n        self.k = k\n        self.max_skew_bps = max_skew_bps\n\n    def quote(self, state: MarketState) -> Quote:\n        if state.ref_price <= 0:\n            raise ValueError(\"ref_price doit être strictement positif\")\n        # Deux conversions d'unités : une fraction de journée en années, une volatilité relative en euros.\n        tau = state.time_remaining / JOURS_PAR_AN\n        sigma = state.realized_vol * state.ref_price\n        terme_risque = self.gamma * sigma**2 * tau\n\n        decalage_max = state.ref_price * self.max_skew_bps / 10_000\n        decalage = float(np.clip(state.inventory * terme_risque, -decalage_max, decalage_max))\n        r = state.ref_price - decalage\n\n        terme_liquidite = (2 / self.gamma) * np.log(1 + self.gamma / self.k)\n        ecart = max(terme_risque + terme_liquidite, state.ref_price * 0.001)  # plancher : 0,1 % du prix\n\n        bid, ask = round(r - ecart / 2, 2), round(r + ecart / 2, 2)\n        if bid <= 0:                  # le terme de liquidité ne dépend pas du prix : il peut dépasser un petit prix\n            bid = round(r * 0.5, 2)\n        if bid >= ask:\n            ask = round(bid + max(ecart, 0.01), 2)\n        return Quote(bid=bid, ask=ask)\n```"
+  },
+  {
+   "id": "MM2-E2",
+   "type": "code",
+   "section": "code",
+   "theme": "Cotation d'Avellaneda-Stoikov et conversions d'unités",
+   "difficulte": 4,
+   "temps_cible_s": 1920,
+   "enonce": "## Exercice 2 : le teneur d'Avellaneda-Stoikov\n\nComplète la classe `AvellanedaStoikovMarketMaker`, sous-classe de `MarketMakerBase`, de constructeur `(gamma=0.1, k=1.5, max_skew_bps=400.0)`. Voir la séance précédente pour `MarketState` et `Quote` ; `ref_price` est au moins égal à 1.\n\n**Méthode `quote(state)`.** Si `ref_price` n'est pas strictement positif, lever `ValueError`. Sinon, dans l'ordre :\n\n1. `tau = time_remaining / 252` et `sigma = realized_vol * ref_price`.\n2. `risque = gamma * sigma**2 * tau`.\n3. Le décalage vaut `inventory * risque`, ramené dans l'intervalle `[-m, m]` où `m = ref_price * max_skew_bps / 10000` : ce plafond garde le prix valide pour un inventaire extrême.\n4. `r = ref_price - decalage`.\n5. `ecart = max(risque + (2 / gamma) * ln(1 + gamma / k), 0.001 * ref_price)`.\n6. `bid = round(r - ecart / 2, 2)` et `ask = round(r + ecart / 2, 2)`.\n7. Garde-fous, dans cet ordre : si `bid <= 0`, remplacer `bid` par `round(r * 0.5, 2)` ; puis, si `bid >= ask`, remplacer `ask` par `round(bid + max(ecart, 0.01), 2)`.\n\n**Exemple.** `ref_price=100.0`, `realized_vol=0.30`, `time_remaining=1.0`, `inventory=5.0` donne `Quote(bid=97.39, ask=99.04)`.\n\n**Ce que vérifient les tests.** La formule exacte, le plafond du décalage, l'absence de décalage à stock nul ou à la clôture, les signes, un décalage croissant avec le stock, la validité à inventaire extrême, et une simulation où l'écart-type de l'inventaire est inférieur à 0,85 fois celui d'un écart fixe.\n\n\n**Fonctionnement.** **Tests visibles** exécute 2 test(s). **Soumettre** exécute les 12 tests de la question, visibles compris, et la note est la proportion de tests réussis. Le message d'un test échoué dit ce qui était attendu. Les classes et fonctions jugées sont celles des cellules exécutées en dernier.\n",
+   "dossier": "coding/millennium",
+   "module_tests": "coding/millennium/tests_mm2_e2.py",
+   "cellules_initiales": [
+    "import sys\nsys.path.insert(0, \".\")   # rend importable le paquet fourni, dans le dossier de la question\nimport numpy as np\nimport pandas as pd\nfrom amplify_quant_trading import MarketMakerBase, MarketState, Quote",
+    "class AvellanedaStoikovMarketMaker(MarketMakerBase):\n    def __init__(self, gamma=0.1, k=1.5, max_skew_bps=400.0):\n        pass  # À compléter\n\n    def quote(self, state):\n        pass  # À compléter",
+    "AvellanedaStoikovMarketMaker().quote(MarketState(timestamp=0, ref_price=100.0, realized_vol=0.30, time_remaining=1.0, inventory=5.0))"
+   ],
+   "tests_visibles": 2,
+   "tests_caches": 12,
+   "fichier_correction": "coding/millennium/corrections/mm_2.py",
+   "intro_correction": "Correction commentée des deux exercices",
+   "verif": {
+    "script": "coding/millennium/tests_mm2_e2.py"
+   },
+   "fiche": null,
+   "solution": "Correction commentée des deux exercices (`coding/millennium/corrections/mm_2.py`) :\n\n```python\n\"\"\"Correction de la séance MM 2 : prix d'indifférence et teneur de marché d'Avellaneda-Stoikov.\"\"\"\nimport numpy as np\n\nfrom amplify_quant_trading import MarketMakerBase, MarketState, Quote\n\nJOURS_PAR_AN = 252\n\n\ndef prix_indifference(s, q, gamma, sigma, tau):\n    \"\"\"Rend (r_achat, r_vente, r) ; sigma en euros par racine d'année, tau en années.\"\"\"\n    penalite = gamma * sigma**2 * tau\n    return s - penalite * (2 * q + 1) / 2, s - penalite * (2 * q - 1) / 2, s - q * penalite\n\n\nclass AvellanedaStoikovMarketMaker(MarketMakerBase):\n    def __init__(self, gamma=0.1, k=1.5, max_skew_bps=400.0):\n        self.gamma = gamma\n        self.k = k\n        self.max_skew_bps = max_skew_bps\n\n    def quote(self, state: MarketState) -> Quote:\n        if state.ref_price <= 0:\n            raise ValueError(\"ref_price doit être strictement positif\")\n        # Deux conversions d'unités : une fraction de journée en années, une volatilité relative en euros.\n        tau = state.time_remaining / JOURS_PAR_AN\n        sigma = state.realized_vol * state.ref_price\n        terme_risque = self.gamma * sigma**2 * tau\n\n        decalage_max = state.ref_price * self.max_skew_bps / 10_000\n        decalage = float(np.clip(state.inventory * terme_risque, -decalage_max, decalage_max))\n        r = state.ref_price - decalage\n\n        terme_liquidite = (2 / self.gamma) * np.log(1 + self.gamma / self.k)\n        ecart = max(terme_risque + terme_liquidite, state.ref_price * 0.001)  # plancher : 0,1 % du prix\n\n        bid, ask = round(r - ecart / 2, 2), round(r + ecart / 2, 2)\n        if bid <= 0:                  # le terme de liquidité ne dépend pas du prix : il peut dépasser un petit prix\n            bid = round(r * 0.5, 2)\n        if bid >= ask:\n            ask = round(bid + max(ecart, 0.01), 2)\n        return Quote(bid=bid, ask=ask)\n```"
+  }
+ ]
+}

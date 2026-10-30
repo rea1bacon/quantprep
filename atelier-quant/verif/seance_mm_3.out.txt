@@ -1,0 +1,4 @@
+efficacité théorique 0.6457 ; mesurée hors échantillon 0.6184
+n = 10 : écart-type du bêta estimé exact 0.2520, Monte-Carlo 0.2521
+n = 60 : écart-type du bêta estimé exact 0.0883, Monte-Carlo 0.0881
+n = 250 : écart-type du bêta estimé exact 0.0424, Monte-Carlo 0.0425
