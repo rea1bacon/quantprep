@@ -1,0 +1,7 @@
+﻿Date limite, Kolkata : vendredi 09/10/2026 22:30 (UTC+0530)
+Date limite, Paris   : vendredi 09/10/2026 19:00 (UTC+0200)
+Date limite, UTC     : vendredi 09/10/2026 17:00 (UTC+0000)
+Premier jour à l'heure d'hiver en France : dimanche 25/10/2026
+Maintenant, Paris    : vendredi 02/10/2026 19:21 (UTC+0200)
+Temps restant        : 6 jours 23 h 38 min
+Toutes les vérifications passent.

@@ -1,0 +1,6 @@
+E1_decalage_non_trie         3/8 tests cachés
+E1_tri_par_date_seul         8/8 tests cachés
+E1_prix_suivant              2/8 tests cachés
+E2_double_argsort            4/8 tests cachés
+{"E1_exemple": [-0.1, 0.1, 0.1, null, null], "E2_exemple": [2.5, 1.0, 2.5, null, 1.0], "E3_correlation_0105": 0.9933992677987828, "E3_cov_num": 5.0, "E3_sxx": 2.0, "E3_syy": 12.666666666666666, "E1_decalage_non_trie": "3/8", "E1_tri_par_date_seul": "8/8", "E1_prix_suivant": "2/8", "E2_double_argsort": "4/8"}
+Toutes les vérifications passent.

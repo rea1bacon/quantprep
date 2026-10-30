@@ -1,0 +1,24 @@
+sympy : sigma' = sigma(1 - sigma), dérivée de la perte = sigma - y, dérivée seconde = sigma(1 - sigma).
+Gradient X^T(pi - y)/n et hessienne X^T W X/n contrôlés par différences finies ; hessienne SDP, 100 cas.
+Exemple logistique : b_chapeau = [-0.45409213  0.90818426], log-loss 0.586872 < ln 2.
+Séparation : log-loss en c (0, 1) pour c = 1, 5, 10 : 0.220095, 0.003380, 2.27e-05.
+L2_prec_rare_vp          exact=0.009000  MC=0.009007  se=0.000149  z=+0.05
+L2_prec_rare_fp          exact=0.049500  MC=0.049712  se=0.000344  z=+0.62
+AUC = proportion de paires bien ordonnées (ex aequo 1/2) = aire de la ROC en escalier, 500 cas ; invariance monotone.
+L2_brier_q               exact=0.210000  MC=0.210028  se=0.000290  z=+0.10
+L2_ll_q                  exact=0.610864  MC=0.610924  se=0.000614  z=+0.10
+L3_esp_D2_100            exact=16.666667  MC=16.663811  se=0.009851  z=-0.29
+L3_var_D2_100            exact=3.888889  MC=3.881355  se=0.027648  z=-0.27
+L4_cov_1                 exact=4.000000  MC=4.018838  se=0.014368  z=+1.31
+Purge et embargo (N = 1000, test 400..599, h = 5, L = 20) : purgées [396, 397, 398, 399, 600, 601, 602, 603], embargo [604, 623], apprentissage 772.
+L4_var_ecart             exact=0.000250  MC=0.000252  se=0.000003  z=+0.84
+ML3-03 : jeu a, b_chapeau = [-2.27046066  0.90818426] ; jeux b, c, d : log-loss tend vers 0 sans l'atteindre.
+Q06_brier_A              exact=0.170000  MC=0.170021  se=0.000297  z=+0.07
+Q06_brier_B              exact=0.210000  MC=0.210041  se=0.000290  z=+0.14
+Q06_auc_A                exact=0.738095  MC=0.737765  se=0.000678  z=-0.49
+Q06_calib_B              exact=0.300000  MC=0.300102  se=0.000725  z=+0.14
+Q07_esp                  exact=100.000000  MC=99.986246  se=0.063507  z=-0.22
+Q07_var                  exact=400.000000  MC=403.314010  se=1.911580  z=+1.73
+ML3-08 : purgées 18, embargo 60 ([909, 968]), apprentissage 1122.
+355 valeurs exportées dans verif/seance_ml_3.out.json.
+Toutes les vérifications passent.

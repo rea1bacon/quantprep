@@ -1,0 +1,55 @@
+{
+ "AUC = part des paires (positif, négatif) bien ordonnées, égalités comptées 1/2": true,
+ "ColumnTransformer : sortie creuse sous la densité 0,3, dense avec sparse_threshold=0": true,
+ "HistGradientBoostingClassifier a un paramètre class_weight": false,
+ "HistGradientBoostingClassifier refuse une matrice creuse": true,
+ "OneHotEncoder(sparse=False)": "accepté",
+ "OneHotEncoder(sparse_output=False)": "TypeError",
+ "OrdinalEncoder : ordre alphabétique par défaut, ordre imposé par categories": true,
+ "Pipeline : étapes ajustées par fit seulement ; cross_val_score laisse l'objet reçu non ajusté": true,
+ "Pipeline a une méthode set_output": false,
+ "RandomForestClassifier accepte les NaN": false,
+ "accesseur .str sur une colonne numérique : AttributeError": true,
+ "arbre invariant au changement d'échelle, régression logistique pénalisée non": true,
+ "cross_val_score(cv=5) sur un classifieur : plis stratifiés, score = exactitude": true,
+ "dtype des colonnes de get_dummies": "uint8",
+ "expérience de la fuite : exactitude avec et sans fuite": [
+  0.78,
+  0.59
+ ],
+ "faits des parties 2 à 4 (describe, map, ancres, SimpleImputer)": true,
+ "numpy": "1.21.6",
+ "pandas": "1.4.2",
+ "roc_auc_score : invariant par transformation croissante des scores ; plus faible ici sur des classes que sur des scores": true,
+ "scikit-learn": "1.1.1",
+ "seuil d'un arbre : milieu de deux valeurs consécutives": 1.5,
+ "str.extract rend un DataFrame, NaN quand le motif ne correspond pas": true,
+ "to_csv sans index=False écrit l'index en première colonne": true,
+ "train_test_split : 25 % en test par défaut, lignes mélangées": true,
+ "valeurs par défaut": {
+  "ColumnTransformer": {
+   "remainder": "drop",
+   "sparse_threshold": 0.3
+  },
+  "DummyClassifier.strategy": "prior",
+  "HistGradientBoostingClassifier": {
+   "early_stopping": "auto",
+   "learning_rate": 0.1,
+   "max_iter": 100
+  },
+  "LogisticRegression": {
+   "C": 1.0,
+   "max_iter": 100,
+   "penalty": "l2",
+   "solver": "lbfgs"
+  },
+  "OneHotEncoder.handle_unknown": "error",
+  "RandomForestClassifier.n_estimators": 100,
+  "SimpleImputer.strategy": "mean",
+  "StandardScaler": {
+   "copy": true,
+   "with_mean": true,
+   "with_std": true
+  }
+ }
+}

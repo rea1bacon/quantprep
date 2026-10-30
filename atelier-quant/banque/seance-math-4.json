@@ -1,0 +1,576 @@
+{
+ "id": "seance-math-4",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-MATH-4",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon express : Markov, martingales, AR(1), mouvement brownien",
+   "difficulte": 4,
+   "temps_cible_s": 1200,
+   "contenu": "## Leçon express : Markov, martingales et séries temporelles\n\nDurée visée : 20 minutes. Pour chaque résultat : l'énoncé, une preuve courte mais complète, un exemple calculé, les pièges. La leçon prolonge l'**outil 2** de la séance de mathématiques 1 (premier pas, ruine du joueur, finitude par blocs, identité de Wald), auquel elle renvoie.\n\n**Poids des thèmes.** Marches aléatoires, chaînes de Markov et martingales d'abord ; AR(1) ensuite ; calcul stochastique en dernier et en bref.\n\n**Conventions.** Majuscule : variable aléatoire ; minuscule : valeur ou paramètre fixe ; gras : vecteur ou matrice. Exceptions d'usage : les matrices \\(\\mathbf{P}\\), \\(\\mathbf{Q}\\), \\(\\mathbf{R}\\), \\(\\mathbf{N}\\), \\(\\mathbf{H}\\) de la partie 1 sont fixes ; les chocs \\(\\varepsilon_t\\) de la partie 3 sont aléatoires. \\(\\mathbb{P}\\) (probabilité) n'est pas la matrice \\(\\mathbf{P}\\) ; \\(\\mathbb{E}\\) est une espérance, \\(\\mathrm{Var}\\) une variance, \\(\\mathrm{Cov}\\) une covariance, \\(I_A\\) l'indicatrice de \\(A\\), \\(a \\wedge b = \\min(a, b)\\). Les lettres \\(c\\), \\(\\mu\\), \\(\\sigma\\), \\(n\\) sont redéfinies dans chaque partie. Les nombres viennent de `verif/seance_math_4.py`, qui les vérifie aussi par simulation.\n\n## 1. Chaînes de Markov à états finis\n\nLe problème : un système change d'état au hasard parmi un nombre fini d'états (régime de marché, note de crédit, dernier motif vu), avec des probabilités qui ne dépendent que de l'état présent. Loi dans longtemps, probabilité de finir dans tel état, temps moyen avant l'absorption : chaque fois, un système linéaire.\n\n### Définitions\n\nÉtats \\(1, \\dots, k\\), avec \\(k \\ge 2\\) ; \\(X_t\\) est l'état à la date entière \\(t \\ge 0\\). \\((X_t)\\) est une **chaîne de Markov** de matrice de transition \\(\\mathbf{P}\\) (\\(k \\times k\\), coefficients \\(p_{ij}\\)) si \\(\\mathbb{P}(X_{t+1} = j \\mid X_t = i, X_{t-1} = x_{t-1}, \\dots, X_0 = x_0) = p_{ij}\\) pour toutes valeurs dont l'événement conditionnant est de probabilité non nulle. La ligne \\(i\\) de \\(\\mathbf{P}\\) est la loi de l'état suivant depuis \\(i\\).\n\nLa loi de \\(X_t\\) est le vecteur **ligne** \\(\\boldsymbol{\\nu}_t\\), \\(\\nu_t(j) = \\mathbb{P}(X_t = j)\\). Une **loi stationnaire** est un vecteur ligne \\(\\boldsymbol{\\pi}\\), positif de somme 1, tel que \\(\\boldsymbol{\\pi}\\mathbf{P} = \\boldsymbol{\\pi}\\). La chaîne est **irréductible** si de tout état \\(i\\) on atteint tout état \\(j\\) par des états \\(i = s_0, \\dots, s_l = j\\) avec \\(p_{s_0 s_1} > 0, \\dots, p_{s_{l-1} s_l} > 0\\).\n\n### Loi stationnaire\n\nÉnoncé.\n\n1. \\(\\boldsymbol{\\nu}_{t+1} = \\boldsymbol{\\nu}_t \\mathbf{P}\\), donc \\(\\boldsymbol{\\nu}_t = \\boldsymbol{\\nu}_0 \\mathbf{P}^t\\) ; si \\(\\boldsymbol{\\nu}_0 = \\boldsymbol{\\pi}\\), alors \\(\\boldsymbol{\\nu}_t = \\boldsymbol{\\pi}\\) pour tout \\(t\\).\n2. Toute chaîne finie a au moins une loi stationnaire ; si elle est irréductible, cette loi est unique.\n3. Admis (théorème de convergence des chaînes finies) : si la chaîne est irréductible et apériodique (pour chaque état, le pgcd des longueurs des chemins qui en partent et y reviennent vaut 1), \\(\\boldsymbol{\\nu}_t \\to \\boldsymbol{\\pi}\\) quelle que soit \\(\\boldsymbol{\\nu}_0\\). Démontré ci-dessous pour deux états.\n\nPreuve.\n\n1. En sommant la définition sur les valeurs passées, \\(\\mathbb{P}(X_{t+1} = j \\mid X_t = i) = p_{ij}\\) ; par les probabilités totales selon \\(X_t\\), \\(\\nu_{t+1}(j) = \\sum_i \\nu_t(i)\\,p_{ij}\\).\n2. Existence. Pour une loi \\(\\boldsymbol{\\nu}_0\\), la moyenne \\(\\bar{\\boldsymbol{\\nu}}_s = \\tfrac1s(\\boldsymbol{\\nu}_0 + \\dots + \\boldsymbol{\\nu}_{s-1})\\) est une loi, et par télescopage \\(\\bar{\\boldsymbol{\\nu}}_s\\mathbf{P} - \\bar{\\boldsymbol{\\nu}}_s = \\tfrac1s(\\boldsymbol{\\nu}_s - \\boldsymbol{\\nu}_0)\\), de coordonnées au plus \\(1/s\\) en valeur absolue. Les lois forment un fermé borné de \\(\\mathbb{R}^k\\) : une sous-suite converge (Bolzano-Weierstrass) vers une loi \\(\\boldsymbol{\\pi}\\), qui vérifie \\(\\boldsymbol{\\pi}\\mathbf{P} = \\boldsymbol{\\pi}\\).\n3. Unicité. Si \\(\\mathbf{P}\\mathbf{f} = \\mathbf{f}\\) (vecteur colonne), chaque \\(f_i = \\sum_j p_{ij} f_j\\) est une moyenne pondérée. En un \\(i\\) où \\(f\\) est maximal, tous les \\(f_j\\) de poids \\(p_{ij} > 0\\) valent ce maximum ; par irréductibilité, de proche en proche, \\(\\mathbf{f}\\) est constant (principe du maximum, outil 2, étape 5). Le noyau de \\(\\mathbf{P} - \\mathbf{I}\\) est la droite de \\(\\mathbf{1}\\) (vecteur de 1), donc \\(\\mathbf{P} - \\mathbf{I}\\) est de rang \\(k - 1\\), comme sa transposée : les solutions de \\(\\mathbf{x}(\\mathbf{P} - \\mathbf{I}) = 0\\) forment une droite, qui contient une seule loi.\n\nExemple, deux régimes : calme (1) devient agité (2) avec probabilité \\(a\\), agité redevient calme avec probabilité \\(b\\), \\(a\\) et \\(b\\) dans \\([0, 1]\\) non tous deux nuls ; \\(\\mathbf{P} = \\begin{pmatrix} 1 - a & a \\\\ b & 1 - b \\end{pmatrix}\\).\n\n1. La coordonnée 1 de \\(\\boldsymbol{\\pi}\\mathbf{P} = \\boldsymbol{\\pi}\\) s'écrit \\(\\pi_1(1 - a) + \\pi_2 b = \\pi_1\\), soit \\(\\pi_1 a = \\pi_2 b\\) (flux sortant égal au flux entrant) ; la coordonnée 2 donne la même équation. Avec \\(\\pi_1 + \\pi_2 = 1\\) : \\(\\pi_1 = b/(a+b)\\), \\(\\pi_2 = a/(a+b)\\).\n2. Convergence : \\(u_t = \\nu_t(2)\\) vérifie \\(u_{t+1} = a\\,(1 - u_t) + (1 - b)\\,u_t = a + \\lambda u_t\\) avec \\(\\lambda = 1 - a - b\\) ; comme \\(\\pi_2 = a + \\lambda \\pi_2\\), \\(u_t - \\pi_2 = \\lambda^t (u_0 - \\pi_2)\\). Si \\(0 < a + b < 2\\), \\(\\lvert \\lambda \\rvert < 1\\) et la loi converge vers \\(\\boldsymbol{\\pi}\\), quel que soit le départ.\n3. \\(a = 0{,}1\\), \\(b = 0{,}4\\) : \\(\\boldsymbol{\\pi} = (0{,}8 ; 0{,}2)\\), \\(\\lambda = 0{,}5\\) ; départ calme, \\(u_3 = \\pi_2(1 - \\lambda^3) = 0{,}175\\) (simulation : 0,175).\n\nCas limites : \\(a = b = 1\\) donne \\(\\lambda = -1\\), la chaîne alterne et ne converge pas, bien que \\(\\boldsymbol{\\pi} = (1/2 ; 1/2)\\) soit unique (chaîne périodique) ; \\(a = b = 0\\) : toute loi est stationnaire (chaîne non irréductible).\n\n### Absorption : le système linéaire\n\nCadre. Un état \\(e\\) est **absorbant** si \\(p_{ee} = 1\\), les autres sont **transitoires**. Hypothèse (A) : depuis chaque état transitoire, un chemin de probabilité non nulle mène à un état absorbant. \\(m\\) est le nombre d'états transitoires, \\(\\mathbf{Q}\\) (\\(m \\times m\\), coefficients \\(\\mathbf{Q}_{ij}\\)) la matrice des transitions entre états transitoires, \\(\\mathbf{R}\\) (coefficients \\(\\mathbf{R}_{ie}\\), une colonne par état absorbant) celle des transitions vers les états absorbants. \\(T\\) est la première date d'absorption ; pour \\(i\\) transitoire, \\(d_i = \\mathbb{E}[T \\mid X_0 = i]\\) (vecteur colonne \\(\\mathbf{d}\\)) et \\(h_{ie} = \\mathbb{P}(X_T = e \\mid X_0 = i)\\) (matrice \\(\\mathbf{H}\\)).\n\nÉnoncé. Sous (A), \\(\\mathbf{I} - \\mathbf{Q}\\) est inversible, \\(\\mathbf{N} = (\\mathbf{I} - \\mathbf{Q})^{-1} = \\sum_{t \\ge 0} \\mathbf{Q}^t\\), et\n\n\\(\\displaystyle (\\mathbf{I} - \\mathbf{Q})\\,\\mathbf{d} = \\mathbf{1}, \\qquad (\\mathbf{I} - \\mathbf{Q})\\,\\mathbf{H} = \\mathbf{R}.\\)\n\nLigne par ligne, \\(d_i = 1 + \\sum_j \\mathbf{Q}_{ij} d_j\\) et \\(h_{ie} = \\mathbf{R}_{ie} + \\sum_j \\mathbf{Q}_{ij} h_{je}\\) : les équations du premier pas de l'outil 2, pour une chaîne quelconque.\n\nPreuve.\n\n1. Pour \\(i\\), \\(j\\) transitoires, \\((\\mathbf{Q}^t)_{ij} = \\mathbb{P}(X_t = j, T > t \\mid X_0 = i)\\), par récurrence sur \\(t\\) : être en \\(j\\) à la date \\(t + 1\\) sans absorption, c'est être en un état transitoire \\(l\\) à la date \\(t\\) sans absorption puis passer de \\(l\\) à \\(j\\) (probabilité \\(\\mathbf{Q}_{lj}\\), propriété de Markov) ; on somme sur \\(l\\).\n2. Blocs (outil 2, étape 1) : un plus court chemin vers l'absorption ne repasse par aucun état, donc a au plus \\(m\\) pas ; soit \\(\\delta > 0\\) la plus petite des probabilités de ces chemins. Depuis tout état transitoire, l'absorption dans les \\(m\\) pas suivants a probabilité au moins \\(\\delta\\), d'où \\(\\mathbb{P}(T > lm \\mid X_0 = i) \\le (1 - \\delta)^l\\).\n3. Par 1, \\(\\sum_j (\\mathbf{Q}^t)_{ij} = \\mathbb{P}(T > t \\mid X_0 = i)\\), de somme sur \\(t\\) au plus \\(m/\\delta\\) par 2 : la série positive \\(\\sum_t \\mathbf{Q}^t\\) converge vers une matrice \\(\\mathbf{N}\\), et \\(\\mathbf{Q}^t \\to 0\\). Comme \\((\\mathbf{I} - \\mathbf{Q})(\\mathbf{I} + \\dots + \\mathbf{Q}^{s-1}) = \\mathbf{I} - \\mathbf{Q}^s\\), à la limite \\((\\mathbf{I} - \\mathbf{Q})\\,\\mathbf{N} = \\mathbf{I}\\).\n4. \\(d_i = \\sum_{t \\ge 0} \\mathbb{P}(T > t \\mid X_0 = i)\\) (outil 2, étape 2) \\(= (\\mathbf{N}\\mathbf{1})_i\\).\n5. Être absorbé en \\(e\\) à la date \\(t + 1\\), c'est être en \\(j\\) transitoire à la date \\(t\\) sans absorption puis sauter en \\(e\\) : probabilité \\(\\sum_j (\\mathbf{Q}^t)_{ij}\\,\\mathbf{R}_{je}\\). En sommant sur \\(t\\), \\(\\mathbf{H} = \\mathbf{N}\\mathbf{R}\\).\n\nExemple 1, attendre pile, face, pile (PFP) avec une pièce équilibrée. L'état est le plus long suffixe des lancers faits qui commence PFP : « vide », « P » ou « PF ». Depuis « vide », P mène à « P », F laisse « vide » ; depuis « P », P laisse « P », F mène à « PF » ; depuis « PF », P termine, F ramène à « vide ». Le système \\((\\mathbf{I} - \\mathbf{Q})\\,\\mathbf{d} = \\mathbf{1}\\) :\n\n1. \\(d_{\\text{PF}} = 1 + \\tfrac12 d_{\\text{vide}}\\) ;\n2. \\(d_{\\text{P}} = 1 + \\tfrac12 d_{\\text{P}} + \\tfrac12 d_{\\text{PF}}\\), soit \\(d_{\\text{P}} = 2 + d_{\\text{PF}}\\) ;\n3. \\(d_{\\text{vide}} = 1 + \\tfrac12 d_{\\text{vide}} + \\tfrac12 d_{\\text{P}}\\), soit \\(d_{\\text{vide}} = 2 + d_{\\text{P}} = 4 + d_{\\text{PF}} = 5 + \\tfrac12 d_{\\text{vide}}\\).\n\nD'où \\(d_{\\text{vide}} = 10\\), \\(d_{\\text{P}} = 8\\), \\(d_{\\text{PF}} = 6\\) (simulation : 10,00), plus que \\(1/\\mathbb{P}(\\text{PFP}) = 8\\), car un F après « PF » ramène à « vide ».\n\nExemple 2, un prêt sain (S) ou fragile (F) finit en défaut (D) ou remboursé (R), absorbants. Chaque mois, depuis S : S avec probabilité 0,7, F avec 0,2, R avec 0,1 ; depuis F : S avec 0,3, F avec 0,4, D avec 0,2, R avec 0,1. Donc \\(\\mathbf{Q} = \\begin{pmatrix} 0{,}7 & 0{,}2 \\\\ 0{,}3 & 0{,}4 \\end{pmatrix}\\), \\(\\mathbf{R} = \\begin{pmatrix} 0 & 0{,}1 \\\\ 0{,}2 & 0{,}1 \\end{pmatrix}\\) (colonnes D puis R), et la résolution donne \\(\\mathbf{H} = \\begin{pmatrix} 1/3 & 2/3 \\\\ 1/2 & 1/2 \\end{pmatrix}\\) : un prêt sain fait défaut avec probabilité \\(1/3\\) (simulation : 0,334). Chaque ligne de \\(\\mathbf{H}\\) somme à 1.\n\nPièges :\n\n1. \\(\\boldsymbol{\\pi}\\) est un vecteur ligne à gauche, \\(\\boldsymbol{\\pi}\\mathbf{P} = \\boldsymbol{\\pi}\\) ; le système \\(\\boldsymbol{\\pi}(\\mathbf{P} - \\mathbf{I}) = 0\\) est de rang \\(k - 1\\) : remplacer une équation par \\(\\sum_j \\pi_j = 1\\).\n2. Le « 1 + » appartient à l'équation de durée, pas à celle de probabilité.\n3. Pour un motif, après PP on est en « P », pas en « vide » ; loi stationnaire n'est pas loi limite (chaîne périodique).\n\n[[controle:absorption]]\n\n## 2. Martingales et théorème d'arrêt\n\nLe problème : le premier pas demande un système par question. Une martingale (quantité d'espérance constante), évaluée au moment de l'arrêt, donne la réponse en une ligne, à condition que le théorème d'arrêt de Doob s'applique.\n\n### Cadre et définitions\n\nCadre de l'outil 2 : pas \\(X_1, X_2, \\dots\\) indépendants, +1 avec probabilité \\(p\\), −1 avec probabilité \\(q = 1 - p\\) ; \\(Z_t = i + X_1 + \\dots + X_t\\) ; \\(\\mathbf{X} = (X_1, \\dots, X_t)\\). Pour \\(Y\\) d'espérance finie, \\(\\mathbb{E}[Y \\mid \\mathbf{X}]\\) est la variable \\(g(\\mathbf{X})\\) où \\(g(\\mathbf{x}) = \\mathbb{E}[Y \\mid \\mathbf{X} = \\mathbf{x}]\\). Deux règles :\n\n- (R1) pour \\(u\\) bornée, \\(\\mathbb{E}[u(\\mathbf{X})\\,Y] = \\mathbb{E}\\big[u(\\mathbf{X})\\,\\mathbb{E}[Y \\mid \\mathbf{X}]\\big]\\) : les deux membres valent \\(\\sum_{\\mathbf{x}} u(\\mathbf{x})\\,\\mathbb{E}[Y\\,I_{\\{\\mathbf{X} = \\mathbf{x}\\}}]\\), série absolument convergente. Avec \\(u = 1\\) : \\(\\mathbb{E}\\big[\\mathbb{E}[Y \\mid \\mathbf{X}]\\big] = \\mathbb{E}[Y]\\).\n- (R2) \\(\\mathbb{E}[w(Z_t, X_{t+1}) \\mid \\mathbf{X}] = \\psi(Z_t)\\) avec \\(\\psi(z) = \\mathbb{E}[w(z, X_{t+1})]\\) (si ces espérances sont finies) : sachant \\(\\mathbf{X} = \\mathbf{x}\\), \\(Z_t\\) est fixé et \\(X_{t+1}\\), indépendant de \\(\\mathbf{X}\\), garde sa loi.\n\nUne **martingale** est une suite \\(M_0, M_1, \\dots\\), \\(M_0\\) constante, \\(M_t\\) fonction de \\(X_1, \\dots, X_t\\) d'espérance finie, avec \\(\\mathbb{E}[M_{t+1} \\mid X_1, \\dots, X_t] = M_t\\) ; par (R1) et récurrence, \\(\\mathbb{E}[M_t] = M_0\\) pour tout \\(t\\) **fixé**. Un **temps d'arrêt** est une variable \\(T\\) à valeurs dans \\(\\{0, 1, \\dots\\} \\cup \\{+\\infty\\}\\) telle que l'indicatrice de \\(\\{T \\le t\\}\\) soit une fonction de \\(X_1, \\dots, X_t\\) pour tout \\(t\\) : on s'arrête sans regarder le futur (premier passage en 0 ou \\(n\\) : oui ; instant du maximum sur \\([0, 100]\\) : non).\n\n### Trois martingales de la marche\n\n\\(\\lvert Z_t \\rvert \\le \\lvert i \\rvert + t\\) : toutes les espérances sont finies. Par (R2) :\n\n1. \\(Z_t - (p - q)\\,t\\), et \\(Z_t\\) si \\(p = 1/2\\) : \\(\\mathbb{E}[Z_t + X_{t+1} \\mid \\mathbf{X}] = Z_t + (p - q)\\).\n2. \\(Z_t^2 - t\\), si \\(p = 1/2\\) : \\(\\mathbb{E}[(Z_t + X_{t+1})^2 \\mid \\mathbf{X}] = Z_t^2 + 2 Z_t\\,\\mathbb{E}[X_{t+1}] + \\mathbb{E}[X_{t+1}^2] = Z_t^2 + 1\\).\n3. \\(r^{Z_t}\\), \\(r = q/p\\), pour tout \\(p\\) dans \\(]0, 1[\\) : \\(\\mathbb{E}[r^{Z_t + X_{t+1}} \\mid \\mathbf{X}] = r^{Z_t}\\,(p\\,r + q/r) = r^{Z_t}\\,(q + p) = r^{Z_t}\\).\n\n### Le théorème d'arrêt de Doob\n\nÉnoncé. Si \\(M\\) est une martingale et \\(T\\) un temps d'arrêt, \\(\\mathbb{E}[M_T] = M_0\\) dans chacun des cas suivants (\\(c\\) constante) :\n\n- (a) \\(T \\le c\\) avec probabilité 1, pour un entier \\(c\\) ;\n- (b) \\(T\\) est fini avec probabilité 1 et \\(\\lvert M_{t \\wedge T} \\rvert \\le c\\) pour tout \\(t\\) ;\n- (c) \\(\\mathbb{E}[T] < \\infty\\) et \\(\\lvert M_{t+1} - M_t \\rvert \\le c\\) pour tout \\(t\\).\n\nPreuve de (a).\n\n1. Télescopage : \\(M_T = M_0 + \\sum_{k=1}^{c} (M_k - M_{k-1})\\,I_{\\{T \\ge k\\}}\\).\n2. \\(I_{\\{T \\ge k\\}} = 1 - I_{\\{T \\le k-1\\}}\\) est une fonction bornée de \\(X_1, \\dots, X_{k-1}\\) (temps d'arrêt).\n3. Par (R1) : \\(\\mathbb{E}[(M_k - M_{k-1})\\,I_{\\{T \\ge k\\}}] = \\mathbb{E}\\big[I_{\\{T \\ge k\\}}\\,(\\mathbb{E}[M_k \\mid X_1, \\dots, X_{k-1}] - M_{k-1})\\big] = 0\\).\n4. Somme finie : \\(\\mathbb{E}[M_T] = M_0\\).\n\nPassage à la limite, (b) et (c).\n\n5. \\(T \\wedge t\\) est un temps d'arrêt borné par \\(t\\) (\\(\\{T \\wedge t \\le s\\}\\) vaut \\(\\{T \\le s\\}\\) si \\(s < t\\), l'événement certain sinon) : par (a), \\(\\mathbb{E}[M_{T \\wedge t}] = M_0\\) pour tout \\(t\\).\n6. Si \\(T < \\infty\\), \\(M_{T \\wedge t} = M_T\\) dès que \\(t \\ge T\\).\n7. En (b), \\(\\lvert M_{T \\wedge t} \\rvert \\le c\\) ; en (c), \\(T\\) est fini avec probabilité 1 et \\(\\lvert M_{T \\wedge t} \\rvert \\le \\lvert M_0 \\rvert + c\\,T\\), d'espérance finie. La convergence dominée (admise) donne \\(\\mathbb{E}[M_T] = \\lim_t \\mathbb{E}[M_{T \\wedge t}] = M_0\\).\n\n### Applications : ruine et durée en une ligne\n\nBarrières 0 et \\(n\\), départ \\(0 < i < n\\), \\(T\\) le premier passage en 0 ou \\(n\\), fini avec probabilité 1 (outil 2, étape 1), \\(h\\) la probabilité de finir en \\(n\\).\n\n- Ruine, \\(p \\ne 1/2\\) : \\(0 \\le Z_{t \\wedge T} \\le n\\), donc \\(r^{Z_{t \\wedge T}} \\le \\max(1, r^n)\\) : cas (b), \\(h\\,r^n + (1 - h) = r^i\\), soit \\(h = \\dfrac{1 - r^i}{1 - r^n}\\). Avec \\(p = 2/3\\), \\(i = 2\\), \\(n = 5\\) : \\(r = 0{,}5\\), \\(h = \\tfrac{24}{31}\\), comme à l'outil 2 (simulation : 0,772).\n- Ruine, \\(p = 1/2\\) : \\(Z_t\\), arrêtée bornée par \\(n\\) : \\(n\\,h = i\\), \\(h = i/n\\).\n- Durée, \\(p = 1/2\\), avec \\(Z_t^2 - t\\), qui n'est ni dans (b) ni, faute de savoir \\(\\mathbb{E}[T]\\) fini, dans (c). Étape 5 : \\(\\mathbb{E}[Z_{T \\wedge t}^2] - \\mathbb{E}[T \\wedge t] = i^2\\). Comme \\(Z_{T \\wedge t}^2 \\le n^2\\), \\(\\mathbb{E}[T \\wedge t] \\le n^2 - i^2\\), et la convergence monotone (admise) donne \\(\\mathbb{E}[T] < \\infty\\). À la limite (dominée pour \\(Z^2\\), monotone pour \\(T\\)) : \\(\\mathbb{E}[T] = \\mathbb{E}[Z_T^2] - i^2 = n^2 \\cdot i/n - i^2 = i\\,(n - i)\\) ; pour \\(i = 2\\), \\(n = 5\\) : 6 (simulation : 6,02).\n- Durée, \\(p \\ne 1/2\\) : \\(Z_t - (p - q)\\,t\\) a des accroissements bornés par 2 et \\(\\mathbb{E}[T] < \\infty\\) (outil 2, étape 2) ; le cas (c) donne \\(\\mathbb{E}[Z_T] - (p - q)\\,\\mathbb{E}[T] = i\\) : l'**identité de Wald**, démontrée à l'outil 2, d'où \\(\\mathbb{E}[T] = (n\\,h - i)/(p - q)\\).\n\n### Le contre-exemple : une seule barrière\n\nMarche symétrique partie de 0, \\(T\\) le premier passage en 1. La marche \\(1 - Z_t\\) est symétrique, partie de 1, et \\(T\\) est son premier passage en 0 : par l'outil 2 (cas limites), \\(T\\) est fini avec probabilité 1 et \\(\\mathbb{E}[T] = +\\infty\\). Or \\(Z_T = 1\\), donc \\(\\mathbb{E}[Z_T] = 1 \\ne 0 = Z_0\\) : \\(T\\) n'est pas borné (a), \\(Z_{t \\wedge T}\\) n'est pas minoré (b), \\(\\mathbb{E}[T]\\) est infini (c). Pour tout \\(t\\) pourtant \\(\\mathbb{E}[Z_{T \\wedge t}] = 0\\) ; calcul exact à \\(t = 100\\) : \\(\\mathbb{P}(T > 100) = 0{,}0796\\) et \\(\\mathbb{E}[Z_{100} \\mid T > 100] = -11{,}56\\). Une perte de plus en plus grande sur un événement de plus en plus rare compense le gain, puis disparaît de l'espérance à la limite.\n\nPièges :\n\n1. Écrire \\(\\mathbb{E}[M_T] = M_0\\) sans vérifier (a), (b) ou (c).\n2. \\(r = p/q\\) au lieu de \\(q/p\\) : \\(\\mathbb{E}[(p/q)^X] = p^2/q + q^2/p\\), égal à 1 seulement si \\(p = 1/2\\).\n3. \\(Z_t^2 - t\\) n'est une martingale que si \\(p = 1/2\\) ; sinon, \\(\\big(Z_t - (p - q)\\,t\\big)^2 - \\big(1 - (p - q)^2\\big)\\,t\\) l'est (même calcul).\n\n[[controle:arret]]\n\n## 3. Le processus AR(1)\n\nLe problème : un spread ou un signal s'écarte de sa moyenne puis y revient. Modèle le plus simple : une fraction de la valeur précédente, plus un choc.\n\n### Définitions et énoncé\n\n\\(c\\), \\(\\phi\\) et \\(\\sigma > 0\\) sont des réels fixés. Les chocs \\(\\varepsilon_1, \\varepsilon_2, \\dots\\) sont indépendants, de même loi, d'espérance 0 et de variance \\(\\sigma^2\\) ; \\(Y_t = c + \\phi\\,Y_{t-1} + \\varepsilon_t\\) pour \\(t \\ge 1\\), avec \\(Y_0\\) indépendant des chocs, donc \\(\\varepsilon_t\\) indépendant de \\(Y_0, \\dots, Y_{t-1}\\). Le processus est **stationnaire** (au sens faible) si \\(\\mathbb{E}[Y_t]\\) et \\(\\mathrm{Var}(Y_t) < \\infty\\) ne dépendent pas de \\(t\\) et \\(\\mathrm{Cov}(Y_t, Y_{t+h})\\) ne dépend que de \\(h\\) ; on note alors \\(\\mu\\) la moyenne, \\(\\gamma_h = \\mathrm{Cov}(Y_t, Y_{t+h})\\) l'autocovariance au retard \\(h \\ge 0\\), \\(\\rho_h = \\gamma_h/\\gamma_0\\) l'autocorrélation.\n\n1. Si \\(\\lvert \\phi \\rvert < 1\\) et si \\(Y_0\\) a pour espérance \\(\\mu = c/(1 - \\phi)\\) et pour variance \\(\\sigma^2/(1 - \\phi^2)\\), le processus est stationnaire, avec \\(\\gamma_0 = \\dfrac{\\sigma^2}{1 - \\phi^2}\\), \\(\\gamma_h = \\phi^h \\gamma_0\\), \\(\\rho_h = \\phi^h\\).\n2. Si \\(\\lvert \\phi \\rvert \\ge 1\\), aucun choix de \\(Y_0\\) ne le rend stationnaire.\n\nPreuve.\n\n1. \\(\\mathbb{E}[Y_t] = c + \\phi\\,\\mathbb{E}[Y_{t-1}]\\), et \\(c + \\phi c/(1 - \\phi) = c/(1 - \\phi)\\) : récurrence.\n2. \\(\\varepsilon_t\\) indépendant de \\(Y_{t-1}\\) : \\(\\mathrm{Var}(Y_t) = \\phi^2\\,\\mathrm{Var}(Y_{t-1}) + \\sigma^2\\), et \\(\\phi^2\\sigma^2/(1 - \\phi^2) + \\sigma^2 = \\sigma^2/(1 - \\phi^2)\\) : récurrence.\n3. Pour \\(h \\ge 1\\), \\(\\mathrm{Cov}(Y_t, Y_{t+h}) = \\mathrm{Cov}(Y_t, c + \\phi\\,Y_{t+h-1} + \\varepsilon_{t+h}) = \\phi\\,\\mathrm{Cov}(Y_t, Y_{t+h-1})\\) (constante de covariance nulle, \\(\\varepsilon_{t+h}\\) indépendant de \\(Y_t\\)) ; par récurrence, \\(\\phi^h \\gamma_0\\), indépendant de \\(t\\).\n4. Énoncé 2 : la stationnarité et l'étape 2 donneraient \\(\\gamma_0\\,(1 - \\phi^2) = \\sigma^2 > 0\\), impossible si \\(\\phi^2 \\ge 1\\) puisque \\(\\gamma_0 \\ge 0\\).\n\nExemple : \\(c = 1\\), \\(\\phi = 0{,}8\\), \\(\\sigma = 1\\) : \\(\\mu = 1/0{,}2 = 5\\), \\(\\gamma_0 = 1/0{,}36 = \\tfrac{25}{9} \\approx 2{,}778\\), \\(\\rho_3 = 0{,}8^3 = 0{,}512\\), \\(\\gamma_3 \\approx 1{,}422\\) (simulation avec des chocs uniformes, seules leur espérance et leur variance comptant : 1,42).\n\nCas limite, la marche aléatoire : \\(\\phi = 1\\), \\(c = 0\\), \\(Y_0 = y_0\\) fixe. \\(Y_t = y_0 + \\varepsilon_1 + \\dots + \\varepsilon_t\\), \\(\\mathrm{Var}(Y_t) = t\\,\\sigma^2\\) croît sans borne ; pour \\(h \\ge 0\\), \\(\\mathrm{Cov}(Y_t, Y_{t+h}) = t\\,\\sigma^2\\) (les \\(t\\) premiers chocs sont communs) dépend de \\(t\\), et \\(\\mathrm{Corr}(Y_t, Y_{t+h}) = \\sqrt{t/(t+h)}\\), soit \\(0{,}953\\) pour \\(t = 100\\), \\(h = 10\\). Des corrélations proches de 1 ne prouvent donc aucun retour à la moyenne ; les accroissements \\(\\varepsilon_t\\), eux, sont indépendants.\n\nPièges :\n\n1. \\(\\rho_h = \\phi^h\\), ni \\(\\phi\\) ni \\(h\\phi\\) ; le signe alterne si \\(\\phi < 0\\). Stationnarité : \\(\\lvert \\phi \\rvert < 1\\), pas \\(\\phi < 1\\).\n2. \\(\\gamma_0 = \\sigma^2/(1 - \\phi^2)\\), pas \\(\\sigma^2/(1 - \\phi)\\), et pas \\(\\sigma^2\\).\n3. \\(\\mathrm{Var}(Y_1 + \\dots + Y_s) = \\sum_{u=1}^{s} \\sum_{v=1}^{s} \\gamma_{\\lvert u - v \\rvert}\\) : chaque paire de dates distinctes compte deux fois.\n\n[[controle:ar1]]\n\n## 4. Mouvement brownien et lemme d'Itô\n\nThème jugé le moins probable (introduction) : l'essentiel seulement.\n\n### Définition et propriétés\n\nUn **mouvement brownien standard** est une famille \\(W_t\\), \\(t \\ge 0\\) réel, avec \\(W_0 = 0\\), \\(W_t - W_s\\) de loi normale \\(\\mathcal{N}(0, t - s)\\) pour \\(s < t\\), des accroissements indépendants sur des intervalles disjoints et des trajectoires continues. C'est la limite de la marche symétrique renormalisée : \\(Z_{\\lfloor jt \\rfloor}/\\sqrt{j}\\) a une loi proche de \\(\\mathcal{N}(0, t)\\) pour \\(j\\) grand (théorème central limite).\n\n1. \\(\\mathrm{Cov}(W_s, W_t) = \\min(s, t)\\) : pour \\(s \\le t\\), \\(W_t = W_s + (W_t - W_s)\\), termes indépendants, donc \\(\\mathrm{Cov}(W_s, W_t) = \\mathrm{Var}(W_s) = s\\).\n2. Si \\(G\\) suit \\(\\mathcal{N}(0, v)\\), \\(\\mathbb{E}[e^{\\theta G}] = e^{\\theta^2 v/2}\\) pour tout réel \\(\\theta\\) : \\(\\theta x - x^2/(2v) = -(x - \\theta v)^2/(2v) + \\theta^2 v/2\\), et la densité de \\(\\mathcal{N}(\\theta v, v)\\) intègre à 1. Ainsi \\(\\mathbb{E}[e^{W_1}] = e^{1/2} \\approx 1{,}6487\\) (simulation : 1,6517), et non 1.\n3. Variation quadratique (énoncé) : pour une subdivision \\(0 = t_0 < \\dots < t_n = t\\) de pas maximal \\(\\Delta\\), \\(V_n = \\sum_l (W_{t_{l+1}} - W_{t_l})^2\\) vérifie \\(\\mathbb{E}[V_n] = t\\) et \\(\\mathrm{Var}(V_n) = 2\\sum_l (t_{l+1} - t_l)^2 \\le 2\\,t\\,\\Delta\\) (carrés indépendants, et \\(\\mathbb{E}[G^4] = 3v^2\\), coefficient de \\(\\theta^4\\) dans \\(e^{\\theta^2 v/2}\\) multiplié par \\(4!\\)) : \\(V_n \\to t\\). Pour une fonction de dérivée bornée, la même somme tend vers 0. Lecture abrégée : \\((dW_t)^2 = dt\\).\n\n### Le lemme d'Itô (énoncé admis)\n\nPour \\(G_s\\) ne dépendant que de \\((W_u)_{u \\le s}\\), \\(\\int_0^t G_s\\,dW_s\\) est la limite en moyenne quadratique de \\(\\sum_l G_{t_l}(W_{t_{l+1}} - W_{t_l})\\), \\(G\\) pris au point **gauche** ; admis : si \\(\\mathbb{E}\\big[\\int_0^t G_s^2\\,ds\\big] < \\infty\\), son espérance est nulle. Pour \\(f(t, x)\\) déterministe, une fois continûment dérivable en \\(t\\) et deux fois en \\(x\\) :\n\n\\(\\displaystyle f(t, W_t) = f(0, 0) + \\int_0^t \\Big(f_t + \\tfrac12 f_{xx}\\Big)(s, W_s)\\,ds + \\int_0^t f_x(s, W_s)\\,dW_s,\\)\n\nnoté \\(df = \\big(f_t + \\tfrac12 f_{xx}\\big)\\,dt + f_x\\,dW_t\\). Intuition (pas une preuve) : Taylor à l'ordre 2 avec \\((dW_t)^2 = dt\\) ; le terme \\(\\tfrac12 f_{xx}\\,dt\\) est la seule différence avec le calcul ordinaire.\n\n1. \\(f(x) = x^2\\) : \\(W_t^2 = t + 2\\int_0^t W_s\\,dW_s\\), donc \\(\\int_0^t W_s\\,dW_s = (W_t^2 - t)/2\\), et non \\(W_t^2/2\\). Contrôle direct : la somme à gauche vaut exactement \\((W_t^2 - V_n)/2\\) (sommer \\(W_{t_{l+1}}^2 - W_{t_l}^2 = 2W_{t_l}(W_{t_{l+1}} - W_{t_l}) + (W_{t_{l+1}} - W_{t_l})^2\\)), et \\(V_n \\to t\\).\n2. \\(f(x) = e^x\\) : \\(d\\,e^{W_t} = \\tfrac12 e^{W_t}\\,dt + e^{W_t}\\,dW_t\\) ; en espérance, \\(m(t) = \\mathbb{E}[e^{W_t}]\\) vérifie \\(m(t) = 1 + \\tfrac12\\int_0^t m(s)\\,ds\\), donc \\(m(t) = e^{t/2}\\) : la propriété 2 par une autre route.\n\n### Le mouvement brownien géométrique\n\n\\(\\mu\\) (dérive) et \\(\\sigma > 0\\) (volatilité), par unité de temps, et \\(s_0 > 0\\) sont fixés ; \\(dS_t = \\mu\\,S_t\\,dt + \\sigma\\,S_t\\,dW_t\\), \\(S_0 = s_0\\).\n\nÉnoncé : \\(S_t = s_0 \\exp\\big((\\mu - \\sigma^2/2)\\,t + \\sigma W_t\\big)\\) est solution (unicité admise), \\(\\mathbb{E}[S_t] = s_0\\,e^{\\mu t}\\), et la médiane vaut \\(s_0\\,e^{(\\mu - \\sigma^2/2)\\,t}\\). Preuve : avec \\(f(t, x) = s_0 \\exp\\big((\\mu - \\sigma^2/2)\\,t + \\sigma x\\big)\\), \\(f_t = (\\mu - \\sigma^2/2) f\\), \\(f_x = \\sigma f\\), \\(f_{xx} = \\sigma^2 f\\), donc \\(df = \\mu f\\,dt + \\sigma f\\,dW_t\\) ; la propriété 2 avec \\(\\theta = \\sigma\\), \\(v = t\\) donne \\(\\mathbb{E}[e^{\\sigma W_t}] = e^{\\sigma^2 t/2}\\), qui compense le \\(-\\sigma^2 t/2\\) ; \\(\\ln S_t\\) est normale, et l'exponentielle croissante conserve sa médiane, égale à sa moyenne.\n\nExemple : \\(s_0 = 100\\), \\(\\mu = 0{,}08\\), \\(\\sigma = 0{,}2\\), un an : \\(\\mathbb{E}[S_1] = 100\\,e^{0{,}08} \\approx 108{,}33\\) (simulation : 108,29), médiane \\(100\\,e^{0{,}06} \\approx 106{,}18\\), et \\(\\mathbb{P}(S_1 > 100) = \\Phi(0{,}3) \\approx 0{,}6179\\), où \\(\\Phi\\) est la fonction de répartition de \\(\\mathcal{N}(0, 1)\\).\n\nPièges :\n\n1. \\(\\mathbb{E}[S_t] = s_0\\,e^{\\mu t}\\) ; \\(s_0\\,e^{(\\mu - \\sigma^2/2)\\,t}\\) est la médiane.\n2. Le terme \\(\\tfrac12 f_{xx}\\,dt\\) ne s'oublie jamais : \\(\\int_0^t W_s\\,dW_s \\ne W_t^2/2\\), \\(\\mathbb{E}[e^{W_t}] \\ne 1\\).\n3. \\(\\mathrm{Cov}(W_s, W_t) = \\min(s, t)\\), ni \\(s\\,t\\) ni 0.\n\n[[controle:ito]]\n\n## Réflexes en 30 secondes\n\n| Indice dans l'énoncé | Premier geste |\n|---|---|\n| « à long terme », matrice de transition | \\(\\boldsymbol{\\pi}\\mathbf{P} = \\boldsymbol{\\pi}\\), somme 1 ; deux états : \\(\\pi_2 = a/(a+b)\\) |\n| « temps moyen », « jusqu'au motif » | états = plus long suffixe utile ; \\(d_i = 1 + \\sum_j \\mathbf{Q}_{ij} d_j\\) |\n| « probabilité de finir en ... » | \\(h_{ie} = \\mathbf{R}_{ie} + \\sum_j \\mathbf{Q}_{ij} h_{je}\\) |\n| marche biaisée, atteindre un niveau | \\(r^{Z_t}\\), \\(r = q/p\\) ; sans barrière basse et \\(p < 1/2\\) : \\((p/q)^k\\) pour monter de \\(k\\) |\n| « théorème d'arrêt applicable ? » | (a) \\(T\\) borné ; (b) arrêtée bornée ; (c) \\(\\mathbb{E}[T]\\) fini et accroissements bornés |\n| AR(1) | \\(\\lvert \\phi \\rvert < 1\\) ; \\(\\mu = c/(1 - \\phi)\\), \\(\\gamma_0 = \\sigma^2/(1 - \\phi^2)\\), \\(\\rho_h = \\phi^h\\) |\n| brownien | \\(\\min(s, t)\\) ; \\(\\mathbb{E}[e^{\\theta W_t}] = e^{\\theta^2 t/2}\\) ; Itô : \\(\\big(f_t + \\tfrac12 f_{xx}\\big)\\,dt + f_x\\,dW_t\\) |\n| brownien géométrique | \\(\\mathbb{E}[S_t] = s_0 e^{\\mu t}\\) ; \\(\\ln S_t\\) normale, moyenne \\(\\ln s_0 + (\\mu - \\sigma^2/2)\\,t\\), variance \\(\\sigma^2 t\\) |\n\n## À savoir refaire sans notes\n\n- La loi stationnaire à deux états et la convergence en \\(\\lambda^t\\) ; l'unicité par le principe du maximum.\n- \\((\\mathbf{I} - \\mathbf{Q})\\,\\mathbf{d} = \\mathbf{1}\\) et \\((\\mathbf{I} - \\mathbf{Q})\\,\\mathbf{H} = \\mathbf{R}\\) par \\((\\mathbf{Q}^t)_{ij} = \\mathbb{P}(X_t = j, T > t)\\) ; l'attente de PFP.\n- Les trois martingales de la marche, le théorème d'arrêt borné par télescopage et le passage à la limite ; ruine, durée, et le contre-exemple du premier passage en 1.\n- Moyenne, variance et autocorrélation de l'AR(1) ; la non-stationnarité de la marche aléatoire.\n- \\(\\min(s, t)\\), \\(\\mathbb{E}[e^{\\theta G}] = e^{\\theta^2 v/2}\\), Itô sur \\(W_t^2\\) et \\(e^{W_t}\\), \\(\\mathbb{E}[S_t] = s_0 e^{\\mu t}\\).\n",
+   "controles": {
+    "absorption": {
+     "question": "Dans l'exemple du prêt (S sain, F fragile ; D défaut et R remboursé absorbants), on note \\(h_S\\) et \\(h_F\\) les probabilités de finir en défaut depuis S et depuis F. Quelle équation est juste ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "\\(h_F = 0{,}2 + 0{,}3\\,h_S + 0{,}4\\,h_F\\)",
+       "correcte": true,
+       "explication": "Oui : c'est la ligne F de \\((\\mathbf{I} - \\mathbf{Q})\\,\\mathbf{H} = \\mathbf{R}\\), colonne D. Défaut immédiat avec probabilité 0,2, ou passage par S ou F puis défaut plus tard ; le remboursement (0,1) contribue 0."
+      },
+      {
+       "id": "b",
+       "texte": "\\(h_F = 1 + 0{,}3\\,h_S + 0{,}4\\,h_F\\)",
+       "correcte": false,
+       "explication": "C'est la forme de l'équation de durée : le « 1 + » compte le pas effectué. Une probabilité d'absorption n'a pas de terme 1, mais la probabilité d'être absorbé au premier pas dans l'état visé, ici 0,2."
+      },
+      {
+       "id": "c",
+       "texte": "\\(h_F = 0{,}2\\)",
+       "correcte": false,
+       "explication": "C'est la probabilité de faire défaut **au premier mois**. Un prêt fragile qui reste fragile ou redevient sain peut encore faire défaut ensuite : la vraie valeur, \\(1/2\\), est plus grande."
+      },
+      {
+       "id": "d",
+       "texte": "\\(h_F\\) est la coordonnée D de la loi stationnaire, solution de \\(\\boldsymbol{\\pi}\\mathbf{P} = \\boldsymbol{\\pi}\\).",
+       "correcte": false,
+       "explication": "Avec deux états absorbants, toute loi portée par D et R est stationnaire : il n'y a pas d'unicité, et la loi stationnaire ne dépend pas de l'état de départ, alors que \\(h_S \\ne h_F\\)."
+      }
+     ]
+    },
+    "arret": {
+     "question": "Marche symétrique partie de 0, \\(T\\) le premier instant où \\(Z_t = 1\\). On a \\(\\mathbb{E}[Z_T] = 1 \\ne 0 = Z_0\\). Que dit-on du théorème d'arrêt ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "\\(T\\) est un temps d'arrêt fini avec probabilité 1, mais aucune des trois hypothèses (a), (b), (c) n'est vérifiée.",
+       "correcte": true,
+       "explication": "Oui : \\(T\\) n'est pas borné, \\(Z_{t \\wedge T}\\) peut descendre aussi bas que l'on veut, et \\(\\mathbb{E}[T] = +\\infty\\). Le théorème ne s'applique pas, et la conclusion est fausse."
+      },
+      {
+       "id": "b",
+       "texte": "\\(T\\) n'est pas un temps d'arrêt.",
+       "correcte": false,
+       "explication": "C'en est un : savoir si \\(Z\\) a déjà touché 1 avant la date \\(t\\) ne demande que \\(X_1, \\dots, X_t\\)."
+      },
+      {
+       "id": "c",
+       "texte": "\\(Z_t\\) n'est pas une martingale quand \\(p = 1/2\\).",
+       "correcte": false,
+       "explication": "C'en est une : \\(\\mathbb{E}[Z_t + X_{t+1} \\mid X_1, \\dots, X_t] = Z_t + \\mathbb{E}[X_{t+1}] = Z_t\\). Le problème vient du temps d'arrêt, pas de la martingale."
+      },
+      {
+       "id": "d",
+       "texte": "\\(T\\) est infini avec une probabilité non nulle, d'où l'écart.",
+       "correcte": false,
+       "explication": "\\(T\\) est fini avec probabilité 1 (outil 2 : la ruine est certaine pour la marche symétrique avec une seule barrière). C'est \\(\\mathbb{E}[T]\\) qui est infini, pas \\(T\\)."
+      }
+     ]
+    },
+    "ar1": {
+     "question": "\\(Y_t = -0{,}5\\,Y_{t-1} + \\varepsilon_t\\) est stationnaire, avec des chocs indépendants, centrés, de variance 1, \\(\\varepsilon_t\\) indépendant du passé. Que vaut l'autocorrélation au retard 3, \\(\\rho_3\\) ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "\\(-0{,}125\\)",
+       "correcte": true,
+       "explication": "Oui : \\(\\rho_3 = \\phi^3 = (-0{,}5)^3\\). Le signe alterne avec le retard quand \\(\\phi < 0\\)."
+      },
+      {
+       "id": "b",
+       "texte": "\\(0{,}125\\)",
+       "correcte": false,
+       "explication": "C'est \\(\\lvert \\phi \\rvert^3\\) : le signe a été perdu. Avec \\(\\phi < 0\\), une valeur haute est suivie en moyenne d'une valeur basse, et les retards impairs ont une autocorrélation négative."
+      },
+      {
+       "id": "c",
+       "texte": "\\(-1{,}5\\)",
+       "correcte": false,
+       "explication": "C'est \\(3\\,\\phi\\) : la récurrence multiplie par \\(\\phi\\) à chaque retard, elle n'additionne pas. Une autocorrélation est d'ailleurs comprise entre −1 et 1."
+      },
+      {
+       "id": "d",
+       "texte": "\\(-0{,}5\\)",
+       "correcte": false,
+       "explication": "C'est \\(\\rho_1 = \\phi\\), l'autocorrélation au retard 1. Au retard 3, on applique trois fois la récurrence \\(\\gamma_h = \\phi\\,\\gamma_{h-1}\\)."
+      }
+     ]
+    },
+    "ito": {
+     "question": "Pour un mouvement brownien standard \\(W\\), que vaut \\(\\int_0^t W_s\\,dW_s\\) ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "\\((W_t^2 - t)/2\\)",
+       "correcte": true,
+       "explication": "Oui : Itô avec \\(f(x) = x^2\\) donne \\(d(W_t^2) = dt + 2W_t\\,dW_t\\). Contrôle : l'espérance vaut \\((t - t)/2 = 0\\), comme pour toute intégrale stochastique de ce type."
+      },
+      {
+       "id": "b",
+       "texte": "\\(W_t^2/2\\)",
+       "correcte": false,
+       "explication": "C'est le calcul ordinaire, qui oublie \\(\\tfrac12 f_{xx}\\,dt = dt\\). Son espérance serait \\(t/2\\), alors qu'une intégrale stochastique de ce type est d'espérance nulle."
+      },
+      {
+       "id": "c",
+       "texte": "\\(W_t^2 - t\\)",
+       "correcte": false,
+       "explication": "Le terme \\(dt\\) est bien là, mais le facteur 2 de \\(f_x = 2x\\) a été oublié : \\(W_t^2 - t = 2\\int_0^t W_s\\,dW_s\\)."
+      },
+      {
+       "id": "d",
+       "texte": "0",
+       "correcte": false,
+       "explication": "C'est son **espérance**, pas sa valeur : l'intégrale est une variable aléatoire, \\((W_t^2 - t)/2\\), qui varie d'une trajectoire à l'autre."
+      }
+     ]
+    }
+   },
+   "verif": {
+    "script": "verif/seance_math_4.py"
+   }
+  },
+  {
+   "id": "M4-01",
+   "section": "math",
+   "theme": "Chaîne de Markov à deux états, loi stationnaire",
+   "difficulte": 2,
+   "temps_cible_s": 75,
+   "enonce": "Un modèle de marché a deux régimes, calme et agité. Chaque jour, le régime du lendemain ne dépend que du régime du jour (propriété de Markov) : un marché calme devient agité le lendemain avec probabilité 0,15 et reste calme sinon ; un marché agité redevient calme le lendemain avec probabilité 0,35 et reste agité sinon. Le marché est calme au jour 0.\n\nVers quelle valeur tend la probabilité que le marché soit agité au jour \\(t\\), quand \\(t\\) tend vers l'infini ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,30",
+     "correcte": true,
+     "explication": "Oui : \\(\\pi_{\\text{agité}} = a/(a+b) = 0{,}15/0{,}5\\), et la convergence est géométrique de raison \\(1 - a - b = 0{,}5\\)."
+    },
+    {
+     "id": "b",
+     "texte": "0,70",
+     "correcte": false,
+     "explication": "C'est \\(b/(a+b)\\), la probabilité limite du régime **calme**. L'équilibre des flux \\(\\pi_{\\text{calme}}\\,a = \\pi_{\\text{agité}}\\,b\\) donne au régime agité le poids \\(a\\), la probabilité d'y entrer."
+    },
+    {
+     "id": "c",
+     "texte": "0,429",
+     "correcte": false,
+     "explication": "C'est \\(a/b = \\pi_{\\text{agité}}/\\pi_{\\text{calme}}\\), le **rapport** des deux probabilités limites, pas une probabilité : il faut encore normaliser par \\(\\pi_{\\text{calme}} + \\pi_{\\text{agité}} = 1\\)."
+    },
+    {
+     "id": "d",
+     "texte": "0,15",
+     "correcte": false,
+     "explication": "C'est la probabilité d'être agité au jour 1, après un seul pas depuis le calme. À long terme, le marché passe aussi des jours agités consécutifs, et l'état initial est oublié."
+    }
+   ],
+   "solution": "Réponse : \\(\\dfrac{0{,}15}{0{,}15 + 0{,}35} = 0{,}3\\).\n\nNotations : \\(a = 0{,}15\\) (calme vers agité), \\(b = 0{,}35\\) (agité vers calme), \\(u_t\\) la probabilité d'être agité au jour \\(t\\), \\(\\boldsymbol{\\pi} = (\\pi_{\\text{calme}} ; \\pi_{\\text{agité}})\\) la loi stationnaire.\n\nÉtape 1, loi stationnaire : \\(\\boldsymbol{\\pi}\\mathbf{P} = \\boldsymbol{\\pi}\\) se réduit à \\(\\pi_{\\text{calme}}\\,a = \\pi_{\\text{agité}}\\,b\\) ; avec la somme égale à 1, \\(\\pi_{\\text{agité}} = a/(a+b) = 0{,}15/0{,}5 = 0{,}3\\).\n\nÉtape 2, convergence (leçon, partie 1, exemple à deux états) : \\(u_{t+1} = a + (1 - a - b)\\,u_t\\), donc \\(u_t - \\pi_{\\text{agité}} = (1 - a - b)^t\\,(u_0 - \\pi_{\\text{agité}})\\), avec \\(1 - a - b = 0{,}5\\). L'écart est divisé par 2 chaque jour : \\(u_t \\to 0{,}3\\), quel que soit le régime du jour 0.\n\nSimulation (script), \\(u_{60}\\) : 0,300.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,30",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_4.py",
+    "cles": [
+     "Q01_d_inverse",
+     "Q01_d_ratio",
+     "Q01_d_un_pas",
+     "Q01_exact",
+     "Q01_lambda",
+     "Q01_mc",
+     "Q01_somme"
+    ]
+   }
+  },
+  {
+   "id": "M4-02",
+   "section": "math",
+   "theme": "Chaîne absorbante, temps d'attente d'un motif",
+   "difficulte": 3,
+   "temps_cible_s": 120,
+   "enonce": "On lance un dé équilibré à six faces de façon répétée, les lancers étant indépendants, jusqu'à obtenir pour la première fois deux 6 consécutifs, c'est-à-dire deux lancers successifs qui donnent tous deux 6. On compte tous les lancers effectués, y compris les deux derniers.\n\nQuelle est l'espérance du nombre de lancers ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "42",
+     "correcte": true,
+     "explication": "Oui : \\(e_1 = 36\\) depuis l'état « dernier lancer 6 », \\(e_0 = 6 + e_1 = 42\\) depuis le départ."
+    },
+    {
+     "id": "b",
+     "texte": "36",
+     "correcte": false,
+     "explication": "C'est \\(1/\\mathbb{P}(66) = 1/(1/36)\\), l'attente d'un succès de probabilité 1/36 si les essais étaient indépendants et sans chevauchement. Ici, un 6 suivi d'un autre chiffre oblige à recommencer, et il faut d'abord atteindre un premier 6."
+    },
+    {
+     "id": "c",
+     "texte": "12",
+     "correcte": false,
+     "explication": "C'est 6 + 6 : attendre un 6, puis encore un 6. Mais le second 6 doit tomber **immédiatement** après le premier ; sinon on repart de zéro, ce qui allonge beaucoup l'attente."
+    },
+    {
+     "id": "d",
+     "texte": "72",
+     "correcte": false,
+     "explication": "C'est l'attente d'un bloc 66 quand on découpe les lancers en blocs disjoints de deux : 36 blocs en moyenne. Deux 6 consécutifs peuvent chevaucher deux blocs : ce nombre n'est qu'un majorant."
+    }
+   ],
+   "solution": "Réponse : 42 lancers.\n\nNotations : état 0, « dernier lancer différent de 6, ou aucun lancer » ; état 1, « dernier lancer égal à 6 ». \\(e_0\\) et \\(e_1\\) sont les espérances du nombre de lancers restants depuis chaque état.\n\nÉtape 1, finitude : en blocs disjoints de deux lancers, chaque bloc vaut 66 avec probabilité 1/36, indépendamment des autres ; l'argument des blocs (outil 2 de la séance 1, étape 1) majore l'espérance par \\(2 \\times 36 = 72\\).\n\nÉtape 2, équations du premier pas, c'est-à-dire \\((\\mathbf{I} - \\mathbf{Q})\\,\\mathbf{d} = \\mathbf{1}\\) (leçon, partie 1) : depuis l'état 1, un 6 termine et tout autre chiffre ramène à l'état 0 : \\(e_1 = 1 + \\tfrac56 e_0\\). Depuis l'état 0, un 6 mène à l'état 1, sinon on reste en 0 : \\(e_0 = 1 + \\tfrac56 e_0 + \\tfrac16 e_1\\), soit \\(e_0 = 6 + e_1\\).\n\nÉtape 3 : \\(e_1 = 1 + \\tfrac56 (6 + e_1) = 6 + \\tfrac56 e_1\\), donc \\(e_1 = 36\\) et \\(e_0 = 42\\). La solution est unique (\\(\\mathbf{I} - \\mathbf{Q}\\) inversible) et les vraies espérances, finies, la vérifient.\n\nSimulation des lancers (script) : 42,03.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "42",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_4.py",
+    "cles": [
+     "Q02_borne",
+     "Q02_d_blocs",
+     "Q02_d_inverse",
+     "Q02_d_somme",
+     "Q02_e1",
+     "Q02_exact",
+     "Q02_mc"
+    ]
+   }
+  },
+  {
+   "id": "M4-03",
+   "section": "math",
+   "theme": "Chaîne absorbante, probabilité d'absorption",
+   "difficulte": 4,
+   "temps_cible_s": 150,
+   "enonce": "Au tennis, un jeu arrivé à « égalité » se poursuit ainsi : le joueur qui gagne le point suivant prend l'« avantage » ; s'il gagne aussi le point d'après, il remporte le jeu ; s'il le perd, on revient à égalité. Le serveur gagne chaque point avec probabilité 0,6, indépendamment des autres points.\n\nPartant de l'égalité, quelle est la probabilité que le serveur remporte le jeu, arrondie à trois décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,692",
+     "correcte": true,
+     "explication": "Oui : \\(h = p^2/(p^2 + q^2) = 0{,}36/0{,}52 = 9/13\\)."
+    },
+    {
+     "id": "b",
+     "texte": "0,600",
+     "correcte": false,
+     "explication": "C'est la probabilité de gagner **un** point. Il faut en gagner deux de plus que l'adversaire, ce qui avantage encore le meilleur joueur : la réponse doit dépasser 0,6."
+    },
+    {
+     "id": "c",
+     "texte": "0,360",
+     "correcte": false,
+     "explication": "C'est \\(p^2\\), gagner les deux points suivants. Les retours à égalité (probabilité \\(2pq = 0{,}48\\) à chaque cycle de deux points) laissent au serveur de nouvelles chances."
+    },
+    {
+     "id": "d",
+     "texte": "0,533",
+     "correcte": false,
+     "explication": "C'est \\(p^2 + 2pq\\,p^2\\) : un seul retour à égalité est compté. Il peut y en avoir un nombre quelconque ; la série géométrique complète, ou le système linéaire, donne \\(p^2/(1 - 2pq)\\)."
+    }
+   ],
+   "solution": "Réponse : \\(\\dfrac{p^2}{p^2 + q^2} = \\dfrac{0{,}36}{0{,}52} = \\tfrac{9}{13} \\approx 0{,}692\\).\n\nNotations : \\(p = 0{,}6\\), \\(q = 0{,}4\\). États transitoires : E (égalité), A (avantage serveur), B (avantage receveur) ; états absorbants : jeu gagné, jeu perdu. \\(h_E\\), \\(h_A\\), \\(h_B\\) sont les probabilités que le serveur gagne le jeu depuis chaque état.\n\nÉtape 1, système \\((\\mathbf{I} - \\mathbf{Q})\\,\\mathbf{H} = \\mathbf{R}\\) (leçon, partie 1) : \\(h_A = p + q\\,h_E\\) (un point gagné termine, un point perdu ramène à E) ; \\(h_B = p\\,h_E\\) ; \\(h_E = p\\,h_A + q\\,h_B\\).\n\nÉtape 2 : \\(h_E = p^2 + pq\\,h_E + qp\\,h_E = 0{,}36 + 0{,}48\\,h_E\\), donc \\(h_E = 0{,}36/0{,}52 = \\tfrac{9}{13}\\), avec \\(1 - 2pq = p^2 + q^2 = 0{,}52\\).\n\nAutre route : l'écart de points depuis l'égalité est une marche de pas \\(\\pm 1\\) arrêtée en \\(-2\\) ou \\(+2\\) ; c'est la ruine du joueur avec \\(i = 2\\), \\(n = 4\\), et \\(h = 1/(1 + r^2)\\) avec \\(r = q/p\\) (outil 2 de la séance 1).\n\nPour aller plus loin : la durée moyenne depuis l'égalité vaut \\(2/(p^2 + q^2) = \\tfrac{50}{13} \\approx 3{,}85\\) points (simulation : 3,85). Simulation de la probabilité (script) : 0,692.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,692",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_4.py",
+    "cles": [
+     "Q03_2pq",
+     "Q03_d_deux",
+     "Q03_d_p",
+     "Q03_d_un_retour",
+     "Q03_den",
+     "Q03_duree",
+     "Q03_duree_den",
+     "Q03_duree_mc",
+     "Q03_duree_num",
+     "Q03_exact",
+     "Q03_exact_den",
+     "Q03_exact_num",
+     "Q03_mc",
+     "Q03_p2"
+    ]
+   }
+  },
+  {
+   "id": "M4-04",
+   "section": "math",
+   "theme": "Martingale exponentielle, atteinte d'un niveau",
+   "difficulte": 4,
+   "temps_cible_s": 120,
+   "enonce": "Le gain cumulé d'une stratégie, en euros, part de 0. Chaque jour, indépendamment des autres jours, il augmente de 1 euro avec probabilité 0,45 et diminue de 1 euro avec probabilité 0,55. Il n'a pas de borne inférieure : il peut devenir aussi négatif que l'on veut, et la stratégie n'est jamais arrêtée.\n\nQuelle est la probabilité que le gain cumulé atteigne un jour la valeur +3 euros, arrondie à trois décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,548",
+     "correcte": true,
+     "explication": "Oui : \\((p/q)^3 = (9/11)^3 = 729/1331\\), par la martingale \\(r^{Z_t}\\) arrêtée, puis en éloignant la barrière basse."
+    },
+    {
+     "id": "b",
+     "texte": "0,091",
+     "correcte": false,
+     "explication": "C'est \\(0{,}45^3\\), monter trois jours de suite dès le départ : un seul des chemins qui mènent à +3. Les chemins qui descendent d'abord puis remontent comptent aussi."
+    },
+    {
+     "id": "c",
+     "texte": "1",
+     "correcte": false,
+     "explication": "La marche **symétrique** atteint tout niveau avec probabilité 1. Ici elle dérive vers le bas (\\(p < 1/2\\)) : avec une probabilité non nulle, elle s'éloigne vers \\(-\\infty\\) sans jamais atteindre +3."
+    },
+    {
+     "id": "d",
+     "texte": "0,818",
+     "correcte": false,
+     "explication": "C'est \\(p/q\\), la probabilité de monter d'**un** euro. Monter de 3 exige de monter de 1 trois fois, chaque montée partant du niveau atteint : par la propriété de Markov, les trois probabilités se multiplient."
+    }
+   ],
+   "solution": "Réponse : \\((p/q)^3 = \\tfrac{729}{1331} \\approx 0{,}548\\).\n\nNotations : \\(p = 0{,}45\\), \\(q = 0{,}55\\), \\(Z_t\\) le gain au jour \\(t\\), \\(r = q/p = 11/9\\). Pour un entier \\(m \\ge 1\\), \\(T_m\\) est le premier jour où \\(Z_t\\) vaut \\(3\\) ou \\(-m\\), et \\(h_m\\) la probabilité que ce soit 3.\n\nÉtape 1, martingale : \\(r^{Z_t}\\) est une martingale, car \\(\\mathbb{E}[r^{X}] = p\\,r + q/r = q + p = 1\\) (leçon, partie 2).\n\nÉtape 2, arrêt : \\(T_m\\) est fini avec probabilité 1 (outil 2 de la séance 1, argument des blocs), et avant l'arrêt \\(r^{-m} \\le r^{Z_{t \\wedge T_m}} \\le r^3\\) : cas (b) du théorème de Doob, \\(\\mathbb{E}[r^{Z_{T_m}}] = r^0 = 1\\). Donc \\(h_m\\,r^3 + (1 - h_m)\\,r^{-m} = 1\\), soit \\(h_m = \\dfrac{1 - r^{-m}}{r^3 - r^{-m}}\\).\n\nÉtape 3, limite : atteindre 3 est la réunion croissante en \\(m\\) des événements « atteindre 3 avant \\(-m\\) », car une trajectoire qui atteint 3 en un temps fini reste au-dessus d'un niveau fini avant. Par continuité croissante, la probabilité cherchée est \\(\\lim_m h_m = r^{-3} = (p/q)^3\\), puisque \\(r > 1\\) donne \\(r^{-m} \\to 0\\).\n\nVérification (script) : avec la barrière basse en \\(-60\\), \\(h_{60} = 0{,}547707\\), à moins de \\(10^{-5}\\) de la limite ; simulation : 0,550.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,548",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_4.py",
+    "cles": [
+     "Q04_d_exposant",
+     "Q04_d_trois",
+     "Q04_d_un",
+     "Q04_exact",
+     "Q04_exact_den",
+     "Q04_exact_num",
+     "Q04_h60",
+     "Q04_m",
+     "Q04_mc",
+     "Q04_p_sur_q_den",
+     "Q04_p_sur_q_num",
+     "Q04_r_den",
+     "Q04_r_num"
+    ]
+   }
+  },
+  {
+   "id": "M4-05",
+   "section": "math",
+   "theme": "AR(1), autocovariance",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "enonce": "Le processus \\(Y_t = 1 + 0{,}6\\,Y_{t-1} + \\varepsilon_t\\) est stationnaire. Les chocs \\(\\varepsilon_t\\) sont indépendants, de même loi, d'espérance 0 et d'écart-type 2, et chaque \\(\\varepsilon_t\\) est indépendant de \\(Y_{t-1}, Y_{t-2}, \\dots\\).\n\nQue vaut \\(\\mathrm{Cov}(Y_t, Y_{t+2})\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "2,25",
+     "correcte": true,
+     "explication": "Oui : \\(\\gamma_2 = \\phi^2 \\gamma_0 = 0{,}36 \\times 6{,}25\\)."
+    },
+    {
+     "id": "b",
+     "texte": "6,25",
+     "correcte": false,
+     "explication": "C'est \\(\\gamma_0 = \\sigma^2/(1 - \\phi^2)\\), la variance de \\(Y_t\\), c'est-à-dire l'autocovariance au retard 0. Au retard 2, elle est multipliée par \\(\\phi^2\\)."
+    },
+    {
+     "id": "c",
+     "texte": "0,36",
+     "correcte": false,
+     "explication": "C'est l'autocorrélation \\(\\rho_2 = \\phi^2\\), sans dimension. La covariance demandée vaut \\(\\rho_2\\) multiplié par la variance \\(\\gamma_0\\)."
+    },
+    {
+     "id": "d",
+     "texte": "3,60",
+     "correcte": false,
+     "explication": "La variance a été prise égale à \\(\\sigma^2/(1 - \\phi)\\) au lieu de \\(\\sigma^2/(1 - \\phi^2)\\) : le dénominateur \\(1 - \\phi\\) est celui de la moyenne \\(c/(1 - \\phi)\\)."
+    }
+   ],
+   "solution": "Réponse : \\(\\mathrm{Cov}(Y_t, Y_{t+2}) = 2{,}25\\).\n\nNotations : \\(c = 1\\), \\(\\phi = 0{,}6\\), \\(\\sigma = 2\\) ; \\(\\gamma_h\\) est l'autocovariance au retard \\(h\\).\n\nÉtape 1, variance : \\(\\gamma_0 = \\sigma^2/(1 - \\phi^2) = 4/0{,}64 = 6{,}25\\) (leçon, partie 3 : \\(\\mathrm{Var}(Y_t) = \\phi^2\\,\\mathrm{Var}(Y_{t-1}) + \\sigma^2\\) par indépendance du choc, et stationnarité).\n\nÉtape 2, récurrence : \\(\\gamma_h = \\phi\\,\\gamma_{h-1}\\), car \\(\\varepsilon_{t+h}\\) est indépendant de \\(Y_t\\) et une constante a une covariance nulle ; donc \\(\\gamma_2 = \\phi^2 \\gamma_0 = 0{,}36 \\times 6{,}25 = 2{,}25\\).\n\nLa constante \\(c = 1\\) ne change que la moyenne, \\(\\mu = c/(1 - \\phi) = 2{,}5\\), pas les covariances. Simulation (script) : 2,252.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "2,25",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_4.py",
+    "cles": [
+     "Q05_d_mauvais_g0",
+     "Q05_d_rho",
+     "Q05_d_var",
+     "Q05_exact",
+     "Q05_g0",
+     "Q05_mc",
+     "Q05_mu",
+     "Q05_phi2",
+     "Q05_un_moins_phi2"
+    ]
+   }
+  },
+  {
+   "id": "M4-06",
+   "section": "math",
+   "theme": "AR(1), variance d'une somme",
+   "difficulte": 4,
+   "temps_cible_s": 120,
+   "enonce": "Le processus \\(Y_t = 0{,}5\\,Y_{t-1} + \\varepsilon_t\\) est stationnaire. Les chocs \\(\\varepsilon_t\\) sont indépendants, de même loi, d'espérance 0 et de variance 1, et chaque \\(\\varepsilon_t\\) est indépendant de \\(Y_{t-1}, Y_{t-2}, \\dots\\). On cumule trois valeurs consécutives, par exemple un signal sommé sur trois jours.\n\nQue vaut \\(\\mathrm{Var}(Y_1 + Y_2 + Y_3)\\), arrondie à trois décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "7,333",
+     "correcte": true,
+     "explication": "Oui : \\(3\\gamma_0 + 2\\,(2\\gamma_1 + \\gamma_2) = 22/3\\)."
+    },
+    {
+     "id": "b",
+     "texte": "4,000",
+     "correcte": false,
+     "explication": "C'est \\(3\\gamma_0\\) : les covariances entre dates ont été oubliées, comme si les \\(Y_t\\) étaient indépendants. Avec \\(\\phi = 0{,}5 > 0\\), elles sont positives et augmentent la variance."
+    },
+    {
+     "id": "c",
+     "texte": "5,667",
+     "correcte": false,
+     "explication": "Chaque paire de dates distinctes a été comptée une fois : \\(3\\gamma_0 + 2\\gamma_1 + \\gamma_2\\). Dans \\(\\mathrm{Var}(\\sum_u Y_u) = \\sum_u \\sum_v \\mathrm{Cov}(Y_u, Y_v)\\), les couples \\((1, 2)\\) et \\((2, 1)\\) apparaissent tous deux."
+    },
+    {
+     "id": "d",
+     "texte": "3,000",
+     "correcte": false,
+     "explication": "C'est trois fois la variance d'un **choc**, \\(\\sigma^2 = 1\\). La variance du processus est \\(\\gamma_0 = \\sigma^2/(1 - \\phi^2)\\), plus grande, et les dates sont corrélées."
+    }
+   ],
+   "solution": "Réponse : \\(\\tfrac{22}{3} \\approx 7{,}333\\).\n\nNotations : \\(\\phi = 0{,}5\\), \\(\\sigma^2 = 1\\), \\(\\gamma_h\\) l'autocovariance au retard \\(h\\).\n\nÉtape 1, autocovariances (leçon, partie 3) : \\(\\gamma_0 = 1/(1 - 0{,}25) = \\tfrac{4}{3}\\), \\(\\gamma_1 = \\phi\\,\\gamma_0 = \\tfrac{2}{3}\\), \\(\\gamma_2 = \\phi^2 \\gamma_0 = \\tfrac{1}{3}\\).\n\nÉtape 2, variance d'une somme : \\(\\mathrm{Var}(Y_1 + Y_2 + Y_3) = \\sum_{u=1}^{3} \\sum_{v=1}^{3} \\gamma_{\\lvert u - v \\rvert}\\). Les 3 termes diagonaux donnent \\(3\\gamma_0\\) ; les couples à distance 1, \\((1, 2)\\), \\((2, 1)\\), \\((2, 3)\\), \\((3, 2)\\), donnent \\(4\\gamma_1\\) ; les couples à distance 2, \\((1, 3)\\), \\((3, 1)\\), donnent \\(2\\gamma_2\\).\n\nÉtape 3 : \\(3 \\times \\tfrac{4}{3} + \\tfrac{10}{3} = \\tfrac{22}{3}\\), soit \\(\\gamma_0\\,(3 + 4\\phi + 2\\phi^2)\\).\n\nLecture : la somme de trois valeurs persistantes varie bien plus que trois valeurs indépendantes de même variance (\\(4{,}0\\)). Simulation (script) : 7,340.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "7,333",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_4.py",
+    "cles": [
+     "Q06_croises_den",
+     "Q06_croises_num",
+     "Q06_d_indep",
+     "Q06_d_sigma",
+     "Q06_d_une_fois",
+     "Q06_exact",
+     "Q06_exact_den",
+     "Q06_exact_num",
+     "Q06_g0_den",
+     "Q06_g0_num",
+     "Q06_g1_den",
+     "Q06_g1_num",
+     "Q06_g2_den",
+     "Q06_g2_num",
+     "Q06_mc",
+     "Q06_phi2"
+    ]
+   }
+  },
+  {
+   "id": "M4-07",
+   "section": "math",
+   "theme": "Mouvement brownien, covariance",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "enonce": "\\(W\\) est un mouvement brownien standard : \\(W_0 = 0\\), accroissements indépendants sur des intervalles disjoints, \\(W_t - W_s\\) de loi normale d'espérance 0 et de variance \\(t - s\\) pour \\(s < t\\).\n\nQue vaut \\(\\mathrm{Var}(W_1 + W_2 + W_3)\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "14",
+     "correcte": true,
+     "explication": "Oui : \\(\\sum_{s, t} \\min(s, t) = 6 + 8\\), ou \\(3W_1 + 2(W_2 - W_1) + (W_3 - W_2)\\) de variance \\(9 + 4 + 1\\)."
+    },
+    {
+     "id": "b",
+     "texte": "6",
+     "correcte": false,
+     "explication": "C'est \\(1 + 2 + 3\\), la somme des variances, qui suppose \\(W_1\\), \\(W_2\\), \\(W_3\\) indépendants. Ils ne le sont pas : \\(\\mathrm{Cov}(W_s, W_t) = \\min(s, t) > 0\\)."
+    },
+    {
+     "id": "c",
+     "texte": "18",
+     "correcte": false,
+     "explication": "C'est \\(\\mathrm{Var}(3W_2) = 9 \\times 2\\) : remplacer la somme par trois fois sa valeur du milieu suppose les trois valeurs égales, ce qui surestime la variance."
+    },
+    {
+     "id": "d",
+     "texte": "28",
+     "correcte": false,
+     "explication": "Les covariances ont été prises égales à \\(s\\,t\\) au lieu de \\(\\min(s, t)\\) : \\(\\mathrm{Cov}(W_s, W_t) = \\mathrm{Var}(W_s) = s\\) pour \\(s \\le t\\), car \\(W_t - W_s\\) est indépendant de \\(W_s\\)."
+    }
+   ],
+   "solution": "Réponse : 14.\n\nÉtape 1 : \\(\\mathrm{Cov}(W_s, W_t) = \\min(s, t)\\) (leçon, partie 4 : pour \\(s \\le t\\), \\(W_t = W_s + (W_t - W_s)\\), deux termes indépendants).\n\nÉtape 2 : \\(\\mathrm{Var}(W_1 + W_2 + W_3) = \\sum_{s=1}^{3} \\sum_{t=1}^{3} \\min(s, t)\\). Termes diagonaux : \\(1 + 2 + 3 = 6\\). Termes croisés : \\(2\\,(\\min(1,2) + \\min(1,3) + \\min(2,3)) = 2\\,(1 + 1 + 2) = 8\\). Total : 14.\n\nContrôle par accroissements indépendants : \\(W_1 + W_2 + W_3 = 3W_1 + 2(W_2 - W_1) + (W_3 - W_2)\\), de variance \\(9 \\times 1 + 4 \\times 1 + 1 \\times 1 = 14\\). Simulation (script) : 14,06.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "14",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_4.py",
+    "cles": [
+     "Q07_croises",
+     "Q07_d_indep",
+     "Q07_d_produit",
+     "Q07_d_trois_w2",
+     "Q07_diag",
+     "Q07_exact",
+     "Q07_mc"
+    ]
+   }
+  },
+  {
+   "id": "M4-08",
+   "section": "math",
+   "theme": "Mouvement brownien géométrique, moments",
+   "difficulte": 5,
+   "temps_cible_s": 150,
+   "enonce": "Un prix vérifie \\(dS_t = 0{,}05\\,S_t\\,dt + 0{,}2\\,S_t\\,dW_t\\) avec \\(S_0 = 100\\), où \\(W\\) est un mouvement brownien standard et le temps est mesuré en années.\n\nQue vaut \\(\\mathrm{Var}(S_1)\\), arrondie à l'unité ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "451",
+     "correcte": true,
+     "explication": "Oui : \\(s_0^2\\,e^{2\\mu}\\,(e^{\\sigma^2} - 1)\\), avec \\(\\mathbb{E}[S_1^2] = s_0^2\\,e^{2\\mu + \\sigma^2}\\) et \\(\\mathbb{E}[S_1] = s_0\\,e^{\\mu}\\)."
+    },
+    {
+     "id": "b",
+     "texte": "400",
+     "correcte": false,
+     "explication": "C'est \\(s_0^2\\,\\sigma^2\\), la variance d'un modèle où \\(S_1 = s_0\\,(1 + \\mu + \\sigma W_1)\\), linéaire en \\(W_1\\). Le brownien géométrique est exponentiel en \\(W_1\\) : la convexité de l'exponentielle et la dérive augmentent la variance."
+    },
+    {
+     "id": "c",
+     "texte": "408",
+     "correcte": false,
+     "explication": "C'est \\(s_0^2\\,(e^{\\sigma^2} - 1)\\) : la dérive a été oubliée. Elle multiplie l'espérance par \\(e^{\\mu}\\), donc la variance par \\(e^{2\\mu}\\)."
+    },
+    {
+     "id": "d",
+     "texte": "433",
+     "correcte": false,
+     "explication": "C'est \\(s_0^2\\,e^{2\\mu - \\sigma^2}(e^{\\sigma^2} - 1)\\) : la médiane \\(s_0\\,e^{\\mu - \\sigma^2/2}\\) a été utilisée à la place de l'espérance \\(s_0\\,e^{\\mu}\\). Le terme \\(-\\sigma^2/2\\) est compensé par \\(\\mathbb{E}[e^{\\sigma W_1}] = e^{\\sigma^2/2}\\)."
+    }
+   ],
+   "solution": "Réponse : \\(\\mathrm{Var}(S_1) = 100^2\\,e^{0{,}1}\\,(e^{0{,}04} - 1) \\approx 451{,}03\\), soit 451 à l'unité.\n\nNotations : \\(s_0 = 100\\), \\(\\mu = 0{,}05\\), \\(\\sigma = 0{,}2\\).\n\nÉtape 1, solution (leçon, partie 4, par le lemme d'Itô) : \\(S_1 = s_0 \\exp\\big(\\mu - \\sigma^2/2 + \\sigma W_1\\big) = 100 \\exp\\big(0{,}03 + 0{,}2\\,W_1\\big)\\).\n\nÉtape 2, premier moment : \\(\\mathbb{E}[e^{\\theta W_1}] = e^{\\theta^2/2}\\) (fonction génératrice de la loi normale) ; avec \\(\\theta = 0{,}2\\), \\(\\mathbb{E}[S_1] = 100\\,e^{0{,}03 + 0{,}02} = 100\\,e^{0{,}05} \\approx 105{,}127\\).\n\nÉtape 3, second moment : \\(S_1^2 = 100^2 \\exp\\big(0{,}06 + 0{,}4\\,W_1\\big)\\), et \\(\\mathbb{E}[e^{0{,}4 W_1}] = e^{0{,}08}\\), donc \\(\\mathbb{E}[S_1^2] = 100^2\\,e^{0{,}14} \\approx 11502{,}74\\).\n\nÉtape 4 : \\(\\mathrm{Var}(S_1) = 100^2\\,(e^{0{,}14} - e^{0{,}1}) = 100^2\\,e^{0{,}1}\\,(e^{0{,}04} - 1) \\approx 451{,}03\\).\n\nSimulation (script) : 450,7.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "451",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_4.py",
+    "cles": [
+     "Q08_d_mediane",
+     "Q08_d_naif",
+     "Q08_d_sans_derive",
+     "Q08_deux_sigma",
+     "Q08_drift_log",
+     "Q08_es",
+     "Q08_es2",
+     "Q08_exact",
+     "Q08_expo1",
+     "Q08_expo2",
+     "Q08_expo_moy",
+     "Q08_expo_tot",
+     "Q08_mc",
+     "Q08_s2",
+     "Q08_s2_demi"
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,44 @@
+Moments du tableau des lois usuelles vérifiés (binomiale n <= 8, géométrique 5 valeurs de p, Poisson, uniforme, exponentielle, normale).
+Formule de la variance d'une somme aléatoire vérifiée (N de Poisson symbolique, N binomial n <= 6).
+Densité gamma (k <= 6), fonction de répartition d'Erlang, E[S_k] = k/lambda et superposition (k <= 7) vérifiées.
+Dérangements (n <= 8), surjections, étoiles et barres, développement du produit, bornes harmoniques vérifiés.
+La_post                  exact=0.333333  MC=0.333482  se=0.001435  z=+0.10
+Lb_es                    exact=30.000000  MC=29.988264  se=0.030623  z=-0.38
+Lb_var                   exact=375.000000  MC=375.095342  se=0.978830  z=+0.10
+Cv                       exact=5.000000  MC=5.008947  se=0.006714  z=+1.33
+Lc_geo_e                 exact=6.000000  MC=6.001448  se=0.008669  z=+0.17
+Lc_geo_var               exact=30.000000  MC=30.059530  se=0.133850  z=+0.44
+Ld_cond                  exact=0.367879  MC=0.368590  se=0.000807  z=+0.88
+Ld_esp_cond              exact=5.000000  MC=5.003294  se=0.003355  z=+0.98
+Cm_total                 exact=10.000000  MC=9.995017  se=0.006229  z=-0.80
+Le_emin                  exact=0.166667  MC=0.167322  se=0.000265  z=+2.47
+Le_p1                    exact=0.166667  MC=0.166395  se=0.000589  z=-0.46
+Le_p3                    exact=0.500000  MC=0.500692  se=0.000791  z=+0.88
+Le_joint                 exact=0.050199  MC=0.050432  se=0.000345  z=+0.68
+Cc                       exact=0.250000  MC=0.248532  se=0.000685  z=-2.14
+Lf_p0                    exact=0.049787  MC=0.049653  se=0.000344  z=-0.39
+Lf_p2                    exact=0.224042  MC=0.224353  se=0.000659  z=+0.47
+Lf_es3                   exact=1.500000  MC=1.500187  se=0.001369  z=+0.14
+Lf_unif                  exact=0.333333  MC=0.333244  se=0.001929  z=-0.05
+Lf_sup_p5                exact=0.175467  MC=0.175407  se=0.000601  z=-0.10
+Lf_premier               exact=0.400000  MC=0.399535  se=0.000775  z=-0.60
+Lg_e                     exact=14.700000  MC=14.691595  se=0.013911  z=-0.60
+Lh_c_p                   exact=0.617284  MC=0.617375  se=0.000769  z=+0.12
+Lh_p10                   exact=0.367879  MC=0.367420  se=0.000762  z=-0.60
+Cd                       exact=0.375000  MC=0.374325  se=0.000765  z=-0.88
+Q01                      exact=0.457143  MC=0.456998  se=0.002672  z=-0.05
+Q02                      exact=45.600000  MC=45.679568  se=0.110432  z=+0.72
+Q03                      exact=0.104762  MC=0.104985  se=0.000484  z=+0.46
+Q03_ba                   exact=0.333333  MC=0.333622  se=0.000745  z=+0.39
+Q03_ca                   exact=0.200000  MC=0.200068  se=0.000632  z=+0.11
+Q03_pb                   exact=0.285714  MC=0.285650  se=0.000714  z=-0.09
+Q04                      exact=0.826422  MC=0.826257  se=0.000599  z=-0.27
+Q05                      exact=6.456349  MC=6.459220  se=0.003284  z=+0.87
+Q06                      exact=0.114026  MC=0.114547  se=0.000503  z=+1.04
+Q07                      exact=0.187500  MC=0.187080  se=0.000617  z=-0.68
+Q07_d_paires             exact=0.500000  MC=0.501067  se=0.001941  z=+0.55
+Q08_es                   exact=21.000000  MC=20.976022  se=0.026476  z=-0.91
+Q08                      exact=280.000000  MC=280.386798  se=1.260454  z=+0.31
+Q08_direct               exact=280.000000  MC=281.078590  se=1.265813  z=+0.85
+310 valeurs exportées dans verif/seance_math_2.out.json.
+Toutes les vérifications passent.

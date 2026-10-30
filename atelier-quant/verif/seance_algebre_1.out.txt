@@ -1,0 +1,24 @@
+Théorème spectral, encadrement de Rayleigh, trace = somme et déterminant = produit des valeurs propres : 50 matrices 6 x 6.
+Équicorrélation n x n : valeurs propres 1 + (n-1) rho et 1 - rho, borne -1/(n-1), vérifiées pour n de 2 à 8.
+det(A + t I) = somme sur k de t^(n-k) fois la somme des mineurs principaux d'ordre k : vérifié sur une matrice 4 x 4.
+Contre-exemple : mineurs dominants [1, 0, 0], valeurs propres [2, 0, -1].
+Critère de Sylvester vérifié sur 2000 matrices 3 x 3 entières (319 définies positives).
+Matrice de centrage (trace T - 1) et matrice chapeau (trace p) : symétriques, idempotentes.
+Rang de la covariance empirique = min(N, T - 1) : 75 tirages (lois normale corrélée, Student à 3 degrés, uniforme).
+Loi discrète sur {-1, 0, 1}, T = 4, N = 3 : rang < 3 dans 653 tirages sur 2000.
+Sigma = I, N = 20, T = 40 : E[lambda_max(S)] ~ 2.652 > 1, E[lambda_min(S)] ~ 0.109 < 1.
+Eckart-Young (normes de Frobenius et spectrale) : 20 matrices 8 x 5, k = 1 à 3, 50 concurrents de rang k chacune.
+Gradients de x'Ax et de ||Ax - b||^2 : différences finies sur 20 cas.
+Rendements standardisés : Z'Z/T = matrice de corrélation (diviseurs cohérents), vérifié.
+Un facteur : b vecteur propre exact si variances idiosyncratiques égales ; sinon cosinus 0.9646 < 1.
+Coefficients tous > 0 : premier vecteur propre de signe constant sur 200 matrices.
+Ledoit-Wolf : intensité recalculée = shrinkage_ de sklearn 1.5.2 sur 3 jeux de données.
+Q02_corr23             exact=0.280000  MC=0.281809  se=0.001640  z=+1.10
+AL-02 : det = (1 - c)(1 + c - 2a^2) vérifié symboliquement ; borne 2a^2 - 1 atteinte.
+AL-05 : rang 99 après démoyennage transversal (3 tirages), vecteur 1 dans le noyau.
+Q06_rss_sur_sigma2     exact=96.000000  MC=95.974731  se=0.062072  z=-0.41
+AL-07 : borne kappa * 0,1 % atteinte par l'exemple diagonal, jamais dépassée sur 2000 cas.
+AL-10 : une matrice de corrélation 5 x 5 de valeurs propres 2,6 ; 1,1 ; 0,7 ; 0,4 ; 0,2 existe (construction explicite).
+AL-11 : part exacte 0.2400, part empirique (T = 20000) 0.2377.
+169 valeurs exportées dans verif/seance_algebre_1.out.json.
+Toutes les vérifications passent.

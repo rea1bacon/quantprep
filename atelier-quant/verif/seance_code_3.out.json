@@ -1,0 +1,139 @@
+{
+ "E1_exemple_manquants": 4,
+ "E1_fausses": {
+  "accesseur .str sans astype(str)": "5/9 cachés, 2/2 visibles",
+  "anciennetés négatives gardées": "2/9 cachés, 1/2 visibles",
+  "forfait non uniformisé": "2/9 cachés, 1/2 visibles",
+  "motif d'âge non ancré": "8/9 cachés, 2/2 visibles",
+  "virgule décimale retirée": "3/9 cachés, 1/2 visibles"
+ },
+ "E1_revenu_ligne_14": 3100.5,
+ "E1_tests_caches": 9,
+ "E2_colonnes_test_naif": 3,
+ "E2_colonnes_train": 4,
+ "E2_fausses": {
+  "get_dummies sur la concaténation": "1/8 cachés, 1/2 visibles",
+  "get_dummies séparés": "0/8 cachés, 1/2 visibles",
+  "reindex sans fill_value": "1/8 cachés, 1/2 visibles"
+ },
+ "E2_tests_caches": 8,
+ "E3_baclee_max": 0.655,
+ "E3_correction_max": 0.859,
+ "E3_correction_min": 0.815,
+ "E3_fausses": {
+  "classe majoritaire": "1/8 cachés",
+  "dropna sur le test": "1/8 cachés",
+  "get_dummies séparés": "6/8 cachés",
+  "solution bâclée": "1/8 cachés"
+ },
+ "E3_majoritaire_max": 0.543,
+ "E3_marge_minimale": 0.035,
+ "E3_mesures": [
+  {
+   "baclee": 0.4,
+   "correction": 1.0,
+   "majoritaire": 0.8,
+   "seuil": 0.0,
+   "test": "format : 5 lignes de test, 5 prédictions 0 ou 1"
+  },
+  {
+   "baclee": 0.645,
+   "correction": 0.847,
+   "majoritaire": 0.528,
+   "seuil": 0.78,
+   "test": "jeu standard"
+  },
+  {
+   "baclee": 1.0,
+   "correction": 1.0,
+   "majoritaire": 0.0,
+   "seuil": 0.0,
+   "test": "format : une seule ligne de test"
+  },
+  {
+   "baclee": 0.633,
+   "correction": 0.859,
+   "majoritaire": 0.521,
+   "seuil": 0.78,
+   "test": "jeu standard, autre tirage"
+  },
+  {
+   "baclee": 0.637,
+   "correction": 0.842,
+   "majoritaire": 0.526,
+   "seuil": 0.78,
+   "test": "modalité de forfait inconnue au test"
+  },
+  {
+   "baclee": 0.647,
+   "correction": 0.848,
+   "majoritaire": 0.543,
+   "seuil": 0.78,
+   "test": "nombreuses valeurs manquantes, à l'apprentissage et au test"
+  },
+  {
+   "baclee": 0.637,
+   "correction": 0.851,
+   "majoritaire": 0.54,
+   "seuil": 0.78,
+   "test": "appels en chiffres seulement (colonne d'entiers)"
+  },
+  {
+   "baclee": 0.655,
+   "correction": 0.828,
+   "majoritaire": 0.505,
+   "seuil": 0.76,
+   "test": "petit jeu d'apprentissage (200 lignes)"
+  },
+  {
+   "baclee": 0.645,
+   "correction": 0.815,
+   "majoritaire": 0.535,
+   "seuil": 0.78,
+   "test": "index non trivial au test"
+  },
+  {
+   "baclee": 0.6432,
+   "correction": 0.8476,
+   "majoritaire": 0.535,
+   "seuil": 0.78,
+   "test": "grande taille (20000 lignes d'apprentissage)"
+  }
+ ],
+ "E3_seuil": 0.78,
+ "E3_seuil_petit": 0.76,
+ "E3_tests_caches": 8,
+ "E3_tests_exactitude": 8,
+ "L_coerce_manquants": 2,
+ "L_exactitude_majoritaire_90": 0.9,
+ "Q1_moyenne_app": 5,
+ "Q1_moyenne_tout": 8,
+ "Q1_variance_app": 5,
+ "Q1_variance_tout": 40,
+ "Q1_z_ddof1": 5.809475019311125,
+ "Q1_z_fuite": 1.8973665961010275,
+ "Q1_z_juste": 6.7082039324993685,
+ "Q1_z_test_seul": 0,
+ "Q2_colonnes": 3,
+ "Q2_colonnes_concat": 4,
+ "Q2_colonnes_dummies_test": 2,
+ "Q2_somme_ligne_pro": 0,
+ "Q4_exactitude_A": 0.95,
+ "Q4_exactitude_B": 0.92,
+ "Q4_f1_B": 0.42857142857142855,
+ "Q4_f1_den": 7,
+ "Q4_f1_num": 3,
+ "Q4_fn": 20,
+ "Q4_fp": 60,
+ "Q4_moyenne_arithmetique": 0.4666666666666667,
+ "Q4_n": 1000,
+ "Q4_positifs": 50,
+ "Q4_precision_B": 0.3333333333333333,
+ "Q4_rappel_B": 0.6,
+ "Q4_vn": 890,
+ "Q4_vp": 30,
+ "lecon_exactitude_test": 0.8583,
+ "lecon_majoritaire_test": 0.515,
+ "lecon_n_test": 600,
+ "lecon_n_train": 1500
+}

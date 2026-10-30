@@ -1,0 +1,25 @@
+M01                      exact=0.272727  MC=0.271983  se=0.000704  z=-1.06
+M02                      exact=1.604167  MC=1.602790  se=0.003383  z=-0.41
+M03                      exact=5.000000  MC=4.999915  se=0.002718  z=-0.03
+M03_p_g1                 exact=0.270671  MC=0.270836  se=0.000314  z=+0.53
+M06                      exact=1.250000  MC=1.249688  se=0.001142  z=-0.27
+M07_puissance            exact=0.500000  MC=0.500195  se=0.000791  z=+0.25
+M07_niveau               exact=0.050000  MC=0.049978  se=0.000345  z=-0.07
+M08                      exact=0.020136  MC=0.019781  se=0.000314  z=-1.13
+M09                      exact=17.500000  MC=17.509003  se=0.024467  z=+0.37
+M10                      exact=0.100000  MC=0.100538  se=0.000474  z=+1.13
+M10_moyenne              exact=0.000000  MC=0.001792  se=0.001585  z=+1.13
+F01 : Lasso de scikit-learn (descente par coordonnées) renvoie [2.0, 0.0], critère 2.68
+F05                      exact=1.500000  MC=1.503262  se=0.003306  z=+0.99
+A03_var_d4               exact=4.000000  MC=4.006032  se=0.011837  z=+0.51
+A03_var_d64              exact=64.000000  MC=63.973076  se=0.146218  z=-0.18
+A07                      exact=0.394720  MC=0.394917  se=0.001255  z=+0.16
+A08_moyenne              exact=0.808708  MC=0.809667  se=0.002246  z=+0.43
+A08_variance             exact=0.754747  MC=0.754780  se=0.001685  z=+0.02
+C_var_decalage_non_trie      8/14 tests cachés
+C_var_pct_change             11/14 tests cachés
+C_var_nlargest               13/14 tests cachés
+C_var_pivot                  10/14 tests cachés
+C_var_tri_par_date           14/14 tests cachés
+334 valeurs exportées dans verif/examen_blanc_1.out.json.
+Toutes les vérifications passent.

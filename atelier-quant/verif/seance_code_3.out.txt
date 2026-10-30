@@ -1,0 +1,19 @@
+fichiers de la leçon : 1500 et 600 lignes ; modalité pro absente de l'apprentissage, présente au test
+exemples des exercices 1 et 2 : correction pandas, version sans bibliothèque et calcul à la main concordent
+exercice 1 : solutions fausses attrapées {'accesseur .str sans astype(str)': '5/9 cachés, 2/2 visibles', 'anciennetés négatives gardées': '2/9 cachés, 1/2 visibles', "motif d'âge non ancré": '8/9 cachés, 2/2 visibles', 'virgule décimale retirée': '3/9 cachés, 1/2 visibles', 'forfait non uniformisé': '2/9 cachés, 1/2 visibles'} ; variante juste ligne à ligne acceptée
+exercice 2 : solutions fausses attrapées {'get_dummies séparés': '0/8 cachés, 1/2 visibles', 'get_dummies sur la concaténation': '1/8 cachés, 1/2 visibles', 'reindex sans fill_value': '1/8 cachés, 1/2 visibles'} ; variante juste (DataFrame.align) acceptée
+exercice 3, format : 5 lignes de test, 5 prédictions 0 ou 1 : seuil 0.0, correction 1.0, bâclée 0.4, majoritaire 0.8
+exercice 3, jeu standard : seuil 0.78, correction 0.847, bâclée 0.645, majoritaire 0.528
+exercice 3, format : une seule ligne de test : seuil 0.0, correction 1.0, bâclée 1.0, majoritaire 0.0
+exercice 3, jeu standard, autre tirage : seuil 0.78, correction 0.859, bâclée 0.633, majoritaire 0.521
+exercice 3, modalité de forfait inconnue au test : seuil 0.78, correction 0.842, bâclée 0.637, majoritaire 0.526
+exercice 3, nombreuses valeurs manquantes, à l'apprentissage et au test : seuil 0.78, correction 0.848, bâclée 0.647, majoritaire 0.543
+exercice 3, appels en chiffres seulement (colonne d'entiers) : seuil 0.78, correction 0.851, bâclée 0.637, majoritaire 0.54
+exercice 3, petit jeu d'apprentissage (200 lignes) : seuil 0.76, correction 0.828, bâclée 0.655, majoritaire 0.505
+exercice 3, index non trivial au test : seuil 0.78, correction 0.815, bâclée 0.645, majoritaire 0.535
+exercice 3, grande taille (20000 lignes d'apprentissage) : seuil 0.78, correction 0.8476, bâclée 0.6432, majoritaire 0.535
+exercice 3 : marge minimale de la correction 0.035 ; solutions fausses attrapées {'classe majoritaire': '1/8 cachés', 'solution bâclée': '1/8 cachés', 'dropna sur le test': '1/8 cachés', 'get_dummies séparés': '6/8 cachés'} ; variantes justes (forêt, boosting) acceptées
+S3-Q1 : z juste 6.7082, avec fuite 1.8974, avec dénominateur n - 1 5.8095, ajusté sur le test seul 0
+S3-Q2 : 3 colonnes, ligne pro = [0.0, 0.0, 0.0] ; get_dummies du test seul : 2 colonnes ; de la concaténation : 4
+S3-Q4 : exactitude A 0.95, B 0.92 ; précision 1/3, rappel 3/5, F1 3/7
+chaîne de la leçon sur ses fichiers : exactitude 0.8583 sur le test, classe majoritaire 0.515

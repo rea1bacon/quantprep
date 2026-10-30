@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier quant</title>
+<style>
+:root { --fond:#f5f6f8; --carte:#ffffff; --texte:#1f2328; --doux:#646b75; --trait:#e3e6ea; --trait-fort:#cdd2d8; --accent:#2f5bd3; --accent-doux:#eef2fc; --bon:#1f7a4d; --bon-doux:#eaf6ef; --faux:#c0392b; --faux-doux:#fcecea; --alerte:#9a5a08; --alerte-doux:#fdf3e4; --code:#f6f8fa; --ombre:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06); }
+@media (prefers-color-scheme: dark) { :root { --fond:#0f1115; --carte:#171a20; --texte:#e6e8eb; --doux:#9aa1ab; --trait:#262b33; --trait-fort:#363c46; --accent:#86a8ff; --accent-doux:#1a2135; --bon:#5cc98f; --bon-doux:#13251c; --faux:#f08479; --faux-doux:#2b1716; --alerte:#e2a54f; --alerte-doux:#2a2013; --code:#12151a; --ombre:none; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--fond); color:var(--texte); font:15.5px/1.6 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:var(--accent); }
+
+/* Barre supérieure */
+header { position:sticky; top:0; z-index:10; background:var(--carte); border-bottom:1px solid var(--trait); height:56px; padding:0 20px; display:flex; gap:14px; align-items:center; }
+#lienAccueil { display:flex; align-items:center; gap:8px; color:var(--texte); font-weight:650; font-size:15px; text-decoration:none; white-space:nowrap; padding-right:14px; border-right:1px solid var(--trait); }
+#lienAccueil::before { content:""; width:22px; height:22px; border-radius:6px; background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #7b4bd6)); }
+#lienAccueil[hidden] { display:none; }
+header h1 { font-size:14.5px; font-weight:600; margin:0; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#position { font-size:13px; color:var(--doux); white-space:nowrap; }
+#progression { position:absolute; left:0; right:0; bottom:-1px; height:2px; background:transparent; }
+#progression > span { display:block; height:100%; width:0; background:var(--accent); transition:width .3s; }
+#chrono { font:600 15px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric:tabular-nums; background:var(--fond); border:1px solid var(--trait); border-radius:999px; padding:7px 12px; }
+#chrono.depasse { color:var(--faux); border-color:var(--faux); }
+@media (max-width:720px) { #position { display:none; } header { padding:0 12px; gap:8px; } }
+
+/* Mise en page */
+main { padding:28px 24px 96px; }
+main > .carte, main > .fiche, main > .tableau-bord { max-width:880px; margin-left:auto; margin-right:auto; }
+.cadre { display:grid; grid-template-columns:250px minmax(0, 1fr); gap:32px; max-width:1180px; margin:0 auto; align-items:start; }
+main.large .cadre { max-width:none; }
+.contenu { min-width:0; max-width:820px; }
+main.lecture .contenu { max-width:880px; }
+main.large .contenu { max-width:none; }
+@media (max-width:1000px) { .cadre { grid-template-columns:1fr; gap:16px; } }
+
+/* Plan de la séance (colonne gauche) */
+.plan { scrollbar-width:thin; scrollbar-color:var(--trait-fort) transparent; position:sticky; top:84px; max-height:calc(100vh - 104px); overflow-y:auto; font-size:13.5px; }
+.plan .groupe { font-size:11.5px; font-weight:650; letter-spacing:.06em; text-transform:uppercase; color:var(--doux); margin:16px 0 6px 10px; }
+.plan .groupe:first-child { margin-top:0; }
+#pastilles { display:flex; flex-direction:column; gap:2px; }
+.pastille { display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:none; border-radius:8px; padding:6px 10px; font-size:13.5px; color:var(--texte); }
+.pastille:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 9%, transparent); }
+.pastille .etat { flex:none; width:18px; height:18px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:10px; color:#fff; }
+.pastille.faite .etat { background:var(--accent); border-color:var(--accent); }
+.pastille.faite .etat::after { content:"✓"; }
+.pastille .libelle { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pastille.courante { background:var(--accent-doux); color:var(--accent); font-weight:600; }
+.pastille.courante .etat { border-color:var(--accent); }
+@media (max-width:1000px) { .plan { position:static; max-height:none; } #pastilles { flex-direction:row; flex-wrap:wrap; } .pastille { width:auto; } .pastille .libelle { display:none; } .plan .groupe { display:none; } }
+
+/* Cartes */
+.carte { background:var(--carte); border:1px solid var(--trait); border-radius:12px; padding:22px 26px; margin-bottom:18px; box-shadow:var(--ombre); }
+h2 { font-size:21px; font-weight:650; letter-spacing:-.01em; margin:0 0 10px; }
+h3 { font-size:17px; font-weight:650; margin:20px 0 6px; }
+h4 { font-size:15px; font-weight:650; margin:16px 0 4px; }
+.meta { color:var(--doux); font-size:13.5px; }
+.surtitre { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:14px; font-size:13px; color:var(--doux); }
+.surtitre .rang { font-weight:650; color:var(--texte); }
+.chip { display:inline-block; max-width:420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; font-size:12px; font-weight:550; padding:2px 10px; border-radius:999px; background:var(--accent-doux); color:var(--accent); }
+.note { background:var(--alerte-doux); border-radius:10px; padding:10px 14px; color:var(--texte); font-size:14px; margin:12px 0; }
+.note p { margin:4px 0; }
+.consigne { font-size:13px; color:var(--doux); margin:18px 0 8px; }
+
+/* Boutons */
+button { font:inherit; font-size:14px; font-weight:550; padding:8px 14px; border-radius:8px; border:1px solid var(--trait-fort); background:var(--carte); color:var(--texte); cursor:pointer; transition:background .15s, border-color .15s; }
+button:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 8%, var(--carte)); }
+button.principal { background:var(--accent); border-color:var(--accent); color:#fff; }
+button.principal:hover:not(:disabled) { background:color-mix(in srgb, var(--accent) 88%, #000); }
+@media (prefers-color-scheme: dark) { button.principal { color:#0d1220; } }
+button:disabled { opacity:.45; cursor:default; }
+header button { padding:6px 12px; font-size:13px; }
+.barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:16px; }
+.navigation { border-top:1px solid var(--trait); margin-top:26px; padding-top:18px; }
+.navigation #prec { margin-right:auto; }
+.navigation #finir { order:1; }
+.navigation #suiv { order:2; }
+
+/* Options d'une question */
+.option { display:flex; gap:14px; align-items:flex-start; border:1px solid var(--trait-fort); border-radius:10px; padding:13px 16px; margin:10px 0; cursor:pointer; background:var(--carte); transition:border-color .12s, background .12s; }
+.option:hover { border-color:var(--accent); }
+.option .lettre { flex:none; width:26px; height:26px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:12.5px; font-weight:650; color:var(--doux); margin-top:-1px; }
+.option .lettre.carre { border-radius:6px; }
+.option p { margin:0; }
+.option.choisie { border-color:var(--accent); background:var(--accent-doux); }
+.option.choisie .lettre { background:var(--accent); border-color:var(--accent); color:#fff; }
+.option.juste { border-color:var(--bon); }
+.option.fausse { border-color:var(--trait); }
+.explication { font-size:14px; color:var(--doux); margin-top:6px; }
+.etiquette { font-size:13px; font-weight:600; }
+.bon { color:var(--bon); } .faux { color:var(--faux); }
+
+/* Code, tableaux */
+pre { background:var(--code); border:1px solid var(--trait); border-radius:8px; padding:12px 14px; overflow-x:auto; font:13px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+code { font:13px ui-monospace, "Cascadia Mono", Consolas, monospace; background:var(--code); border:1px solid var(--trait); padding:0 4px; border-radius:4px; }
+pre code { background:none; border:0; padding:0; }
+.defile { overflow-x:auto; }
+table { border-collapse:collapse; width:100%; font-size:14px; margin:10px 0; }
+th { font-size:12px; font-weight:650; letter-spacing:.04em; text-transform:uppercase; color:var(--doux); }
+th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--trait); vertical-align:top; }
+td.nombre, th.nombre { text-align:right; font-variant-numeric:tabular-nums; }
+textarea.json { width:100%; min-height:140px; font:12.5px ui-monospace, Consolas, monospace; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px; }
+details { margin-top:10px; } summary { cursor:pointer; color:var(--accent); font-weight:550; }
+
+/* Question de code : énoncé à gauche, notebook à droite */
+.deux { display:grid; grid-template-columns:minmax(300px, 38%) 1fr; gap:18px; align-items:start; }
+.deux > .carte { margin:0; }
+.deux .enonce { position:sticky; top:76px; max-height:calc(100vh - 96px); overflow-y:auto; }
+@media (max-width:1100px) { .deux { grid-template-columns:1fr; } .deux .enonce { position:static; max-height:none; } }
+.notebook-barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--trait); padding-bottom:12px; margin-bottom:12px; }
+.notebook-barre button { font-size:13px; padding:6px 11px; }
+.notebook-barre #versions { margin-left:auto; }
+.notebook-barre .meta { font-size:12.5px; }
+.cellule { display:grid; grid-template-columns:48px 1fr; gap:6px; margin:12px 0; }
+.cellule .numero { font:12px ui-monospace, Consolas, monospace; color:var(--doux); text-align:right; padding-top:9px; }
+.cellule .editeur { border:1px solid var(--trait); border-radius:8px; overflow:hidden; background:var(--code); }
+.cellule.active .editeur { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-doux); }
+.cellule .editeur textarea { border:none; border-radius:0; }
+.cellule textarea { width:100%; resize:none; overflow:hidden; min-height:44px; font:13.5px/1.5 ui-monospace, Consolas, monospace; tab-size:4; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px 10px; white-space:pre; overflow-x:auto; }
+.cellule .actions { display:flex; gap:6px; margin-top:4px; }
+.cellule .actions button { font-size:12px; padding:2px 8px; font-weight:500; }
+.cellule pre.sortie { margin:4px 0 0; max-height:420px; overflow:auto; }
+.cellule pre.sortie:empty { display:none; }
+pre .erreur { color:var(--faux); }
+.resultats-tests { margin-top:12px; }
+#voile { position:fixed; inset:0; z-index:20; background:color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:16px; }
+#voile[hidden] { display:none; }
+#voile .carte { max-width:480px; text-align:center; }
+#voile .barre { justify-content:center; }
+.deux.lecon { grid-template-columns:minmax(320px, 56%) 1fr; }
+.deux.lecon .enonce { max-height:calc(100vh - 96px); }
+pre.sortie-lecon { margin-top:-6px; border-style:dashed; color:var(--doux); }
+
+/* Leçons : colonne de lecture, une partie à la fois, onglets */
+main.lecture .carte.enonce { padding:26px 40px 30px; }
+.lecon-corps { font-size:16px; line-height:1.72; max-width:74ch; margin:0 auto; }
+.lecon-corps p { margin:0.75em 0; }
+.lecon-corps li { margin:0.4em 0; padding-left:2px; }
+.lecon-corps ol, .lecon-corps ul { padding-left:1.4em; }
+.lecon-corps ol > li::marker { font-weight:650; color:var(--doux); }
+.lecon-corps h3 { font-size:23px; font-weight:700; letter-spacing:-.015em; line-height:1.3; margin:8px 0 16px; }
+.lecon-corps table { font-size:14.5px; line-height:1.55; }
+.lecon-corps mjx-container { font-size:102% !important; }
+.lecon-corps mjx-container[display="true"], .lecon-corps p.formule > mjx-container { display:block; text-align:center; margin:0.7em 0; overflow-x:auto; overflow-y:hidden; }
+.sommaire { display:flex; flex-wrap:wrap; gap:0 2px; margin:0 0 24px; border-bottom:1px solid var(--trait); }
+.sommaire button { flex:none; font-size:13px; font-weight:550; padding:10px 12px; border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--doux); margin-bottom:-1px; }
+.sommaire button:hover:not(:disabled) { background:none; color:var(--texte); }
+.sommaire button.active { color:var(--accent); border-bottom-color:var(--accent); }
+.partie[hidden] { display:none; }
+.pied-partie { display:flex; gap:10px; align-items:center; justify-content:space-between; margin:28px 0 4px; padding-top:18px; border-top:1px solid var(--trait); }
+.pied-partie .meta { flex:1; text-align:center; }
+.bloc { --teinte:var(--doux); border:1px solid var(--trait); border-radius:10px; padding:6px 20px 10px; margin:18px 0; background:var(--carte); }
+.bloc > h4, .bloc > summary { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--teinte); margin:10px 0 2px; }
+.bloc.enonce-bloc { --teinte:var(--accent); background:var(--accent-doux); border-color:transparent; }
+.bloc.exemple { --teinte:var(--bon); } .bloc.pieges { --teinte:var(--faux); } .bloc.limites { --teinte:var(--alerte); }
+.bloc.preuve { background:var(--fond); }
+details.bloc > summary { cursor:pointer; list-style:revert; padding:6px 0; }
+details.bloc > summary .meta { text-transform:none; letter-spacing:0; font-weight:400; margin-left:6px; }
+details.bloc[open] > summary { margin-bottom:6px; }
+.controle { border:1px solid var(--trait-fort); border-radius:12px; padding:14px 18px; margin:22px 0; background:var(--fond); }
+.controle .titre-controle { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accent); margin:0 0 6px; }
+.controle .option { background:var(--carte); }
+
+/* Fiche de question : débrief et bilan */
+.fiche { background:var(--carte); border:1px solid var(--trait); border-radius:12px; margin:0 0 20px; overflow:hidden; font-size:15px; line-height:1.65; box-shadow:var(--ombre); }
+.lecon-corps .fiche { margin:24px 0; }
+.fiche-tete { display:flex; align-items:center; flex-wrap:wrap; gap:6px 14px; padding:14px 22px; border-bottom:1px solid var(--trait); }
+.fiche-tete .num { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); white-space:nowrap; }
+.fiche-tete .titre { flex:1; min-width:200px; font-weight:650; font-size:16px; }
+.fiche-tete .temps { font-size:12.5px; color:var(--doux); white-space:nowrap; }
+.verdict { font-size:12px; font-weight:650; padding:3px 10px; border-radius:999px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.v-juste .verdict { color:var(--bon); background:var(--bon-doux); } .v-fausse .verdict { color:var(--faux); background:var(--faux-doux); } .v-incomplete .verdict { color:var(--alerte); background:var(--alerte-doux); }
+.fiche-corps { padding:4px 22px 20px; }
+.fiche h5 { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin:22px 0 8px; }
+.fiche-corps > h5:first-child { margin-top:16px; }
+.fiche p { margin:0.6em 0; }
+.fiche li { margin:0.35em 0; }
+.fiche-reponses { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:18px 0 6px; }
+.fiche-reponses > div { background:var(--fond); border-radius:10px; padding:10px 14px; }
+.fiche-reponses .lab { display:block; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin-bottom:2px; }
+.fiche ul.choix { list-style:none; padding:0; margin:8px 0; }
+.fiche ul.choix > li { border:1px solid var(--trait); border-radius:10px; padding:9px 14px; margin:8px 0; }
+.fiche ul.choix > li > strong:first-child { display:inline-block; min-width:1.8em; color:var(--doux); }
+.fiche .retenir { border-radius:10px; padding:12px 16px; margin-top:20px; background:var(--accent-doux); }
+.fiche .retenir h5 { margin:0 0 2px; color:var(--accent); }
+.fiche .retenir p { margin:0.3em 0 0; }
+.fiche .revoir { font-size:13.5px; color:var(--doux); margin:14px 0 0; }
+.fiche .option { cursor:default; }
+.fiche .option:hover { border-color:var(--trait); }
+.fiche .option p { margin:0; }
+.fiche .option .explication p { margin:3px 0 0; }
+.fiche .option.juste { border-color:color-mix(in srgb, var(--bon) 45%, var(--trait)); background:var(--bon-doux); }
+.fiche .option.choisie:not(.juste) { border-color:color-mix(in srgb, var(--faux) 45%, var(--trait)); background:var(--faux-doux); }
+.fiche .option.choisie .lettre { background:none; color:var(--doux); border-color:var(--trait-fort); }
+.fiche .option > div { flex:1; }
+.puce { float:right; font-size:11px; font-weight:650; padding:2px 9px; border-radius:999px; margin-left:8px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.puce.bon { color:var(--bon); background:var(--carte); } .puce.faux { color:var(--faux); background:var(--carte); }
+.fiche details { margin-top:16px; border-top:1px solid var(--trait); padding-top:12px; }
+.fiche details > summary { cursor:pointer; font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); }
+
+/* Présentation d'une séance et bilan */
+.presentation h2 { font-size:26px; letter-spacing:-.02em; }
+.sections-liste { display:grid; gap:8px; margin:18px 0; }
+.sections-liste > div { display:flex; justify-content:space-between; gap:12px; background:var(--fond); border-radius:10px; padding:10px 14px; font-size:14px; }
+.score-total { display:flex; align-items:baseline; gap:10px; margin:4px 0 14px; }
+.score-total strong { font-size:34px; font-weight:700; letter-spacing:-.02em; }
+</style>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  options: { ignoreHtmlClass: 'sans-math', skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+};
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+</head>
+<body>
+<header>
+  <a id="lienAccueil" href="/" hidden>Atelier quant</a>
+  <h1 id="titre"></h1>
+  <span class="meta" id="position"></span>
+  <button id="recommencerHaut" hidden>Recommencer</button>
+  <button id="pause" hidden>Pause</button>
+  <span id="chrono">00:00</span>
+  <div id="progression"><span></span></div>
+</header>
+<div id="voile" hidden><div class="carte"><h2>En pause</h2><p>Le chronomètre est arrêté et le contenu masqué : le temps de pause n'est compté ni dans la durée de la séance, ni dans le temps par question.</p><div class="barre"><button class="principal" id="reprendre">Reprendre</button></div></div></div>
+<main id="page"></main>
+<script type="application/json" id="donnees">{"id": "seance-ml-3", "titre": "Séance de ML 3 : classification, métriques et validation", "duree_minutes": 50, "options": {"pause": true, "je_ne_sais_pas": true, "retour_arriere": true, "penalite": 0}, "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.", "presentation": "D'abord une leçon express d'environ 20 minutes : régression logistique (gradient, convexité, rapport de cotes, séparation), métriques de classification (précision, rappel, F1, ROC et AUC, log-loss, Brier, calibration, classes déséquilibrées), plus proches voisins, mise à l'échelle et malédiction de la dimension, puis validation (fuites, validation croisée temporelle, purge et embargo). Cinq points de contrôle sont corrigés immédiatement. Ensuite 8 questions à choix multiple, dont 5 de difficulté 4 ou 5.\n\nObjectif de vitesse : chaque question se résout en moins de 2 minutes et demie avec la leçon. Au-delà du double du temps cible affiché, choisis « Je ne sais pas » et passe à la suivante : c'est la règle d'abandon à suivre dans un test chronométré.", "avertissements": ["Les questions de ML sont présentées ici en choix multiple à une seule bonne réponse. Cherche la réponse avant de lire les options, pour t'entraîner aussi au format à réponse numérique.", "Ici le retour en arrière est permis et il n'y a pas de pénalité : ce sont les règles de cette plateforme, pas celles de tout test en ligne."], "sections": [{"id": "lecon", "nom": "Leçon", "budget_min": 30, "questions": [{"id": "L-ML-3", "type": "lecon", "section": "lecon", "theme": "Leçon express : régression logistique, métriques, plus proches voisins, validation", "difficulte": 4, "temps_cible_s": 1800, "dossier": "coding/lecons", "contenu": "## Leçon express : classification, métriques et validation\n\nDurée visée : 30 minutes. Quatre parties : la régression logistique, les métriques de classification, les plus proches voisins avec la mise à l'échelle et la malédiction de la dimension, puis la validation (fuites d'information, validation croisée temporelle, purge et embargo). Chaque résultat suit l'ordre : le problème, l'énoncé, la preuve, un exemple chiffré, les cas limites, les pièges. La régression linéaire et la décomposition biais-variance sont supposées connues : leçon de la séance de ML 1 (`outils/lecons_reglin.py`), parties 1 et 6.\n\n**Conventions de notation**, valables pour toute la leçon :\n\n- une majuscule non grasse désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe ; en gras, une minuscule est un vecteur colonne, une majuscule une matrice fixe ;\n- les données comptent \\(n\\) observations ; l'observation \\(i\\) a un vecteur fixe \\(\\mathbf{x}_i \\in \\mathbb{R}^p\\) de \\(p\\) variables, dont la première vaut 1 quand le modèle a une constante, et une étiquette \\(y_i \\in \\{0, 1\\}\\), valeur observée de la variable aléatoire \\(Y_i\\) ; \\(\\mathbf{X}\\) est la matrice \\(n \\times p\\) de lignes \\(\\mathbf{x}_i^\\top\\), et \\(\\mathbf{y}\\) le vecteur des \\(y_i\\) ;\n- exceptions d'usage, déclarées : les effectifs VP, FP, FN, VN de la matrice de confusion, les taux TVP et TFP, l'AUC et le score de Brier gardent leur nom habituel, et sont des nombres calculés sur des données observées.\n\nTous les nombres hors des sorties de code sont calculés par `verif/seance_ml_3.py`. Le premier bloc prépare les outils ; les suivants réutilisent ses variables.\n\n```python\nimport numpy as np\nfrom scipy.stats import spearmanr\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.metrics import roc_auc_score, brier_score_loss, log_loss\nfrom sklearn.tree import DecisionTreeClassifier\nfrom sklearn.model_selection import KFold\nfrom sklearn.feature_selection import SelectKBest, f_classif\nnp.set_printoptions(precision=4, suppress=True)\n\ndef voisins(F_app, y_app, F_test, k):\n    # moyenne des réponses des k plus proches voisins (distance euclidienne) de chaque ligne de F_test\n    d2 = ((F_test[:, None, :] - F_app[None, :, :]) ** 2).sum(axis=2)\n    proches = np.argsort(d2, axis=1, kind=\"stable\")[:, :k]   # égalités départagées par l'ordre des lignes\n    return y_app[proches].mean(axis=1)\n\nprint(\"prêt\")\n```\n\n```sortie\nprêt\n```\n\nLa fonction `voisins` calcule la prédiction des plus proches voisins directement avec numpy : la règle est visible en trois lignes, et le calcul est plus rapide que la classe de scikit-learn dans cet environnement.\n\n## Partie 1 : la régression logistique\n\n### Le problème\n\nOn veut prédire une étiquette binaire et, surtout, sa **probabilité**. Les moindres carrés sur des étiquettes 0 ou 1 peuvent prédire hors de \\([0, 1]\\), et supposent une variance du bruit constante, alors qu'une variable de Bernoulli de paramètre \\(\\pi\\) a pour variance \\(\\pi(1 - \\pi)\\), qui dépend de \\(\\pi\\).\n\n### Notations et modèle\n\n- \\(\\sigma(t) = 1/(1 + e^{-t})\\), pour \\(t\\) réel : la fonction logistique, strictement croissante de \\(\\mathbb{R}\\) dans \\(]0, 1[\\).\n- \\(\\mathbf{b} \\in \\mathbb{R}^p\\) : un vecteur de coefficients candidat ; \\(t_i = \\mathbf{x}_i^\\top \\mathbf{b}\\) : le score linéaire de l'observation \\(i\\) ; \\(\\pi_i(\\mathbf{b}) = \\sigma(t_i)\\) : la probabilité prédite ; \\(\\boldsymbol{\\pi}(\\mathbf{b})\\) : le vecteur des \\(\\pi_i(\\mathbf{b})\\).\n- La **cote** d'une probabilité \\(\\pi \\in ]0, 1[\\) est \\(\\pi/(1 - \\pi)\\) ; son logarithme est le **logit**.\n- **Modèle** : les \\(Y_i\\) sont indépendantes, et \\(Y_i\\) suit la loi de Bernoulli de paramètre \\(\\sigma(\\mathbf{x}_i^\\top \\boldsymbol{\\beta})\\), où \\(\\boldsymbol{\\beta} \\in \\mathbb{R}^p\\) est fixe et inconnu. Comme \\(\\ln\\big(\\sigma(t)/(1 - \\sigma(t))\\big) = t\\), le modèle dit que le logit de la probabilité est linéaire en \\(\\mathbf{x}\\).\n- **Vraisemblance** : \\(\\prod_i \\pi_i(\\mathbf{b})^{y_i} (1 - \\pi_i(\\mathbf{b}))^{1 - y_i}\\). **Log-loss** (entropie croisée), moins le logarithme de la vraisemblance divisé par \\(n\\) : \\(\\displaystyle \\ell(\\mathbf{b}) = -\\frac{1}{n} \\sum_{i=1}^n \\big[y_i \\ln \\pi_i(\\mathbf{b}) + (1 - y_i) \\ln(1 - \\pi_i(\\mathbf{b}))\\big] = \\frac{1}{n} \\sum_{i=1}^n \\big[\\ln(1 + e^{t_i}) - y_i t_i\\big]\\). La seconde forme vient de \\(\\ln \\sigma(t) = t - \\ln(1 + e^t)\\) et \\(\\ln(1 - \\sigma(t)) = -\\ln(1 + e^t)\\). Maximiser la vraisemblance, c'est minimiser \\(\\ell\\).\n- \\(\\mathbf{W}(\\mathbf{b})\\) : la matrice diagonale \\(n \\times n\\) de coefficients \\(\\pi_i(\\mathbf{b})(1 - \\pi_i(\\mathbf{b}))\\).\n\n### L'énoncé\n\n1. **Gradient** : \\(\\nabla \\ell(\\mathbf{b}) = \\tfrac{1}{n} \\mathbf{X}^\\top (\\boldsymbol{\\pi}(\\mathbf{b}) - \\mathbf{y})\\). Même forme que les moindres carrés, avec la probabilité prédite à la place de la valeur ajustée.\n2. **Hessienne** : \\(\\nabla^2 \\ell(\\mathbf{b}) = \\tfrac{1}{n} \\mathbf{X}^\\top \\mathbf{W}(\\mathbf{b}) \\mathbf{X}\\), semi-définie positive : \\(\\ell\\) est **convexe**. Si \\(\\mathbf{X}\\) est de rang \\(p\\), elle est définie positive : \\(\\ell\\) est strictement convexe, a **au plus un** minimiseur, et tout point où le gradient s'annule est ce minimiseur global.\n3. **Pas de forme fermée** : l'équation \\(\\mathbf{X}^\\top (\\boldsymbol{\\pi}(\\mathbf{b}) - \\mathbf{y}) = \\mathbf{0}\\) n'est pas linéaire en \\(\\mathbf{b}\\) (à cause de \\(\\sigma\\)). On la résout par itérations : méthode de Newton \\(\\mathbf{b} \\leftarrow \\mathbf{b} - (\\nabla^2 \\ell)^{-1} \\nabla \\ell\\) (appelée aussi moindres carrés repondérés itérés, IRLS), ou descente de gradient ; leur convergence est admise.\n4. **Avec une constante**, au minimiseur \\(\\hat{\\boldsymbol{\\beta}}\\) : \\(\\sum_i \\pi_i(\\hat{\\boldsymbol{\\beta}}) = \\sum_i y_i\\). La probabilité moyenne prédite sur l'échantillon d'apprentissage égale la fréquence observée.\n5. **Rapport de cotes** : si \\(x_j\\) augmente de 1, les autres variables fixées, la cote prédite est multipliée par \\(e^{\\beta_j}\\), quel que soit le point de départ. La probabilité, elle, change d'une quantité qui dépend du point de départ : sa dérivée par rapport à \\(x_j\\) vaut \\(\\beta_j \\pi (1 - \\pi)\\).\n6. **Séparation parfaite** : s'il existe \\(\\mathbf{b}^\\star\\) tel que \\(\\mathbf{x}_i^\\top \\mathbf{b}^\\star > 0\\) pour tout \\(i\\) avec \\(y_i = 1\\) et \\(\\mathbf{x}_i^\\top \\mathbf{b}^\\star < 0\\) pour tout \\(i\\) avec \\(y_i = 0\\), alors \\(\\ell\\) n'a **pas** de minimiseur : sa borne inférieure est 0, non atteinte, et toute suite \\((\\mathbf{b}_m)\\) telle que \\(\\ell(\\mathbf{b}_m) \\to 0\\) vérifie \\(\\lVert \\mathbf{b}_m \\rVert \\to \\infty\\).\n\n### La preuve\n\n1. **Gradient.** La dérivée de \\(t \\mapsto \\ln(1 + e^t) - y t\\) vaut \\(e^t/(1 + e^t) - y = \\sigma(t) - y\\), et \\(\\partial t_i / \\partial b_j = x_{ij}\\). Par dérivation composée, \\(\\partial \\ell / \\partial b_j = \\tfrac1n \\sum_i (\\pi_i - y_i) x_{ij}\\) : c'est la coordonnée \\(j\\) de \\(\\tfrac1n \\mathbf{X}^\\top (\\boldsymbol{\\pi} - \\mathbf{y})\\).\n2. **Hessienne.** \\(\\sigma'(t) = e^{-t}/(1 + e^{-t})^2 = \\sigma(t)(1 - \\sigma(t))\\). En dérivant l'étape 1 par rapport à \\(b_k\\) : \\(\\partial^2 \\ell / \\partial b_j \\partial b_k = \\tfrac1n \\sum_i \\pi_i (1 - \\pi_i) x_{ij} x_{ik}\\), coefficient \\((j, k)\\) de \\(\\tfrac1n \\mathbf{X}^\\top \\mathbf{W}\\mathbf{X}\\).\n3. **Signe.** Pour \\(\\mathbf{v} \\in \\mathbb{R}^p\\) : \\(\\mathbf{v}^\\top \\mathbf{X}^\\top \\mathbf{W}\\mathbf{X}\\mathbf{v} = \\sum_i \\pi_i (1 - \\pi_i) (\\mathbf{x}_i^\\top \\mathbf{v})^2 \\ge 0\\). Chaque poids \\(\\pi_i(1 - \\pi_i)\\) est strictement positif, car \\(\\sigma\\) prend ses valeurs dans \\(]0, 1[\\) ; la somme est donc nulle si et seulement si \\(\\mathbf{X}\\mathbf{v} = \\mathbf{0}\\), ce qui force \\(\\mathbf{v} = \\mathbf{0}\\) quand \\(\\mathbf{X}\\) est de rang \\(p\\).\n4. **Convexité et minimum global.** Formule de Taylor avec reste intégral, pour \\(\\mathbf{h} \\in \\mathbb{R}^p\\) : \\(\\ell(\\mathbf{b} + \\mathbf{h}) = \\ell(\\mathbf{b}) + \\nabla \\ell(\\mathbf{b})^\\top \\mathbf{h} + \\int_0^1 (1 - u)\\,\\mathbf{h}^\\top \\nabla^2 \\ell(\\mathbf{b} + u\\mathbf{h})\\,\\mathbf{h}\\,du\\). Par l'étape 3, l'intégrale est positive, strictement si \\(\\mathbf{h} \\ne \\mathbf{0}\\) et \\(\\mathbf{X}\\) de rang \\(p\\). Si \\(\\nabla \\ell(\\mathbf{b}) = \\mathbf{0}\\), on obtient \\(\\ell(\\mathbf{b} + \\mathbf{h}) \\ge \\ell(\\mathbf{b})\\) pour tout \\(\\mathbf{h}\\), avec inégalité stricte pour \\(\\mathbf{h} \\ne \\mathbf{0}\\) dans le cas de rang \\(p\\) : minimum global, unique.\n5. **Constante.** La coordonnée du gradient associée à la colonne \\(\\mathbf{1}\\) est \\(\\tfrac1n \\sum_i (\\pi_i - y_i)\\), nulle au minimiseur.\n6. **Cotes.** La cote prédite au point \\(\\mathbf{x}\\) vaut \\(e^{\\mathbf{x}^\\top \\boldsymbol{\\beta}}\\). Remplacer \\(x_j\\) par \\(x_j + 1\\) multiplie l'exposant par \\(e^{\\beta_j}\\). Pour la probabilité : \\(\\partial \\sigma(\\mathbf{x}^\\top \\boldsymbol{\\beta}) / \\partial x_j = \\beta_j\\,\\sigma'(\\mathbf{x}^\\top \\boldsymbol{\\beta}) = \\beta_j \\pi (1 - \\pi)\\).\n7. **Séparation.** On pose \\(\\mathbf{b} = c\\,\\mathbf{b}^\\star\\), \\(c > 0\\), et \\(a_i = \\lvert \\mathbf{x}_i^\\top \\mathbf{b}^\\star \\rvert > 0\\). Si \\(y_i = 1\\), le terme \\(i\\) vaut \\(\\ln(1 + e^{t_i}) - t_i = \\ln(1 + e^{-t_i}) = \\ln(1 + e^{-c a_i})\\) ; si \\(y_i = 0\\), il vaut \\(\\ln(1 + e^{t_i}) = \\ln(1 + e^{-c a_i})\\). Chacun tend vers 0 quand \\(c \\to \\infty\\), donc la borne inférieure de \\(\\ell\\) est 0. Or pour tout \\(\\mathbf{b}\\), chaque terme s'écrit \\(\\ln(1 + e^{\\pm t_i}) > 0\\), donc \\(\\ell(\\mathbf{b}) > 0\\) : la borne n'est pas atteinte. Enfin, si une suite \\((\\mathbf{b}_m)\\) avec \\(\\ell(\\mathbf{b}_m) \\to 0\\) avait une sous-suite bornée, elle aurait une sous-suite convergente (Bolzano-Weierstrass), de limite \\(\\mathbf{b}_\\infty\\) avec \\(\\ell(\\mathbf{b}_\\infty) = 0\\) par continuité : contradiction.\n\n### Exemple chiffré\n\nQuatre observations, une constante et une variable : \\(x = (-1, 0, 1, 2)\\), \\(\\mathbf{y} = (0, 1, 0, 1)\\). Pas de séparation : l'étiquette 1 en \\(x = 0\\) est encadrée par des étiquettes 0.\n\n1. En \\(\\mathbf{b} = \\mathbf{0}\\), toutes les probabilités valent \\(\\tfrac12\\) et \\(\\ell(\\mathbf{0}) = \\ln 2 \\approx 0{,}6931\\).\n2. Gradient : \\(\\tfrac14 \\mathbf{X}^\\top (\\tfrac12 \\mathbf{1} - \\mathbf{y}) = (0{,}00 ; -0{,}25)\\) (constante : deux étiquettes 1 sur quatre, somme nulle ; pente : \\(\\tfrac14 \\big((-1)\\tfrac12 + 0 + 1 \\cdot \\tfrac12 + 2 \\cdot (-\\tfrac12)\\big)\\)). Négatif sur la pente : augmenter la pente fait baisser la perte.\n3. Hessienne : les poids \\(\\pi_i(1 - \\pi_i)\\) valent tous \\(0{,}25\\), donc \\(\\nabla^2 \\ell(\\mathbf{0}) = \\tfrac{1}{16} \\mathbf{X}^\\top \\mathbf{X} = \\begin{pmatrix} 0{,}250 & 0{,}125 \\\\ 0{,}125 & 0{,}375 \\end{pmatrix}\\), avec \\(\\mathbf{X}^\\top \\mathbf{X} = \\begin{pmatrix} 4 & 2 \\\\ 2 & 6 \\end{pmatrix}\\). Premier pas de Newton : \\(\\mathbf{b} = (-0{,}4 ; 0{,}8)\\).\n4. Le minimiseur est \\(\\hat{\\boldsymbol{\\beta}} \\approx (-0{,}454 ; 0{,}908)\\), de log-loss \\(0{,}5869 < \\ln 2\\). Probabilités ajustées \\((0{,}204 ; 0{,}388 ; 0{,}612 ; 0{,}796)\\), de somme \\(2\\), égale au nombre d'étiquettes 1 (énoncé 4). Rapport de cotes de la pente : \\(e^{0{,}908} \\approx 2{,}48\\).\n\n```python\nx = np.array([-1.0, 0.0, 1.0, 2.0])\ny = np.array([0, 1, 0, 1])\nX = np.column_stack([np.ones(4), x])\ndef sigma(t):\n    return 1 / (1 + np.exp(-t))\nb = np.zeros(2)\nfor etape in range(5):\n    pi = sigma(X.dot(b))\n    g = X.T.dot(pi - y) / 4\n    H = X.T.dot(X * (pi * (1 - pi))[:, None]) / 4\n    perte = np.mean(np.logaddexp(0, X.dot(b)) - y * X.dot(b))\n    print(f\"itération {etape} : b = {b}, log-loss = {perte:.6f}, gradient = {g}\")\n    b = b - np.linalg.solve(H, g)\nm = LogisticRegression(penalty=\"none\", tol=1e-10, max_iter=1000).fit(x.reshape(-1, 1), y)\nprint(\"scikit-learn sans pénalité : constante\", m.intercept_, \"pente\", m.coef_[0])\nprint(\"somme des probabilités ajustées :\", round(sigma(X.dot(b)).sum(), 10), \"; somme des y :\", y.sum())\n```\n\n```sortie\nitération 0 : b = [0. 0.], log-loss = 0.693147, gradient = [ 0.   -0.25]\nitération 1 : b = [-0.4  0.8], log-loss = 0.588149, gradient = [ 0.     -0.0239]\nitération 2 : b = [-0.452  0.904], log-loss = 0.586874, gradient = [-0.     -0.0009]\nitération 3 : b = [-0.4541  0.9082], log-loss = 0.586872, gradient = [ 0. -0.]\nitération 4 : b = [-0.4541  0.9082], log-loss = 0.586872, gradient = [-0. -0.]\nscikit-learn sans pénalité : constante [-0.4541] pente [0.9082]\nsomme des probabilités ajustées : 2.0 ; somme des y : 2\n```\n\nRapport de cotes, coefficient \\(\\beta_j = 0{,}7\\), soit un facteur \\(e^{0{,}7} \\approx 2{,}014\\) sur la cote. Depuis \\(\\pi = 0{,}5\\) (cote 1), la cote passe à \\(2{,}014\\) et la probabilité à \\(0{,}668\\), soit \\(+0{,}168\\). Depuis \\(\\pi = 0{,}9\\) (cote \\(9\\)), la cote passe à \\(18{,}12\\) et la probabilité à \\(0{,}948\\), soit \\(+0{,}048\\) seulement : même coefficient, effets différents sur la probabilité.\n\n### Cas limites\n\n- **Séparation** : \\(x = (-2, -1, 1, 2)\\), \\(\\mathbf{y} = (0, 0, 1, 1)\\), \\(\\mathbf{b}^\\star = (0, 1)\\). Le long de \\(c\\,\\mathbf{b}^\\star\\), la log-loss vaut \\(0{,}2201\\) pour \\(c = 1\\), \\(0{,}0034\\) pour \\(c = 5\\), \\(0{,}0000227\\) pour \\(c = 10\\) : elle tend vers 0, et la pente estimée part à l'infini. Quasi-séparation (inégalités larges, avec au moins une égalité) : le minimiseur peut aussi ne pas exister (non démontré ici).\n- **Toutes les étiquettes égales** : c'est une séparation, par la direction de la constante (\\(\\mathbf{b}^\\star = (1, 0, \\dots, 0)\\) si toutes valent 1) ; pas de minimiseur.\n- **Pénalité L2**, qui est le défaut de scikit-learn (vérifié ci-dessous sous scikit-learn 1.1.1 : `penalty=\"l2\"`, `C=1.0`). Notons \\(\\tilde{\\mathbf{x}}_i\\) les variables de l'observation \\(i\\) sans la constante, \\(\\mathbf{w}\\) leurs coefficients et \\(w_0\\) la constante, de sorte que \\(t_i = w_0 + \\tilde{\\mathbf{x}}_i^\\top \\mathbf{w}\\). `LogisticRegression` minimise \\(\\tfrac12 \\lVert \\mathbf{w} \\rVert^2 + C \\sum_i \\big[\\ln(1 + e^{t_i}) - y_i t_i\\big]\\) : la constante n'est pas pénalisée avec le solveur par défaut `lbfgs` (les conditions du premier ordre sont contrôlées ci-dessous). Si les deux classes sont présentes, ce critère a un unique minimiseur, même en cas de séparation. Stricte convexité : dans une direction \\((\\mathbf{v}, v_0)\\), la dérivée seconde vaut \\(\\lVert \\mathbf{v} \\rVert^2 + C \\sum_i \\pi_i(1 - \\pi_i)(v_0 + \\tilde{\\mathbf{x}}_i^\\top \\mathbf{v})^2\\), strictement positive si \\(\\mathbf{v} \\ne \\mathbf{0}\\), et égale à \\(C\\,v_0^2 \\sum_i \\pi_i(1 - \\pi_i) > 0\\) si \\(\\mathbf{v} = \\mathbf{0}\\) et \\(v_0 \\ne 0\\). Existence : le critère tend vers l'infini quand \\((\\mathbf{w}, w_0)\\) s'éloigne (la pénalité contrôle \\(\\mathbf{w}\\) ; à \\(\\mathbf{w}\\) borné, une constante très grande rend infinie la perte des étiquettes 0, une constante très négative celle des étiquettes 1), et une fonction continue qui tend vers l'infini atteint son minimum (admis, comme dans la leçon de ML 1). Les coefficients grandissent avec \\(C\\).\n\n```python\nprint({k: v for k, v in LogisticRegression().get_params().items() if k in (\"penalty\", \"C\", \"solver\")})\nxs = np.array([[-2.0], [-1.0], [1.0], [2.0]])\nys = np.array([0, 0, 1, 1])\nfor C in [1.0, 1e2, 1e4, 1e6]:\n    m = LogisticRegression(C=C, tol=1e-12, max_iter=100000).fit(xs, ys)\n    p = m.predict_proba(xs)[:, 1]\n    cond_w = m.coef_[0, 0] + C * np.sum((p - ys) * xs[:, 0])     # dérivée du critère en w\n    cond_c = C * np.sum(p - ys)                                 # dérivée en la constante\n    print(f\"C = {C:9.0f} : pente = {m.coef_[0, 0]:8.4f} ; conditions du premier ordre : {cond_w: .1e}, {cond_c: .1e}\")\n```\n\n```sortie\n{'C': 1.0, 'penalty': 'l2', 'solver': 'lbfgs'}\nC =         1 : pente =   1.0066 ; conditions du premier ordre : -4.4e-09,  0.0e+00\nC =       100 : pente =   3.9453 ; conditions du premier ordre : -7.3e-09,  8.7e-15\nC =     10000 : pente =   7.8441 ; conditions du premier ordre : -1.5e-05,  1.2e-12\nC =   1000000 : pente =  12.0214 ; conditions du premier ordre : -7.4e-03, -8.4e-12\n```\n\n### Pièges\n\n1. \\(e^{\\beta_j}\\) multiplie la **cote**, pas la probabilité.\n2. Comparer des coefficients n'a de sens qu'à échelles de variables comparables ; avec pénalité, l'échelle change aussi la solution (partie 3).\n3. Des coefficients énormes, ou un avertissement de non-convergence sans pénalité, signalent une séparation : le maximum de vraisemblance n'existe pas, ce n'est pas un modèle « très sûr ».\n4. L'énoncé 4 donne une calibration **en moyenne** sur l'apprentissage, pas une calibration par niveau de probabilité (partie 2), ni hors échantillon.\n\n[[controle:convexite]]\n\n## Partie 2 : les métriques de classification\n\n### Matrice de confusion\n\nUn classifieur produit un score réel \\(s_i\\) par observation (par exemple \\(\\pi_i\\)) ; avec un seuil \\(u\\), il prédit 1 si \\(s_i > u\\). On compte VP (vrais positifs : prédit 1, étiquette 1), FP (prédit 1, étiquette 0), FN (prédit 0, étiquette 1), VN (prédit 0, étiquette 0). Définitions :\n\n- **précision** \\(= \\mathrm{VP}/(\\mathrm{VP} + \\mathrm{FP})\\) : part de vrais positifs parmi les prédictions positives ;\n- **rappel**, ou taux de vrais positifs, \\(\\mathrm{TVP} = \\mathrm{VP}/(\\mathrm{VP} + \\mathrm{FN})\\) : part des positifs détectés ;\n- taux de faux positifs \\(\\mathrm{TFP} = \\mathrm{FP}/(\\mathrm{FP} + \\mathrm{VN})\\) : part des négatifs pris pour des positifs ;\n- **exactitude** (accuracy) \\(= (\\mathrm{VP} + \\mathrm{VN})/n\\) ;\n- **F1**, moyenne harmonique de la précision \\(P\\) et du rappel \\(R\\) : \\(2PR/(P + R) = 2\\mathrm{VP}/(2\\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN})\\). Preuve : en remplaçant \\(P\\) et \\(R\\) par leurs définitions, \\(2PR = 2\\mathrm{VP}^2/\\big((\\mathrm{VP} + \\mathrm{FP})(\\mathrm{VP} + \\mathrm{FN})\\big)\\) et \\(P + R = \\mathrm{VP}(2\\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN})/\\big((\\mathrm{VP} + \\mathrm{FP})(\\mathrm{VP} + \\mathrm{FN})\\big)\\) ; on divise.\n\nExemple : \\(n = 1000\\), dont \\(100\\) positifs ; VP = 60, FN = 40, FP = 90, VN = 810. Précision \\(0{,}40\\), rappel \\(0{,}60\\), F1 \\(0{,}48\\), TFP \\(0{,}10\\), exactitude \\(0{,}87\\). Le classifieur constant « toujours 0 » a une exactitude de \\(0{,}90\\), **meilleure**, avec un rappel nul : sous déséquilibre, l'exactitude récompense l'ignorance de la classe rare. Elle vaut \\(1 - q\\) pour le classifieur constant, où \\(q\\) est la proportion de positifs (la prévalence).\n\n### Pourquoi la précision dépend de la prévalence, et pas la courbe ROC\n\nAu niveau de la population : \\(q = \\mathbb{P}(Y = 1)\\), \\(\\mathrm{TVP} = \\mathbb{P}(\\text{prédit } 1 \\mid Y = 1)\\), \\(\\mathrm{TFP} = \\mathbb{P}(\\text{prédit } 1 \\mid Y = 0)\\). Par la formule de Bayes :\n\n\\(\\displaystyle \\text{précision} = \\mathbb{P}(Y = 1 \\mid \\text{prédit } 1) = \\frac{q\\,\\mathrm{TVP}}{q\\,\\mathrm{TVP} + (1 - q)\\,\\mathrm{TFP}}.\\)\n\nTVP et TFP sont conditionnels à la classe : ils ne dépendent pas de \\(q\\), et la courbe ROC non plus. La précision en dépend. Exemple, TVP = 0,9 et TFP = 0,05 : pour \\(q = 0{,}01\\), précision \\(= 0{,}009/(0{,}009 + 0{,}0495) = \\tfrac{2}{13} \\approx 0{,}154\\) : \\(5{,}5\\) fausses alertes par vraie ; pour \\(q = 0{,}5\\), \\(\\tfrac{18}{19} \\approx 0{,}947\\). Même point ROC, conséquences opposées. La **courbe précision-rappel** (précision en fonction du rappel quand le seuil varie) montre ce que la ROC cache quand les positifs sont rares : le nombre de faux positifs par vrai positif. Sa référence au hasard est la droite horizontale de hauteur \\(q\\), celle de la ROC la diagonale.\n\n### Courbe ROC et AUC\n\nQuand le seuil \\(u\\) descend de \\(+\\infty\\) à \\(-\\infty\\), le point \\((\\mathrm{TFP}(u), \\mathrm{TVP}(u))\\) va de \\((0, 0)\\) à \\((1, 1)\\) ; en joignant les points successifs par des segments, on obtient la **courbe ROC**, et l'**AUC** est l'aire sous cette courbe.\n\n**Énoncé.** On a \\(n_+\\) positifs de scores \\(s_1^+, \\dots, s_{n_+}^+\\) et \\(n_-\\) négatifs de scores \\(s_1^-, \\dots, s_{n_-}^-\\), tous distincts. Alors \\(\\displaystyle \\mathrm{AUC} = \\frac{1}{n_+ n_-} \\#\\{(i, k) : s_i^+ > s_k^-\\} = \\mathbb{P}(S^+ > S^-)\\), où \\(S^+\\) est tiré uniformément parmi les scores positifs et \\(S^-\\), indépendamment, parmi les scores négatifs.\n\n**Preuve.**\n\n1. Les scores étant distincts, chaque fois que \\(u\\) franchit un score, une seule observation passe en « prédit 1 ». Si c'est un positif, TVP augmente de \\(1/n_+\\) : pas vertical. Si c'est un négatif, TFP augmente de \\(1/n_-\\) : pas horizontal. La courbe est un escalier.\n2. L'aire est la somme, sur les pas horizontaux, de la largeur \\(1/n_-\\) multipliée par la hauteur de la courbe à ce moment (les pas verticaux n'ont pas de largeur).\n3. Le pas horizontal du négatif \\(k\\) a lieu quand \\(u\\) franchit \\(s_k^-\\) ; la hauteur vaut alors la part des positifs déjà prédits 1, c'est-à-dire de score supérieur à \\(s_k^-\\) : \\(\\#\\{i : s_i^+ > s_k^-\\}/n_+\\).\n4. En sommant sur \\(k\\) : \\(\\mathrm{AUC} = \\sum_k \\tfrac{1}{n_-} \\cdot \\tfrac{\\#\\{i : s_i^+ > s_k^-\\}}{n_+}\\), la proportion de paires bien ordonnées.\n\n**Ex aequo** entre un positif et un négatif : ils passent ensemble, le pas est un segment diagonal, dont l'aire est la moitié du rectangle : chaque paire ex aequo compte \\(\\tfrac12\\). C'est la convention de `roc_auc_score`, et le script de vérification contrôle l'égalité entre aire et décompte sur 500 cas tirés au hasard.\n\n**Conséquences.** L'AUC ne dépend que de l'**ordre** des scores : elle est invariante par toute transformation strictement croissante, donc aveugle à la calibration. Un score qui ne dépend pas de l'étiquette, à loi continue, donne \\(\\tfrac12\\) en espérance (par symétrie, \\(\\mathbb{P}(S^+ > S^-) = \\mathbb{P}(S^- > S^+)\\)). Le score opposé donne \\(1 - \\mathrm{AUC}\\).\n\nExemple : positifs \\((0{,}9 ; 0{,}5 ; 0{,}3)\\), négatifs \\((0{,}8 ; 0{,}6 ; 0{,}4 ; 0{,}2)\\). Chaque positif bat respectivement \\((4 ; 2 ; 1)\\) négatifs, soit \\(7\\) paires sur \\(12\\) : \\(\\mathrm{AUC} = \\tfrac{7}{12} \\approx 0{,}583\\).\n\n```python\npos = np.array([0.9, 0.5, 0.3]); neg = np.array([0.8, 0.6, 0.4, 0.2])\ns = np.concatenate([pos, neg]); etiquettes = np.r_[np.ones(3), np.zeros(4)]\nprint(\"proportion de paires bien ordonnées :\", np.mean(pos[:, None] > neg[None, :]))\nprint(\"roc_auc_score                       :\", roc_auc_score(etiquettes, s))\nprint(\"après la transformation s -> s**3   :\", roc_auc_score(etiquettes, s**3))\n```\n\n```sortie\nproportion de paires bien ordonnées : 0.5833333333333334\nroc_auc_score                       : 0.5833333333333333\naprès la transformation s -> s**3   : 0.5833333333333333\n```\n\n### Log-loss, score de Brier, calibration\n\nPour des probabilités prédites \\(r_i \\in [0, 1]\\) : log-loss \\(-\\tfrac1n \\sum_i [y_i \\ln r_i + (1 - y_i)\\ln(1 - r_i)]\\) (partie 1), score de Brier \\(\\tfrac1n \\sum_i (r_i - y_i)^2\\).\n\n**Énoncé : ce sont des règles de score propres.** Si \\(Y\\) suit la loi de Bernoulli de paramètre \\(q \\in ]0, 1[\\), l'espérance du score d'une prévision \\(r\\) est minimale en \\(r = q\\), et seulement là.\n\n**Preuve.** Brier : \\(\\mathbb{E}[(r - Y)^2] = q(r - 1)^2 + (1 - q)r^2 = (r - q)^2 + q(1 - q)\\), en développant : minimum unique en \\(r = q\\), et l'excès vaut exactement \\((r - q)^2\\). Log : \\(f(r) = -q \\ln r - (1 - q)\\ln(1 - r)\\) a pour dérivée \\(-q/r + (1 - q)/(1 - r)\\), nulle seulement en \\(r = q\\), et pour dérivée seconde \\(q/r^2 + (1 - q)/(1 - r)^2 > 0\\) : minimum unique. Conséquence : un prévisionniste qui minimise l'un de ces scores en espérance a intérêt à annoncer sa vraie probabilité.\n\nExemple, \\(q = 0{,}3\\) : Brier espéré \\(0{,}21\\) pour \\(r = q\\) et \\(0{,}25\\) pour \\(r = 0{,}5\\), écart \\((0{,}5 - 0{,}3)^2 = 0{,}04\\) ; log-loss espérée \\(0{,}6109\\) contre \\(\\ln 2 \\approx 0{,}6931\\). Différence de comportement : le score de Brier reste entre 0 et 1 ; la log-loss d'une prévision \\(r = 0\\) suivie de \\(y = 1\\) est infinie, et punit très fortement les erreurs confiantes.\n\n**Calibration.** Un modèle est calibré si, pour tout niveau \\(r\\), parmi les observations auxquelles il attribue la probabilité \\(r\\), la proportion de positifs est \\(r\\) : \\(\\mathbb{P}(Y = 1 \\mid \\text{prévision} = r) = r\\). Le **diagramme de fiabilité** se construit en regroupant les prévisions par tranches, puis en traçant la fréquence observée de positifs contre la prévision moyenne de chaque tranche ; calibré signifie sur la diagonale. L'expérience suivante compare des probabilités vraies \\(\\pi\\) et leur carré \\(\\pi^2\\) : même ordre, donc même AUC, mais \\(\\pi^2\\) sous-estime les probabilités, ce que voient le Brier, la log-loss et le diagramme.\n\n```python\nrng = np.random.default_rng(0)\npi = rng.uniform(0, 1, 100000)                       # probabilités vraies\nY = (rng.uniform(size=100000) < pi).astype(int)\ntranches = np.linspace(0, 1, 6)\nfor nom, r in [(\"pi\", pi), (\"pi^2\", pi**2)]:\n    print(f\"{nom:4s} : AUC {roc_auc_score(Y, r):.4f}  Brier {brier_score_loss(Y, r):.4f}  log-loss {log_loss(Y, r):.4f}\")\n    k = np.digitize(r, tranches[1:-1])\n    print(\"       (prévision moyenne, fréquence observée) par tranche :\", [(round(r[k == j].mean(), 2), round(Y[k == j].mean(), 2)) for j in range(5)])\n```\n\n```sortie\npi   : AUC 0.8342  Brier 0.1662  log-loss 0.4987\n       (prévision moyenne, fréquence observée) par tranche : [(0.1, 0.1), (0.3, 0.3), (0.5, 0.5), (0.7, 0.7), (0.9, 0.9)]\npi^2 : AUC 0.8342  Brier 0.2004  log-loss 0.6141\n       (prévision moyenne, fréquence observée) par tranche : [(0.07, 0.22), (0.29, 0.55), (0.5, 0.71), (0.7, 0.83), (0.9, 0.95)]\n```\n\n### Choisir la métrique\n\nLe choix découle de ce que la décision utilise :\n\n- la **valeur** de la probabilité (dimensionner une position, comme la mise par croissance logarithmique d'un système de trading, ou publier un risque) : log-loss ou Brier, et diagramme de fiabilité ; une erreur de calibration devient directement une erreur de taille ;\n- seulement l'**ordre** (prendre les 10 % de scores les plus élevés, construire un portefeuille long-court) : AUC, ou corrélation de rang entre signal et rendement (coefficient d'information) ;\n- une décision binaire à **coûts asymétriques** \\(c_{\\mathrm{FP}}\\) et \\(c_{\\mathrm{FN}}\\) avec une probabilité calibrée \\(\\pi\\) : prédire 1 coûte \\((1 - \\pi)c_{\\mathrm{FP}}\\) en espérance, prédire 0 coûte \\(\\pi\\,c_{\\mathrm{FN}}\\), d'où le seuil \\(u^\\star = c_{\\mathrm{FP}}/(c_{\\mathrm{FP}} + c_{\\mathrm{FN}})\\) ; pour \\(c_{\\mathrm{FP}} = 1\\), \\(c_{\\mathrm{FN}} = 4\\), \\(u^\\star = 0{,}2\\), et non 0,5 ;\n- des **positifs rares** dont chaque alerte coûte : courbe précision-rappel, précision à rappel fixé ;\n- l'exactitude seulement avec des classes de tailles comparables, et toujours comparée au classifieur constant.\n\n### Pièges\n\n1. Précision et rappel ne se comparent pas d'un jeu de données à l'autre si la prévalence change ; TVP et TFP, si.\n2. Une AUC élevée ne dit rien de la calibration ; un modèle calibré peut avoir une AUC de \\(\\tfrac12\\) (prévision constante égale à \\(q\\)).\n3. F1 ignore les VN : il ne convient pas quand les deux classes comptent.\n\n[[controle:auc]]\n\n## Partie 3 : plus proches voisins, échelle, dimension\n\n### Les k plus proches voisins\n\nPour un point \\(\\mathbf{x}\\), on cherche les \\(k\\) observations d'apprentissage les plus proches au sens de la distance euclidienne \\(\\lVert \\mathbf{x} - \\mathbf{x}_i \\rVert = \\big(\\sum_j (x_j - x_{ij})^2\\big)^{1/2}\\) (\\(k\\) entier fixé, égalités départagées par une règle arbitraire). En régression on prédit la moyenne de leurs réponses, en classification la classe majoritaire, ou la proportion de 1 comme probabilité. Aucun paramètre n'est ajusté : tout est dans le choix de \\(k\\) et de la distance.\n\n\\(k\\) règle l'arbitrage biais-variance (leçon de la séance de ML 1, partie 6). Si les \\(\\mathbf{x}_i\\) sont fixes et les réponses ont un bruit indépendant de variance \\(\\sigma^2\\), la prédiction en \\(\\mathbf{x}\\) est la moyenne de \\(k\\) réponses de voisins fixés, de variance \\(\\sigma^2/k\\) : la variance baisse avec \\(k\\), mais les voisins s'éloignent, et le biais monte. Cas extrêmes : \\(k = 1\\) donne une erreur d'apprentissage nulle si les \\(\\mathbf{x}_i\\) sont distincts (chaque point est son propre voisin) ; \\(k = n\\) prédit partout la même moyenne.\n\n### Pourquoi l'échelle compte pour les distances, pas pour les arbres\n\n**Distances.** La variable \\(j\\) contribue \\((x_j - x_{ij})^2\\) au carré de la distance, dans **son** unité : la multiplier par \\(c\\) multiplie sa contribution par \\(c^2\\). Exemple : point \\(Q\\) = (30 ans, 50 000 euros), \\(A\\) = (60 ans, 50 500 euros), \\(B\\) = (31 ans, 52 000 euros). Brut : \\(\\lVert Q - A \\rVert^2 = 900 + 250000\\), \\(\\lVert Q - A \\rVert \\approx 500{,}9\\) ; \\(\\lVert Q - B \\rVert \\approx 2000{,}0\\) : le plus proche est \\(A\\), qui a trente ans de plus, parce que l'euro écrase l'année. Après division par les écarts-types d'apprentissage (supposés de 10 ans et 10 000 euros) : \\(\\lVert Q - A \\rVert \\approx 3{,}000\\) et \\(\\lVert Q - B \\rVert \\approx 0{,}224\\) : le plus proche devient \\(B\\). On standardise donc avant un algorithme à distances (plus proches voisins, k-moyennes, noyaux), avec les moyennes et écarts-types de l'**apprentissage seul** (partie 4).\n\n**Arbres.** Une coupure « \\(x_j \\le u\\) » sépare les observations d'apprentissage selon l'**ordre** des valeurs de \\(x_j\\). Une transformation \\(g\\) strictement croissante de la variable \\(j\\) conserve cet ordre : mêmes partitions possibles, mêmes gains, même arbre, le seuil \\(u\\) devenant \\(g(u)\\) (leçon de la séance de ML 2, `outils/lecons_arbres.py`, partie 1). Précision sur les points nouveaux : scikit-learn place le seuil au milieu de deux valeurs consécutives ; pour \\(g\\) affine de pente positive (une standardisation), le milieu est transporté exactement, et les prédictions sont identiques partout ; pour \\(g\\) non affine, elles sont identiques sur l'apprentissage, et peuvent différer pour un point nouveau tombé entre deux valeurs consécutives.\n\n**Régression logistique.** Sans pénalité, remplacer \\(x_j\\) par \\(c\\,x_j\\) (\\(c \\ne 0\\)) et \\(b_j\\) par \\(b_j/c\\) laisse chaque \\(t_i\\) inchangé : mêmes prédictions. Avec la pénalité L2, \\(b_j^2\\) devient \\(b_j^2/c^2\\) : la pénalité effective change, et les prédictions aussi.\n\n```python\nrng = np.random.default_rng(1)\nn = 2000\nX = rng.standard_normal((n, 2))\ny = (X[:, 0] + 0.5 * rng.standard_normal(n) > 0).astype(int)   # seule la variable 0 est utile\nX[:, 1] *= 1000                                                # variable inutile, en grandes unités\napp, tst = slice(0, 1000), slice(1000, None)\nmoy, et = X[app].mean(axis=0), X[app].std(axis=0)              # statistiques de l'apprentissage seul\nZ = (X - moy) / et\nfor nom, D in [(\"brut\", X), (\"standardisé\", Z)]:\n    knn = voisins(D[app], y[app], D[tst], 15) > 0.5               # vote majoritaire des 15 voisins\n    arbre = DecisionTreeClassifier(max_depth=4, random_state=0).fit(D[app], y[app])\n    print(f\"{nom:12s} : exactitude test kNN {np.mean(knn == y[tst]):.3f} ; arbre {arbre.score(D[tst], y[tst]):.3f}\")\na1 = DecisionTreeClassifier(max_depth=4, random_state=0).fit(X[app], y[app]).predict(X[tst])\na2 = DecisionTreeClassifier(max_depth=4, random_state=0).fit(Z[app], y[app]).predict(Z[tst])\nprint(\"prédictions de l'arbre identiques sur le test :\", bool(np.all(a1 == a2)))\nseule = voisins(Z[app][:, :1], y[app], Z[tst][:, :1], 15) > 0.5            # kNN sur la seule variable utile\nprint(f\"kNN sur la seule variable utile : exactitude test {np.mean(seule == y[tst]):.3f}\")\nZ20 = np.column_stack([Z[:, :1], rng.standard_normal((n, 20))])             # plus 20 variables de bruit, déjà réduites\navec20 = voisins(Z20[app], y[app], Z20[tst], 15) > 0.5\nprint(f\"kNN avec 20 variables de bruit standardisées : exactitude test {np.mean(avec20 == y[tst]):.3f}\")\n```\n\n```sortie\nbrut         : exactitude test kNN 0.479 ; arbre 0.858\nstandardisé  : exactitude test kNN 0.850 ; arbre 0.858\nprédictions de l'arbre identiques sur le test : True\nkNN sur la seule variable utile : exactitude test 0.848\nkNN avec 20 variables de bruit standardisées : exactitude test 0.778\n```\n\n### La malédiction de la dimension : concentration des distances\n\n**Énoncé.** Soient \\(\\mathbf{X}\\) et \\(\\mathbf{X}'\\) deux vecteurs aléatoires de \\(\\mathbb{R}^p\\) (exception d'usage : en gras majuscule, aléatoires), dont les \\(2p\\) coordonnées sont indépendantes et de même loi, avec un moment d'ordre 4 fini et une variance non nulle. On note \\(D^2 = \\lVert \\mathbf{X} - \\mathbf{X}' \\rVert^2\\), \\(m = \\mathbb{E}[(X_1 - X_1')^2]\\) et \\(v = \\mathrm{Var}\\big((X_1 - X_1')^2\\big)\\). Alors \\(\\mathbb{E}[D^2] = p\\,m\\), \\(\\mathrm{Var}(D^2) = p\\,v\\), et pour tout \\(\\varepsilon > 0\\) :\n\n\\(\\displaystyle \\mathbb{P}\\Big(\\Big\\lvert \\frac{D^2}{\\mathbb{E}[D^2]} - 1 \\Big\\rvert \\ge \\varepsilon\\Big) \\le \\frac{v}{p\\,m^2\\,\\varepsilon^2},\\)\n\nborne qui tend vers 0 quand \\(p \\to \\infty\\), \\(\\varepsilon\\) étant fixé.\n\nLe rapport écart-type sur espérance de \\(D^2\\) vaut \\(\\sqrt{v}/(m\\sqrt{p})\\) : toutes les distances entre points deviennent relativement égales.\n\n**Preuve.**\n\n1. \\(D^2 = \\sum_{j=1}^p (X_j - X_j')^2\\) est une somme de \\(p\\) variables indépendantes de même loi (chacune ne dépend que de la paire \\((X_j, X_j')\\), et les paires sont indépendantes) : linéarité de l'espérance, et variance d'une somme de variables indépendantes égale à la somme des variances.\n2. **Inégalité de Markov** : pour \\(V \\ge 0\\) et \\(a > 0\\), \\(V \\ge a\\,I_{\\{V \\ge a\\}}\\), où \\(I_A\\) est l'indicatrice de l'événement \\(A\\), d'où \\(\\mathbb{E}[V] \\ge a\\,\\mathbb{P}(V \\ge a)\\).\n3. **Tchebychev** : Markov appliquée à \\(V = (D^2 - \\mathbb{E}D^2)^2\\) et \\(a = \\varepsilon^2 (\\mathbb{E}D^2)^2\\) donne \\(\\mathbb{P}(\\lvert D^2 - \\mathbb{E}D^2 \\rvert \\ge \\varepsilon\\,\\mathbb{E}D^2) \\le p\\,v/(\\varepsilon^2 p^2 m^2)\\).\n\nCas uniforme sur \\([0, 1]\\) : \\(m = \\tfrac16\\), \\(\\mathbb{E}[(X_1 - X_1')^4] = \\tfrac{1}{15}\\), donc \\(v = \\tfrac{7}{180}\\) (intégrales calculées par sympy), et le rapport vaut \\(\\sqrt{v}/(m\\sqrt{p}) \\approx 1{,}183/\\sqrt{p}\\) : \\(0{,}837\\) pour \\(p = 2\\), \\(0{,}374\\) pour \\(p = 10\\), \\(0{,}118\\) pour \\(p = 100\\), \\(0{,}037\\) pour \\(p = 1000\\). Pour \\(p = 1000\\) et \\(\\varepsilon = 0{,}1\\), la borne de Tchebychev vaut \\(0{,}14\\). Simulation pour \\(p = 100\\) : espérance \\(16{,}664\\) et variance \\(3{,}881\\), pour des valeurs exactes \\(100\\,m \\approx 16{,}667\\) et \\(100\\,v \\approx 3{,}889\\) (script, écarts sous 4 erreurs standard).\n\nL'expérience suivante mesure, pour un point requête et 500 points uniformes, l'écart relatif entre la plus grande et la plus petite distance (constat sur un tirage, pas une preuve) :\n\n```python\nrng = np.random.default_rng(2)\nfor p in [2, 10, 100, 1000]:\n    points, requete = rng.uniform(size=(500, p)), rng.uniform(size=p)\n    d = np.sqrt(((points - requete) ** 2).sum(axis=1))\n    print(f\"p = {p:4d} : distance min {d.min():7.3f}, max {d.max():7.3f}, (max - min)/min = {(d.max() - d.min()) / d.min():7.3f}\")\n```\n\n```sortie\np =    2 : distance min   0.025, max   0.960, (max - min)/min =  37.284\np =   10 : distance min   0.543, max   2.220, (max - min)/min =   3.087\np =  100 : distance min   3.513, max   5.126, (max - min)/min =   0.459\np = 1000 : distance min  12.317, max  13.641, (max - min)/min =   0.108\n```\n\n**Conditions, et ce qui casse le résultat.** L'énoncé exige des coordonnées indépendantes qui apportent chacune une part comparable de variance. Contre-exemple : les \\(p\\) coordonnées égales à une même variable uniforme \\(U\\) ; alors \\(D^2 = p\\,(U - U')^2\\), dont le rapport écart-type sur espérance vaut \\(\\sqrt{v}/m \\approx 1{,}183\\) pour tout \\(p\\) : aucune concentration. Des données réelles dont la variance est portée par quelques facteurs (les rendements de nombreuses actions, par exemple) ont une dimension effective plus petite que \\(p\\) : on s'attend à une concentration plus faible que dans le cas indépendant (non démontré ici ; le contre-exemple en est le cas extrême).\n\n**Conséquence pour les plus proches voisins** : quand les distances se concentrent, le « plus proche » voisin n'est guère plus proche que les autres, et la prédiction moyenne les réponses d'observations qui ne ressemblent guère plus au point que les autres. Autre face du même phénomène : pour capturer 1 % d'un nuage uniforme dans un sous-cube, il faut un côté de \\(0{,}01^{1/p}\\), soit \\(0{,}63\\) pour \\(p = 10\\) et \\(0{,}955\\) pour \\(p = 100\\) : un voisinage qui contient assez de points n'est plus local.\n\n### Pièges\n\n1. Standardiser avec des statistiques calculées sur tout l'échantillon est une fuite (partie 4).\n2. Une variable inutile en grandes unités ruine les plus proches voisins (expérience ci-dessus). Une fois standardisée, une seule variable de bruit ne coûte rien de mesurable dans cette expérience ; vingt variables de bruit standardisées, qui ajoutent chacune à la distance un terme de même ordre que la variable utile, dégradent nettement l'exactitude. Standardiser ne dispense pas de sélectionner les variables.\n3. « La malédiction de la dimension rend les distances inutiles » n'est vrai que sous l'hypothèse d'une dimension effective grande.\n\n[[controle:echelle]]\n\n## Partie 4 : validation et fuites d'information\n\n### Trois ensembles, trois rôles\n\nL'**apprentissage** ajuste les paramètres ; la **validation** choisit les hyperparamètres et le modèle ; le **test** mesure une fois, à la fin, la performance du modèle choisi. Pourquoi ne pas annoncer l'erreur de validation du modèle retenu : si \\(\\hat{E}_1, \\dots, \\hat{E}_M\\) sont les erreurs de validation (aléatoires) de \\(M\\) modèles, \\(\\min_m \\hat{E}_m \\le \\hat{E}_{m'}\\) pour chaque \\(m'\\), donc \\(\\mathbb{E}[\\min_m \\hat{E}_m] \\le \\min_{m'} \\mathbb{E}[\\hat{E}_{m'}]\\) : le minimum est biaisé vers l'optimisme, d'autant plus que \\(M\\) est grand et les estimations bruitées. C'est un biais de sélection ; ton CV mentionne un biais de sélection révélé par l'audit de ton système de trading : demande-toi s'il relevait de ce mécanisme (garder le meilleur de plusieurs essais) et sache l'expliquer.\n\n### La fuite d'information\n\n**Définition** : une fuite a lieu quand une étape quelconque de l'ajustement (prétraitement, sélection de variables, choix d'hyperparamètres, ajustement) utilise des données d'évaluation. L'évaluation n'est alors plus indépendante de l'ajustement, et son estimation est biaisée, vers l'optimisme dans les exemples ci-dessous.\n\n**Exemple 1 : standardiser avant de découper.** La moyenne utilisée pour centrer contient les lignes de test. Pour des données i.i.d. de variance 1, l'écart entre moyenne globale et moyenne d'apprentissage vaut \\((n_{\\mathrm{test}}/n)(\\bar{x}_{\\mathrm{test}} - \\bar{x}_{\\mathrm{app}})\\), d'écart-type \\((n_{\\mathrm{test}}/n)\\sqrt{1/n_{\\mathrm{test}} + 1/n_{\\mathrm{app}}}\\), soit \\(0{,}0158\\) pour \\(n = 1000\\) et \\(n_{\\mathrm{test}} = 200\\) (contrôlé par simulation dans le script) : petit. En série temporelle avec tendance ou changement de régime, la moyenne globale contient le futur, et cette formule ne borne plus rien : c'est un lookahead (usage d'une information future).\n\n**Exemple 2 : sélectionner les variables sur tout l'échantillon.** 50 observations (25 de chaque classe), 5000 variables de bruit pur, étiquettes indépendantes des variables : sur une observation nouvelle d'étiquette équiprobable, indépendante de l'apprentissage, tout classifieur a une exactitude de 50 % exactement, puisque sa prédiction est indépendante de l'étiquette. On sélectionne les 100 variables les plus liées à l'étiquette, puis on évalue un plus proche voisin par validation croisée à 5 plis, soit avec la sélection faite une fois sur tout l'échantillon, soit refaite à l'intérieur de chaque pli, sur l'apprentissage du pli seul (avec scikit-learn, c'est ce que fait un `Pipeline` passé à `cross_val_score`).\n\n```python\ncv = KFold(5, shuffle=True, random_state=0)\ndef exactitude_cv(X, y, selection_globale):\n    masque_global = SelectKBest(f_classif, k=100).fit(X, y).get_support()      # voit les 50 observations\n    bons = 0\n    for app, test in cv.split(X):\n        masque = masque_global if selection_globale else SelectKBest(f_classif, k=100).fit(X[app], y[app]).get_support()\n        pred = voisins(X[app][:, masque], y[app], X[test][:, masque], 1) > 0.5\n        bons += np.sum(pred == y[test])\n    return bons / len(y)\nresultats = []\nfor graine in range(10):\n    rng = np.random.default_rng(100 + graine)\n    X = rng.standard_normal((50, 5000))\n    y = rng.permutation(np.r_[np.zeros(25, int), np.ones(25, int)])\n    resultats.append((exactitude_cv(X, y, True), exactitude_cv(X, y, False)))\nresultats = np.array(resultats)\nprint(\"exactitude moyenne sur 10 jeux, sélection sur tout l'échantillon / dans chaque pli :\", np.round(resultats.mean(axis=0), 3))\nprint(\"erreur standard de ces moyennes                                                  :\", np.round(resultats.std(axis=0, ddof=1) / np.sqrt(10), 3))\n```\n\n```sortie\nexactitude moyenne sur 10 jeux, sélection sur tout l'échantillon / dans chaque pli : [0.988 0.436]\nerreur standard de ces moyennes                                                  : [0.005 0.019]\n```\n\nMécanisme : les variables retenues sont, par construction, corrélées à l'étiquette **dans tout l'échantillon**, plis de validation compris ; la validation croisée mesure alors cette corrélation d'échantillon, pas une capacité de prédiction. La seconde valeur est même sous 50 % de plusieurs erreurs standard : avec des effectifs de classes fixés (25 et 25), un pli de validation riche en 1 laisse un apprentissage pauvre en 1, et inversement, ce qui défavorise un classifieur qui reproduit les proportions de son apprentissage. Ce biais pessimiste de la validation croisée sous l'hypothèse nulle est constaté ici, pas démontré dans cette leçon ; l'écart qui compte est celui entre les deux valeurs. Règle : toute étape qui regarde \\(\\mathbf{y}\\), ou la loi des variables (standardisation, imputation, ACP), fait partie du modèle et s'ajuste dans chaque pli, sur l'apprentissage du pli seul.\n\n### Validation croisée\n\nOn partage les observations en \\(K\\) plis ; pour chaque pli, on ajuste sur les \\(K - 1\\) autres et on évalue sur lui ; on moyenne les \\(K\\) scores. Cela estime la performance de la **procédure** ajustée sur une fraction \\((K - 1)/K\\) des données, et suppose des observations indépendantes et interchangeables. Pour choisir un hyperparamètre **et** annoncer une performance, il faut un test séparé, ou une validation croisée imbriquée (le choix refait dans chaque pli extérieur).\n\n### Séries temporelles : l'exemple des étiquettes à 5 jours\n\nDonnées quotidiennes. \\(R_t\\) est le rendement du jour \\(t\\) (aléatoire). L'étiquette de la date \\(t\\) est le rendement des 5 jours suivants, \\(Y_t = R_{t+1} + \\dots + R_{t+5}\\) (horizon \\(h = 5\\)). Les variables de la date \\(t\\) utilisent les rendements \\(R_{t-L+1}, \\dots, R_t\\) (fenêtre \\(L = 20\\)) : elles sont connues en \\(t\\), l'étiquette l'est en \\(t + 5\\).\n\n**Étiquettes qui se chevauchent.** Si les \\(R_t\\) sont non corrélés, de même variance \\(w > 0\\), alors pour \\(0 \\le k \\le 5\\) : \\(\\mathrm{Corr}(Y_t, Y_{t+k}) = (5 - k)/5\\), et 0 au-delà. Preuve : les deux sommes partagent \\(5 - k\\) rendements ; la covariance vaut \\((5 - k)\\,w\\) (les termes croisés de rendements distincts sont nuls), chaque variance vaut \\(5w\\). Donc \\(0{,}8\\) pour deux dates voisines, \\(0{,}2\\) à 4 jours d'écart.\n\nUne validation croisée à plis **mélangés** pose deux problèmes : elle apprend sur des dates postérieures au test, ce qui n'existe pas en temps réel ; et la date voisine d'une date de test, présente dans l'apprentissage, a une étiquette corrélée à \\(0{,}8\\) avec l'étiquette de test, et des variables presque identiques : un modèle qui mémorise est récompensé. Première correction : des plis formés de **blocs de dates contiguës** ; le bloc de test est \\(\\{t_0, \\dots, t_1\\}\\).\n\n**Purge** : on retire de l'apprentissage toute date dont l'étiquette partage au moins un rendement avec une étiquette de test. Les étiquettes de test utilisent \\(R_{t_0+1}, \\dots, R_{t_1+5}\\) ; celle de \\(t\\) utilise \\(R_{t+1}, \\dots, R_{t+5}\\) ; elles se rencontrent si et seulement si \\(t + 5 \\ge t_0 + 1\\) et \\(t + 1 \\le t_1 + 5\\), soit \\(t_0 - 4 \\le t \\le t_1 + 4\\). La purge retire donc les \\(h - 1 = 4\\) dates avant le bloc et les 4 dates après. Ce qu'elle retire : le canal **étiquettes partagées**.\n\n**Embargo** : on retire en plus, **après** le bloc, toute date dont les variables utilisent un rendement d'une étiquette de test. La fenêtre de \\(t\\) rencontre \\(\\{t_0 + 1, \\dots, t_1 + 5\\}\\) si et seulement si \\(t - L + 1 \\le t_1 + 5\\), soit \\(t \\le t_1 + L + 4\\) : l'embargo retire les \\(L\\) dates \\(t_1 + 5, \\dots, t_1 + L + 4\\), les précédentes étant déjà purgées. Ce qu'il retire : les variables construites avec la période de test. Avant le bloc, rien de tel : les variables n'utilisent que le passé, ce qui serait connu en temps réel. Purge et embargo de longueur \\(L\\) garantissent ensemble qu'aucun rendement entrant dans une étiquette de test n'entre dans les données d'apprentissage, ni par les étiquettes, ni par les variables. Avec des rendements indépendants, la purge supprime le seul canal démontré ici ; l'embargo est une marge contre une dépendance au-delà de l'horizon (volatilité en grappes, régimes), et sa longueur est un choix.\n\nExemple : 1000 dates numérotées de 0 à 999, 5 blocs de 200, test = dates 400 à 599, \\(h = 5\\), \\(L = 20\\). Purge : dates 396 à 399 et 600 à 603, soit 8 dates ; embargo : dates 604 à 623, soit 20 ; il reste \\(772\\) dates d'apprentissage au lieu de \\(800\\).\n\n**Validation progressive** (walk-forward : apprentissage sur le passé seul, comme ton backtest) : pas d'embargo nécessaire, puisqu'aucune date d'apprentissage n'est postérieure au test. La purge reste indispensable : à la date de décision \\(t_0\\), les étiquettes des dates \\(t_0 - 4, \\dots, t_0 - 1\\) utilisent des rendements postérieurs à \\(t_0\\), inconnus ; les utiliser est un lookahead.\n\nExpérience : rendements quotidiens indépendants, donc **aucune** prévisibilité réelle ; variables : moyennes des rendements sur 120 et 250 jours ; modèle : 5 plus proches voisins ; mesure : coefficient d'information, corrélation de rang (Spearman) entre prédiction et étiquette hors échantillon. Toute valeur nettement positive est une fuite.\n\n```python\nT, h = 2000, 5\ndef donnees(graine):\n    rng = np.random.default_rng(graine)\n    r = rng.standard_normal(T + 250 + h)\n    cumul = np.concatenate([[0.0], np.cumsum(r)])\n    t = np.arange(250, T + 250)\n    f1 = (cumul[t + 1] - cumul[t + 1 - 120]) / 120          # moyenne des 120 derniers rendements, t inclus\n    f2 = (cumul[t + 1] - cumul[t + 1 - 250]) / 250\n    etiq = cumul[t + 1 + h] - cumul[t + 1]                  # somme des rendements t+1 à t+5\n    return np.column_stack([f1 / f1.std(), f2 / f2.std()]), etiq\ndef plis_blocs(purge, embargo, L=250, K=5):\n    idx = np.arange(T)\n    for t0 in range(0, T, T // K):\n        t1 = t0 + T // K - 1\n        garde = (idx < t0) | (idx > t1)\n        if purge:\n            garde &= ~((idx >= t0 - (h - 1)) & (idx <= t1 + h - 1))\n        if embargo:\n            garde &= ~((idx >= t1 + h) & (idx <= t1 + h + L - 1))\n        yield idx[garde], idx[t0:t1 + 1]\ndef ic(F, etiq, plis):\n    pred = np.empty(T)\n    for app, test in plis:\n        pred[test] = voisins(F[app], etiq[app], F[test], 5)\n    return spearmanr(pred, etiq).correlation\nres = []\nfor graine in range(5):\n    F, etiq = donnees(graine)\n    res.append([ic(F, etiq, KFold(5, shuffle=True, random_state=0).split(F)), ic(F, etiq, plis_blocs(False, False)), ic(F, etiq, plis_blocs(True, True))])\nres = np.array(res)\nprint(\"IC moyen sur 5 jeux, plis mélangés / blocs / blocs purgés avec embargo :\", np.round(res.mean(axis=0), 3))\nprint(\"erreur standard de ces moyennes                                       :\", np.round(res.std(axis=0, ddof=1) / np.sqrt(5), 3))\n```\n\n```sortie\nIC moyen sur 5 jeux, plis mélangés / blocs / blocs purgés avec embargo : [ 0.266  0.003 -0.016]\nerreur standard de ces moyennes                                       : [0.02  0.024 0.027]\n```\n\nValidation progressive, réapprentissage tous les 5 jours, avec et sans purge des \\(h - 1\\) dernières dates :\n\n```python\ndef progressive(F, etiq, purge, pas=5, debut=500):\n    preds, vraies = [], []\n    for t0 in range(debut, T, pas):\n        fin = t0 - (h - 1) if purge else t0               # dates d'apprentissage : 0 à fin - 1\n        preds.append(voisins(F[:fin], etiq[:fin], F[t0:t0 + pas], 5)); vraies.append(etiq[t0:t0 + pas])\n    return spearmanr(np.concatenate(preds), np.concatenate(vraies)).correlation\nres = np.array([[progressive(*donnees(g), False), progressive(*donnees(g), True)] for g in range(5)])\nprint(\"IC moyen sur 5 jeux, sans purge / avec purge :\", np.round(res.mean(axis=0), 3))\nprint(\"erreur standard de ces moyennes              :\", np.round(res.std(axis=0, ddof=1) / np.sqrt(5), 3))\n```\n\n```sortie\nIC moyen sur 5 jeux, sans purge / avec purge : [ 0.074 -0.01 ]\nerreur standard de ces moyennes              : [0.01  0.019]\n```\n\nLecture : les plis mélangés font apparaître un signal là où il n'y en a pas ; les blocs en suppriment l'essentiel. Dans ces blocs, les dates de bord sont peu nombreuses (\\(2(h - 1)\\) purgées par bloc), et l'écart entre blocs avec et sans purge est de l'ordre de l'erreur standard : cette expérience ne le distingue pas. En validation progressive avec réapprentissage fréquent, chaque date de test est une date de bord, et l'absence de purge produit un coefficient d'information positif ; la purge le ramène vers 0.\n\n### Pièges\n\n1. Mélanger les plis d'une série temporelle à étiquettes chevauchantes gonfle la performance, même sans aucune variable du futur.\n2. La purge dépend de l'horizon de l'étiquette (\\(h - 1\\) dates de chaque côté), l'embargo de la fenêtre des variables, et seulement après le bloc.\n3. Toute étape qui regarde les données (standardisation, sélection, choix de \\(k\\) ou de \\(\\lambda\\)) s'ajuste dans le pli.\n4. Erreur de validation du meilleur de \\(M\\) modèles : estimation optimiste ; garder un test intact.\n\n[[controle:selection]]\n\n[[controle:purge]]\n\n## Réflexes en 30 secondes\n\n| Indice dans l'énoncé | Réflexe |\n|---|---|\n| gradient de la log-loss | \\(\\tfrac1n \\mathbf{X}^\\top (\\boldsymbol{\\pi} - \\mathbf{y})\\) ; hessienne \\(\\tfrac1n \\mathbf{X}^\\top \\mathbf{W}\\mathbf{X}\\), poids \\(\\pi_i(1 - \\pi_i)\\) |\n| convexité de la logistique | hessienne SDP ; stricte si \\(\\mathbf{X}\\) de rang \\(p\\) ; pas de forme fermée |\n| \\(e^{\\beta_j}\\) | facteur sur la cote, pas sur la probabilité ; \\(\\partial \\pi / \\partial x_j = \\beta_j \\pi(1 - \\pi)\\) |\n| coefficients qui explosent | séparation : pas de maximum de vraisemblance ; pénalité L2 (défaut de scikit-learn) |\n| avec constante, au minimum | somme des \\(\\pi_i\\) = somme des \\(y_i\\) |\n| AUC | proportion de paires (positif, négatif) bien ordonnées, ex aequo \\(\\tfrac12\\) ; invariante par transformation croissante |\n| classes déséquilibrées | exactitude trompeuse ; précision \\(= q\\,\\mathrm{TVP}/(q\\,\\mathrm{TVP} + (1 - q)\\mathrm{TFP})\\) ; courbe précision-rappel |\n| Brier, log-loss | règles propres ; Brier espéré \\(= (r - q)^2 + q(1 - q)\\) |\n| seuil à coûts asymétriques | \\(c_{\\mathrm{FP}}/(c_{\\mathrm{FP}} + c_{\\mathrm{FN}})\\) sur une probabilité calibrée |\n| plus proches voisins | standardiser (statistiques d'apprentissage) ; \\(k\\) petit : variance \\(\\sigma^2/k\\) grande |\n| arbres et échelle | invariants par transformation strictement croissante de chaque variable |\n| grande dimension | \\(D^2\\) : espérance \\(p\\,m\\), variance \\(p\\,v\\), rapport en \\(1/\\sqrt{p}\\) ; Tchebychev ; exige des coordonnées indépendantes |\n| fuite | toute étape qui voit le test ; sélection sur tout l'échantillon : performance illusoire |\n| étiquettes à \\(h\\) jours | corrélation \\((h - k)/h\\) ; purge \\(h - 1\\) dates de chaque côté ; embargo \\(L\\) dates après |\n\n## À savoir refaire sans notes\n\n- Les deux écritures de la log-loss, le gradient, la hessienne, sa positivité et la convexité par Taylor.\n- La somme des probabilités ajustées avec constante, le rapport de cotes, la non-existence du minimum sous séparation.\n- F1 en fonction de VP, FP, FN ; la précision par la formule de Bayes ; l'AUC comme proportion de paires (preuve par l'escalier).\n- Brier et log-loss comme règles propres ; le seuil par les coûts.\n- La concentration de \\(D^2\\) avec Markov et Tchebychev, et le contre-exemple des coordonnées égales.\n- Purge et embargo sur l'exemple à 5 jours : quelles dates, et pourquoi.\n", "controles": {"convexite": {"question": "Régression logistique sans pénalité, \\(\\mathbf{X}\\) de rang \\(p\\). Quelle affirmation sur la log-loss moyenne \\(\\ell\\) est vraie ?", "options": [{"id": "a", "texte": "\\(\\ell\\) est strictement convexe, son gradient vaut \\(\\tfrac1n \\mathbf{X}^\\top (\\boldsymbol{\\pi} - \\mathbf{y})\\), et son minimiseur, s'il existe, est unique mais n'a pas de forme fermée.", "correcte": true, "explication": "Oui : hessienne \\(\\tfrac1n \\mathbf{X}^\\top \\mathbf{W}\\mathbf{X}\\) définie positive au rang \\(p\\) ; l'équation du premier ordre n'est pas linéaire en \\(\\mathbf{b}\\) ; et l'existence peut échouer (séparation)."}, {"id": "b", "texte": "\\(\\ell\\) a toujours un unique minimiseur, puisqu'elle est strictement convexe.", "correcte": false, "explication": "La stricte convexité donne au plus un minimiseur, pas son existence. Sous séparation parfaite, \\(\\ell\\) tend vers 0 sans l'atteindre : aucun minimiseur (partie 1, énoncé 6)."}, {"id": "c", "texte": "\\(\\ell\\) n'est pas convexe, car la fonction \\(\\sigma\\) ne l'est pas : on peut tomber dans un minimum local.", "correcte": false, "explication": "\\(\\sigma\\) n'est ni convexe ni concave, mais \\(\\ell\\) est une somme de \\(\\ln(1 + e^{t}) - y t\\), convexes en \\(t\\) (dérivée seconde \\(\\sigma(1 - \\sigma) > 0\\)), composées avec \\(t = \\mathbf{x}_i^\\top \\mathbf{b}\\) linéaire : convexe. Pas de minimum local non global."}, {"id": "d", "texte": "Le minimiseur vaut \\((\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\mathbf{y}\\), comme pour les moindres carrés.", "correcte": false, "explication": "C'est la solution des moindres carrés sur les étiquettes 0 ou 1 (modèle de probabilité linéaire), pas le minimiseur de la log-loss, qui annule \\(\\mathbf{X}^\\top (\\boldsymbol{\\pi}(\\mathbf{b}) - \\mathbf{y})\\) avec \\(\\boldsymbol{\\pi}\\) non linéaire en \\(\\mathbf{b}\\)."}]}, "auc": {"question": "Un modèle a une AUC de 0,8 sur un échantillon de test. On remplace chaque probabilité prédite \\(r\\) par \\(r^2\\). Que deviennent l'AUC et le score de Brier ?", "options": [{"id": "a", "texte": "L'AUC reste 0,8 ; le score de Brier change en général.", "correcte": true, "explication": "Oui : \\(r \\mapsto r^2\\) est strictement croissante sur \\([0, 1]\\), donc l'ordre des scores, et la proportion de paires bien ordonnées, ne changent pas. Le Brier dépend des valeurs : dans l'expérience de calibration de la leçon, il augmente nettement."}, {"id": "b", "texte": "L'AUC baisse, car les probabilités ne sont plus calibrées.", "correcte": false, "explication": "L'AUC ne voit que l'ordre des scores, pas leurs valeurs : elle est aveugle à la calibration. C'est pour cela qu'on la complète par le Brier, la log-loss ou un diagramme de fiabilité."}, {"id": "c", "texte": "L'AUC et le Brier restent inchangés, car le classement est le même.", "correcte": false, "explication": "Le Brier est la moyenne de \\((r_i - y_i)^2\\) : il dépend des valeurs prédites, pas seulement de leur ordre. Une transformation croissante qui fausse les probabilités le dégrade en général."}, {"id": "d", "texte": "L'AUC devient \\(0{,}8^2\\), car chaque score est élevé au carré.", "correcte": false, "explication": "L'AUC est une proportion de paires bien ordonnées, pas une fonction des valeurs des scores. Élever les scores au carré ne change aucune comparaison entre deux scores positifs."}]}, "echelle": {"question": "On multiplie par 1000 l'une des variables (par exemple on passe de milliers d'euros à euros), sans rien changer d'autre, et on réajuste. Quelles prédictions sont à coup sûr inchangées, sur l'apprentissage comme sur des points nouveaux ?", "options": [{"id": "a", "texte": "Celles d'un arbre de décision.", "correcte": true, "explication": "Oui : multiplier par 1000 est affine croissant ; l'ordre des valeurs, les partitions possibles et les gains sont les mêmes, et les seuils au milieu de deux valeurs sont transportés exactement. L'expérience de la partie 3 le constate."}, {"id": "b", "texte": "Celles des 15 plus proches voisins avec la distance euclidienne.", "correcte": false, "explication": "La contribution de la variable à la distance est multipliée par \\(1000^2\\) : elle domine toutes les autres, et les voisins changent (exemple \\(Q\\), \\(A\\), \\(B\\) de la partie 3)."}, {"id": "c", "texte": "Celles d'une régression logistique avec la pénalité L2 par défaut de scikit-learn.", "correcte": false, "explication": "Sans pénalité, le coefficient serait divisé par 1000 et les prédictions inchangées. Avec la pénalité \\(\\tfrac12 \\lVert \\mathbf{w} \\rVert^2\\), le coefficient plus petit est moins pénalisé : la solution, et les prédictions, changent."}, {"id": "d", "texte": "Aucune des trois : tout modèle dépend de l'unité des variables.", "correcte": false, "explication": "Les arbres ne dépendent que de l'ordre des valeurs de chaque variable, et la régression logistique sans pénalité est elle aussi invariante (changement \\(b_j \\to b_j/1000\\))."}]}, "selection": {"question": "On dispose de 60 observations et 2000 variables. On garde les 20 variables les plus corrélées à \\(\\mathbf{y}\\) sur les 60 observations, puis on estime l'erreur d'une régression par validation croisée à 5 plis sur ces 20 variables. Quel est le défaut ?", "options": [{"id": "a", "texte": "La sélection a vu les observations de validation : l'erreur estimée est optimiste ; il faut refaire la sélection dans chaque pli, sur l'apprentissage du pli.", "correcte": true, "explication": "Oui : les variables retenues sont corrélées à \\(\\mathbf{y}\\) dans tout l'échantillon, plis de validation compris. L'expérience de la partie 4, avec des variables de bruit pur, donne une exactitude très supérieure au hasard avec cette procédure, et proche du hasard avec la sélection dans le pli."}, {"id": "b", "texte": "Aucun : la sélection n'utilise que les corrélations, pas le modèle de régression.", "correcte": false, "explication": "Toute étape qui regarde \\(\\mathbf{y}\\) fait partie de l'ajustement. Que ce soit une corrélation ou une régression ne change rien : l'information des plis de validation a servi à choisir les variables."}, {"id": "c", "texte": "5 plis sont trop peu ; avec 60 plis (une observation par pli), l'estimation serait sans biais.", "correcte": false, "explication": "Le nombre de plis ne corrige pas la fuite : avec une observation par pli, la sélection a toujours été faite en voyant cette observation. Le défaut est l'ordre des étapes, pas le nombre de plis."}, {"id": "d", "texte": "Il fallait standardiser les variables avant la sélection, sur tout l'échantillon.", "correcte": false, "explication": "La corrélation ne dépend pas de l'échelle, donc standardiser ne change pas la sélection ; et standardiser sur tout l'échantillon serait une seconde fuite, plus petite."}]}, "purge": {"question": "Étiquettes : rendement des 5 jours suivants ; variables : rendements des 20 derniers jours ; validation croisée par blocs de dates contiguës. Que retirent la purge et l'embargo de l'ensemble d'apprentissage ?", "options": [{"id": "a", "texte": "La purge : les 4 dates de chaque côté du bloc de test, dont l'étiquette partage un rendement avec une étiquette de test. L'embargo : les 20 dates suivantes après le bloc, dont les variables utilisent des rendements de la période de test.", "correcte": true, "explication": "Oui : chevauchement si et seulement si \\(t_0 - 4 \\le t \\le t_1 + 4\\) pour la purge ; fenêtre des variables qui rencontre \\(\\{t_0 + 1, \\dots, t_1 + 5\\}\\) si et seulement si \\(t \\le t_1 + 24\\) pour l'embargo (exemple de la leçon : dates 604 à 623)."}, {"id": "b", "texte": "La purge : les 5 dates de chaque côté du bloc. L'embargo : les 20 dates de chaque côté.", "correcte": false, "explication": "Deux erreurs. La date \\(t_0 - 5\\) a pour étiquette \\(R_{t_0 - 4} + \\dots + R_{t_0}\\), qui ne partage rien avec les étiquettes de test (elles commencent à \\(R_{t_0 + 1}\\)) : la purge retire \\(h - 1 = 4\\) dates. Et avant le bloc, les variables n'utilisent que le passé : pas d'embargo de ce côté."}, {"id": "c", "texte": "La purge : les dates postérieures au bloc de test. L'embargo : les dates antérieures.", "correcte": false, "explication": "La purge agit des deux côtés (les étiquettes des 4 dates précédant le bloc contiennent des rendements de la période de test). L'embargo ne concerne que l'après-bloc."}, {"id": "d", "texte": "Rien, dès que les plis sont des blocs contigus : seul le mélange des dates crée une fuite.", "correcte": false, "explication": "Les blocs suppriment l'essentiel de la fuite, mais pas aux bords : la date \\(t_0 - 1\\) a une étiquette corrélée à \\(0{,}8\\) avec celle de \\(t_0\\). En validation progressive à réapprentissage fréquent, toutes les dates de test sont des bords (expérience de la partie 4)."}]}}, "cellules_initiales": ["import numpy as np\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.metrics import roc_auc_score, brier_score_loss, log_loss\nnp.set_printoptions(precision=4, suppress=True)", "# Essaie ici les expériences de la leçon, en les modifiant.\nrng = np.random.default_rng(0)\npi = rng.uniform(0, 1, 10000)\nY = (rng.uniform(size=10000) < pi).astype(int)\nfor r in [pi, pi**2, np.sqrt(pi)]:\n    print(roc_auc_score(Y, r), brier_score_loss(Y, r))"], "verif": {"script": "verif/seance_ml_3.py"}}]}, {"id": "mlf", "nom": "Machine Learning fondamental", "budget_min": 20, "questions": [{"id": "ML3-01", "section": "mlf", "theme": "Régression logistique : rapport de cotes", "difficulte": 2, "temps_cible_s": 75, "enonce": "Une régression logistique \\(\\mathbb{P}(Y = 1 \\mid \\mathbf{x}) = \\sigma(\\mathbf{x}^\\top \\boldsymbol{\\beta})\\), avec \\(\\sigma(t) = 1/(1 + e^{-t})\\), a pour coefficient de la variable \\(x_j\\) la valeur \\(\\beta_j = 0{,}4\\). Pour un individu donné, la probabilité prédite vaut 0,2.\n\nOn augmente \\(x_j\\) de 1 pour cet individu, toutes les autres variables restant fixées. Que vaut la nouvelle probabilité prédite, arrondie à trois décimales ?", "options": [{"id": "a", "texte": "0,272", "correcte": true, "explication": "Oui : la cote \\(0{,}2/0{,}8\\) est multipliée par \\(e^{0{,}4}\\), puis on revient à la probabilité par \\(c/(1 + c)\\)."}, {"id": "b", "texte": "0,298", "correcte": false, "explication": "C'est \\(0{,}2 \\times e^{0{,}4}\\) : le facteur \\(e^{\\beta_j}\\) a été appliqué à la probabilité. Il multiplie la **cote** \\(\\pi/(1 - \\pi)\\), pas la probabilité."}, {"id": "c", "texte": "0,264", "correcte": false, "explication": "C'est l'approximation linéaire \\(0{,}2 + \\beta_j \\pi(1 - \\pi) = 0{,}2 + 0{,}4 \\times 0{,}16\\), qui utilise la dérivée au point de départ. La probabilité n'est pas linéaire en \\(x_j\\) : pour un pas de 1, il faut le calcul exact par la cote."}, {"id": "d", "texte": "0,599", "correcte": false, "explication": "C'est \\(\\sigma(0{,}4)\\) : le point de départ a été oublié, comme si le score linéaire valait 0 avant l'augmentation. Le nouveau score vaut \\(\\ln(0{,}2/0{,}8) + 0{,}4\\)."}], "solution": "Réponse : \\(0{,}272\\).\n\nÉtape 1 : la cote de départ vaut \\(0{,}2/0{,}8 = 0{,}25\\).\n\nÉtape 2 : le logit est linéaire en \\(x_j\\), de pente \\(\\beta_j\\) ; augmenter \\(x_j\\) de 1 multiplie la cote par \\(e^{0{,}4} \\approx 1{,}4918\\) (leçon, partie 1, énoncé 5). Nouvelle cote : \\(0{,}3730\\).\n\nÉtape 3 : retour à la probabilité, \\(c/(1 + c) = 0{,}3730/(1 + 0{,}3730) \\approx 0{,}2716\\).\n\nContrôle : \\(\\sigma\\big(\\ln(0{,}25) + 0{,}4\\big)\\) donne la même valeur (script).", "type": "qcm", "multiple": false, "reponse": "0,272", "fiche": null, "verif": {"script": "verif/seance_ml_3.py", "cles": ["Q01_cote0", "Q01_cote1", "Q01_d_lin", "Q01_d_prob", "Q01_d_sig", "Q01_derivee", "Q01_exact", "Q01_or"]}}, {"id": "ML3-02", "section": "mlf", "theme": "Régression logistique : gradient de la log-loss", "difficulte": 3, "temps_cible_s": 90, "enonce": "Régression logistique avec constante sur trois observations : \\(x = (-1, 0, 2)\\), étiquettes \\(\\mathbf{y} = (0, 1, 1)\\). La matrice \\(\\mathbf{X}\\) a pour lignes \\((1, x_i)\\). Pour \\(\\mathbf{b} = (b_0, b_1)\\), la probabilité prédite est \\(\\pi_i = \\sigma(b_0 + b_1 x_i)\\), avec \\(\\sigma(t) = 1/(1 + e^{-t})\\), et la log-loss moyenne est \\(\\ell(\\mathbf{b}) = -\\tfrac13 \\sum_{i=1}^3 \\big[y_i \\ln \\pi_i + (1 - y_i)\\ln(1 - \\pi_i)\\big]\\).\n\nQue vaut le gradient \\(\\nabla \\ell\\) au point \\(\\mathbf{b} = (0, 1)\\), coordonnées arrondies à trois décimales ?", "options": [{"id": "a", "texte": "(-0,117 ; -0,169)", "correcte": true, "explication": "Oui : \\(\\tfrac13 \\mathbf{X}^\\top (\\boldsymbol{\\pi} - \\mathbf{y})\\), avec \\(\\boldsymbol{\\pi} = (\\sigma(-1), \\sigma(0), \\sigma(2))\\)."}, {"id": "b", "texte": "(0{,}117 ; 0{,}169)", "correcte": false, "explication": "C'est \\(\\tfrac13 \\mathbf{X}^\\top (\\mathbf{y} - \\boldsymbol{\\pi})\\), le gradient de la log-vraisemblance moyenne, que l'on **maximise**. La log-loss en est l'opposé : son gradient est \\(\\tfrac13 \\mathbf{X}^\\top (\\boldsymbol{\\pi} - \\mathbf{y})\\)."}, {"id": "c", "texte": "(-0{,}350 ; -0{,}507)", "correcte": false, "explication": "C'est \\(\\mathbf{X}^\\top (\\boldsymbol{\\pi} - \\mathbf{y})\\) sans le facteur \\(\\tfrac13\\) : le gradient de la somme des pertes, pas de leur moyenne telle que l'énoncé la définit."}, {"id": "d", "texte": "(-0{,}028 ; -0{,}026)", "correcte": false, "explication": "Les résidus \\(\\pi_i - y_i\\) ont été multipliés par les poids \\(\\pi_i(1 - \\pi_i)\\). Ces poids apparaissent dans la hessienne, pas dans le gradient : la dérivée de \\(\\ln(1 + e^{t}) - y t\\) est \\(\\sigma(t) - y\\), sans autre facteur."}], "solution": "Réponse : \\(\\nabla \\ell(0, 1) \\approx (-0{,}117 ; -0{,}169)\\).\n\nÉtape 1 (leçon, partie 1, énoncé 1) : \\(\\nabla \\ell(\\mathbf{b}) = \\tfrac1n \\mathbf{X}^\\top (\\boldsymbol{\\pi} - \\mathbf{y})\\), car la dérivée de \\(\\ln(1 + e^{t}) - y t\\) par rapport à \\(t\\) vaut \\(\\sigma(t) - y\\) et \\(\\partial t_i/\\partial b_j = x_{ij}\\).\n\nÉtape 2 : scores \\(t = (-1, 0, 2)\\), probabilités \\(\\boldsymbol{\\pi} \\approx (0{,}2689 ; 0{,}5000 ; 0{,}8808)\\), résidus \\(\\boldsymbol{\\pi} - \\mathbf{y} \\approx (0{,}2689 ; -0{,}5000 ; -0{,}1192)\\).\n\nÉtape 3 : coordonnée de la constante : somme des résidus \\(\\approx -0{,}3503\\) ; coordonnée de la pente : \\(\\sum_i x_i (\\pi_i - y_i) \\approx -0{,}5073\\). On divise par 3.\n\nLecture : les deux coordonnées sont négatives, donc augmenter \\(b_0\\) et \\(b_1\\) fait baisser la perte ; un pas de descente de longueur 0,1 la fait passer de \\(0{,}3778\\) à \\(0{,}3736\\) (script, qui contrôle aussi le gradient par différences finies).", "type": "qcm", "multiple": false, "reponse": "(-0,117 ; -0,169)", "fiche": null, "verif": {"script": "verif/seance_ml_3.py", "cles": ["Q02_d_poids", "Q02_d_sans_n", "Q02_d_signe", "Q02_exact", "Q02_loss_b", "Q02_loss_pas", "Q02_pi", "Q02_res", "Q02_somme", "Q02_somme_x"]}}, {"id": "ML3-03", "section": "mlf", "theme": "Régression logistique : existence du maximum de vraisemblance, séparation", "difficulte": 4, "temps_cible_s": 120, "enonce": "Régression logistique **sans pénalité**, avec constante et une variable \\(x\\), qui prend les valeurs \\(x = (1, 2, 3, 4)\\) pour quatre observations. On considère quatre vecteurs d'étiquettes possibles pour ces quatre observations, dans cet ordre :\n\n- J1 : \\((0, 1, 0, 1)\\) ;\n- J2 : \\((0, 0, 1, 1)\\) ;\n- J3 : \\((0, 0, 0, 1)\\) ;\n- J4 : \\((1, 1, 1, 1)\\).\n\nPour lequel de ces jeux la log-loss moyenne, vue comme fonction des deux coefficients \\((b_0, b_1)\\) réels, **atteint-elle** son minimum ?", "options": [{"id": "a", "texte": "J1 seulement.", "correcte": true, "explication": "Oui : J1 n'est pas séparable (une étiquette 0 en \\(x = 3\\) entre deux étiquettes 1), la log-loss est strictement convexe et atteint son minimum en un point unique ; J2, J3 et J4 sont séparables par la direction indiquée dans la correction."}, {"id": "b", "texte": "J1 et J4.", "correcte": false, "explication": "J4 a toutes ses étiquettes égales à 1 : la direction de la constante \\((1, 0)\\) le sépare. Avec \\(\\mathbf{b} = (c, 0)\\), chaque terme vaut \\(\\ln(1 + e^{-c})\\), qui tend vers 0 sans l'atteindre : la constante part à \\(+\\infty\\)."}, {"id": "c", "texte": "J1, J3 et J4 : seul J2 pose problème, car il est parfaitement séparé au milieu.", "correcte": false, "explication": "J3 est aussi séparé, par le seuil \\(x = 3{,}5\\) : direction \\((-3{,}5 ; 1)\\), positive seulement en \\(x = 4\\). Une seule observation d'un côté suffit pour une séparation."}, {"id": "d", "texte": "Les quatre : la log-loss est convexe, donc elle atteint toujours son minimum.", "correcte": false, "explication": "La convexité donne l'unicité éventuelle et l'absence de minimum local non global, pas l'existence. Sous séparation, la log-loss tend vers 0 sans l'atteindre, puisqu'elle est strictement positive en tout point."}], "solution": "Réponse : J1 seulement.\n\nÉtape 1, critère (leçon, partie 1, énoncé 6) : s'il existe \\(\\mathbf{b}^\\star\\) avec \\(b_0^\\star + b_1^\\star x_i > 0\\) pour les étiquettes 1 et \\(< 0\\) pour les étiquettes 0, la log-loss tend vers 0 le long de \\(c\\,\\mathbf{b}^\\star\\) quand \\(c \\to \\infty\\), et n'atteint jamais 0, car chaque terme \\(\\ln(1 + e^{\\pm t_i})\\) est strictement positif.\n\nÉtape 2, J2, J3, J4 sont séparés : J2 par \\(\\mathbf{b}^\\star = (-2{,}5 ; 1)\\) (seuil 2,5) ; J3 par \\((-3{,}5 ; 1)\\) (seuil 3,5) ; J4 par \\((1 ; 0)\\) (constante seule). Log-loss le long de \\(c\\,\\mathbf{b}^\\star\\), pour \\(c = 1\\) puis \\(c = 10\\) : J2 \\(0{,}3377\\) puis \\(0{,}0034\\) ; J3 \\(0{,}3071\\) puis \\(0{,}0034\\) ; J4 \\(0{,}3133\\) puis \\(0{,}000045\\).\n\nÉtape 3, J1 : une fonction affine de \\(x\\) positive en \\(x = 2\\) et \\(x = 4\\) et négative en \\(x = 1\\) et \\(x = 3\\) changerait de signe trois fois, impossible : pas de séparation. Le minimiseur, calculé par la méthode de Newton (script), vaut \\(\\hat{\\mathbf{b}} \\approx (-2{,}270 ; 0{,}908)\\), de log-loss \\(0{,}5869\\), avec une hessienne définie positive en ce point. Remarque : ce sont les données de l'exemple de la leçon décalées de 2 en \\(x\\) ; la pente est la même, la constante absorbe le décalage.\n\nAvec la pénalité L2 par défaut de scikit-learn, un minimiseur existe pour J1, J2 et J3 ; pour J4, une seule classe, scikit-learn refuse l'ajustement (`ValueError`, vérifié sous scikit-learn 1.1.1).", "type": "qcm", "multiple": false, "reponse": "J1 seulement.", "fiche": null, "verif": {"script": "verif/seance_ml_3.py", "cles": ["Q03_b_c1", "Q03_b_c10", "Q03_bhat", "Q03_c_c1", "Q03_c_c10", "Q03_d_c1", "Q03_d_c10", "Q03_loss_hat"]}}, {"id": "ML3-04", "section": "mlf", "theme": "Métriques sous déséquilibre : précision, exactitude", "difficulte": 3, "temps_cible_s": 90, "enonce": "Un détecteur de fraude est évalué sur \\(n = 10\\,000\\) transactions, dont 200 frauduleuses (positives). Au seuil choisi, il détecte 80 % des fraudes (taux de vrais positifs 0,8) et signale à tort 5 % des transactions honnêtes (taux de faux positifs 0,05). On compare à un classifieur constant qui déclare toutes les transactions honnêtes.\n\nQuelle affirmation est vraie ?", "options": [{"id": "a", "texte": "La précision vaut environ 0,246, et l'exactitude du détecteur, 0,947, est inférieure à celle du classifieur constant, 0,98.", "correcte": true, "explication": "Oui : VP = 160, FP = 490, précision \\(160/650\\) ; exactitude \\(9470/10\\,000\\) contre \\(9800/10\\,000\\) pour le constant."}, {"id": "b", "texte": "La précision vaut 0,8, puisque le détecteur trouve 80 % des fraudes.", "correcte": false, "explication": "0,8 est le **rappel**, \\(\\mathrm{VP}/(\\mathrm{VP} + \\mathrm{FN})\\). La précision divise par les prédictions positives, \\(\\mathrm{VP} + \\mathrm{FP}\\), dominées ici par les 490 fausses alertes."}, {"id": "c", "texte": "La précision vaut 0{,}95, puisque seulement 5 % des transactions honnêtes sont signalées.", "correcte": false, "explication": "0,95 est la spécificité \\(1 - \\mathrm{TFP}\\), la part des honnêtes reconnues comme telles. Un petit taux de faux positifs appliqué à 9800 transactions honnêtes donne pourtant 490 fausses alertes, contre 160 vraies."}, {"id": "d", "texte": "La précision vaut environ 0,246, et l'exactitude du détecteur, 0,947, dépasse celle du classifieur constant, ce qui confirme son utilité.", "correcte": false, "explication": "Le classifieur constant a une exactitude de \\(1 - 200/10\\,000 = 0{,}98\\), supérieure à \\(0{,}947\\). C'est précisément pourquoi l'exactitude est trompeuse sous déséquilibre : elle préfère le classifieur qui ne détecte rien."}], "solution": "Réponse : précision \\(\\tfrac{16}{65} \\approx 0{,}246\\), exactitude \\(0{,}947 < 0{,}98\\).\n\nÉtape 1, matrice de confusion : VP \\(= 0{,}8 \\times 200 = 160\\), FN \\(= 40\\) ; FP \\(= 0{,}05 \\times 9800 = 490\\), VN \\(= 9310\\).\n\nÉtape 2 : précision \\(= 160/(160 + 490) \\approx 0{,}246\\) ; c'est aussi \\(q\\,\\mathrm{TVP}/(q\\,\\mathrm{TVP} + (1 - q)\\mathrm{TFP})\\) avec \\(q = 0{,}02\\) (leçon, partie 2).\n\nÉtape 3 : exactitude \\(= (160 + 9310)/10\\,000 = 0{,}947\\) ; classifieur constant : \\(9800/10\\,000 = 0{,}98\\).\n\nComplément : F1 \\(= 2\\mathrm{VP}/(2\\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN}) \\approx 0{,}376\\). Pour juger ce détecteur : courbe précision-rappel, ou coût des deux types d'erreur.", "type": "qcm", "multiple": false, "reponse": "La précision vaut environ 0,246, et l'exactitude du détecteur, 0,947, est inférieure à celle du classifieur constant, 0,98.", "fiche": null, "verif": {"script": "verif/seance_ml_3.py", "cles": ["Q04_const", "Q04_d_spec", "Q04_exact", "Q04_f1", "Q04_fn", "Q04_fp", "Q04_neg", "Q04_pp", "Q04_prec", "Q04_prec_den", "Q04_prec_num", "Q04_rap", "Q04_vn", "Q04_vp", "Q04_vp_vn"]}}, {"id": "ML3-05", "section": "mlf", "theme": "AUC comme proportion de paires, ex aequo", "difficulte": 4, "temps_cible_s": 120, "enonce": "Sept observations de test ont reçu les scores suivants :\n\n- positifs (étiquette 1) : 0,9 ; 0,6 ; 0,4 ;\n- négatifs (étiquette 0) : 0,7 ; 0,4 ; 0,3 ; 0,1.\n\nL'AUC est l'aire sous la courbe ROC empirique, obtenue en faisant varier le seuil et en joignant les points successifs par des segments ; un positif et un négatif de même score franchissent le seuil ensemble (segment diagonal). C'est la convention de `roc_auc_score` de scikit-learn.\n\nQue vaut l'AUC, arrondie à trois décimales ?", "options": [{"id": "a", "texte": "0,792", "correcte": true, "explication": "Oui : 9 paires bien ordonnées et 1 ex aequo compté \\(\\tfrac12\\), sur 12 paires : \\(9{,}5/12\\)."}, {"id": "b", "texte": "0{,}750", "correcte": false, "explication": "C'est \\(9/12\\) : la paire ex aequo (0,4 contre 0,4) a été comptée 0. Le segment diagonal correspondant porte la moitié d'un rectangle : elle compte \\(\\tfrac12\\)."}, {"id": "c", "texte": "0,833", "correcte": false, "explication": "C'est \\(10/12\\) : la paire ex aequo a été comptée comme bien ordonnée. Un ex aequo n'est ni bien ni mal ordonné : il compte \\(\\tfrac12\\)."}, {"id": "d", "texte": "0{,}714", "correcte": false, "explication": "C'est l'exactitude au seuil 0,5 (prédire 1 si le score dépasse 0,5) : 2 positifs et 3 négatifs bien classés sur 7. L'AUC ne dépend d'aucun seuil : elle résume tous les seuils à la fois."}], "solution": "Réponse : \\(\\mathrm{AUC} = \\tfrac{19}{24} \\approx 0{,}792\\).\n\nÉtape 1 (leçon, partie 2) : l'AUC est la proportion de paires (positif, négatif) où le positif a le score le plus élevé, une paire ex aequo comptant \\(\\tfrac12\\) (segment diagonal, dont l'aire est la moitié du rectangle).\n\nÉtape 2 : il y a \\(3 \\times 4 = 12\\) paires. Le positif 0,9 bat 4 négatifs (tous) ; 0,6 bat 0,4, 0,3 et 0,1, soit 3 ; 0,4 bat 0,3 et 0,1, soit 2, et fait ex aequo avec le négatif 0,4. Bien ordonnées : \\(9\\), ex aequo : \\(1\\).\n\nÉtape 3 : \\((9 + \\tfrac12)/12 = \\tfrac{19}{24}\\).\n\nVérification (script) : l'aire calculée directement sous l'escalier ROC, trapèzes compris, donne la même fraction.", "type": "qcm", "multiple": false, "reponse": "0,792", "fiche": null, "verif": {"script": "verif/seance_ml_3.py", "cles": ["Q05_bien", "Q05_bien_egal", "Q05_d_exactitude", "Q05_d_un", "Q05_d_zero", "Q05_demi", "Q05_egal", "Q05_ex_vn", "Q05_ex_vp", "Q05_exact", "Q05_exact_den", "Q05_exact_num", "Q05_p1", "Q05_p2", "Q05_p3", "Q05_paires"]}}, {"id": "ML3-06", "section": "mlf", "theme": "Score de Brier, calibration et AUC", "difficulte": 5, "temps_cible_s": 150, "enonce": "Une population se compose de deux groupes de même taille. Dans le groupe 1, chaque individu a la probabilité 0,1 d'être positif ; dans le groupe 2, la probabilité 0,5 ; les étiquettes sont indépendantes. Le modèle A prédit pour chaque individu la vraie probabilité de son groupe (0,1 ou 0,5). Le modèle B prédit 0,3 pour tout le monde.\n\nOn note, pour chaque modèle, son score de Brier espéré \\(\\mathbb{E}[(R - Y)^2]\\) (\\(R\\) : prévision, \\(Y\\) : étiquette, individu tiré au hasard dans la population), son AUC en population, \\(\\mathbb{P}(S^+ > S^-) + \\tfrac12 \\mathbb{P}(S^+ = S^-)\\), où \\(S^+\\) est la prévision d'un positif tiré au hasard et \\(S^-\\), indépendamment, celle d'un négatif tiré au hasard, et on dit qu'un modèle est calibré si \\(\\mathbb{P}(Y = 1 \\mid R = r) = r\\) pour chaque valeur \\(r\\) qu'il prédit.\n\nQuelle affirmation est vraie ?", "options": [{"id": "a", "texte": "Les deux modèles sont calibrés ; Brier : A 0,17, B 0,21 ; AUC : A 0,738, B 0,5.", "correcte": true, "explication": "Oui : B est calibré, car parmi les individus à qui il prédit 0,3 (tous), la proportion de positifs est \\((0{,}1 + 0{,}5)/2\\). Mais il ne discrimine pas : AUC \\(\\tfrac12\\), et un Brier plus élevé de la moyenne des \\((0{,}3 - q)^2\\)."}, {"id": "b", "texte": "B n'est pas calibré, puisqu'il se trompe sur chaque groupe ; Brier : A 0{,}17, B 0{,}21.", "correcte": false, "explication": "La calibration porte sur les valeurs prédites, pas sur les groupes : pour la seule valeur prédite 0,3, la fréquence de positifs est \\(0{,}3\\). B est calibré mais peu informatif ; c'est la discrimination (AUC) qui lui manque."}, {"id": "c", "texte": "Les deux modèles sont calibrés, donc ils ont le même score de Brier, 0{,}21.", "correcte": false, "explication": "Le score de Brier mesure la calibration **et** la discrimination : son espérance vaut la moyenne de \\((r - q)^2 + q(1 - q)\\), et B paie en plus la moyenne des \\((0{,}3 - q)^2\\). Être calibré ne suffit pas pour minimiser le Brier."}, {"id": "d", "texte": "A a une AUC de 1, puisqu'il prédit les vraies probabilités.", "correcte": false, "explication": "Connaître les vraies probabilités ne sépare pas les classes : dans le groupe 2, la moitié des individus sont négatifs et reçoivent la même prévision que les positifs. L'AUC de A vaut \\(\\tfrac{31}{42}\\)."}], "solution": "Réponse : les deux modèles sont calibrés ; Brier A \\(0{,}17\\), B \\(0{,}21\\) ; AUC A \\(\\tfrac{31}{42} \\approx 0{,}738\\), B \\(\\tfrac12\\).\n\nNotations : \\(q_1 = 0{,}1\\), \\(q_2 = 0{,}5\\) les probabilités des groupes.\n\nÉtape 1, calibration : A prédit \\(q_g\\) dans le groupe \\(g\\), où la fréquence de positifs est \\(q_g\\). B ne prédit que 0,3, et la fréquence de positifs dans la population entière est \\((q_1 + q_2)/2 = 0{,}3\\).\n\nÉtape 2, Brier (leçon, partie 2) : pour une prévision \\(r\\) d'une Bernoulli de paramètre \\(q\\), \\(\\mathbb{E}[(r - Y)^2] = (r - q)^2 + q(1 - q)\\). A : \\(\\tfrac12 \\big(q_1(1 - q_1) + q_2(1 - q_2)\\big) = 0{,}17\\). B : \\(0{,}17 + \\tfrac12 \\big((0{,}3 - q_1)^2 + (0{,}3 - q_2)^2\\big) = 0{,}21\\).\n\nÉtape 3, AUC de A : par la formule de Bayes, un positif vient du groupe 2 avec probabilité \\(\\tfrac{q_2}{q_1 + q_2} = \\tfrac{5}{6}\\) (du groupe 1 avec probabilité \\(\\tfrac{1}{6}\\)), un négatif du groupe 1 avec probabilité \\(\\tfrac{1 - q_1}{(1 - q_1) + (1 - q_2)} = \\tfrac{9}{14}\\) (du groupe 2 avec probabilité \\(\\tfrac{5}{14}\\)). \\(S^+ > S^-\\) exactement quand le positif est du groupe 2 et le négatif du groupe 1 ; ex aequo quand ils sont du même groupe. AUC \\(= \\tfrac{5}{6} \\cdot \\tfrac{9}{14} + \\tfrac12\\big(\\tfrac{5}{6} \\cdot \\tfrac{5}{14} + \\tfrac{1}{6} \\cdot \\tfrac{9}{14}\\big) = \\tfrac{31}{42}\\). AUC de B : toujours ex aequo, \\(\\tfrac12\\).\n\nSimulation (script, 400 000 individus) : Brier A \\(0{,}1700\\), B \\(0{,}2100\\), AUC de A \\(0{,}7378\\).", "type": "qcm", "multiple": false, "reponse": "Les deux modèles sont calibrés ; Brier : A 0,17, B 0,21 ; AUC : A 0,738, B 0,5.", "fiche": null, "verif": {"script": "verif/seance_ml_3.py", "cles": ["Q06_auc_A", "Q06_auc_A_den", "Q06_auc_A_mc", "Q06_auc_A_num", "Q06_brier_A", "Q06_brier_A_mc", "Q06_brier_B", "Q06_brier_B_mc", "Q06_calib_B", "Q06_d_brier_moy", "Q06_pn1_den", "Q06_pn1_num", "Q06_pn2_den", "Q06_pn2_num", "Q06_pp1_den", "Q06_pp1_num", "Q06_pp2_den", "Q06_pp2_num"]}}, {"id": "ML3-07", "section": "mlf", "theme": "Malédiction de la dimension : concentration des distances, Tchebychev", "difficulte": 4, "temps_cible_s": 120, "enonce": "Soient \\(\\mathbf{X}\\) et \\(\\mathbf{X}'\\) deux vecteurs aléatoires de \\(\\mathbb{R}^{50}\\) dont les 100 coordonnées sont indépendantes et de loi normale \\(\\mathcal{N}(0, 1)\\). On note \\(D^2 = \\lVert \\mathbf{X} - \\mathbf{X}' \\rVert^2\\) le carré de leur distance euclidienne.\n\nQue valent le rapport \\(\\sqrt{\\mathrm{Var}(D^2)}/\\mathbb{E}[D^2]\\), et la borne que l'inégalité de Tchebychev donne pour \\(\\mathbb{P}\\big(\\lvert D^2/\\mathbb{E}[D^2] - 1 \\rvert \\ge 0{,}5\\big)\\) ?", "options": [{"id": "a", "texte": "Rapport 0,20, borne 0,16.", "correcte": true, "explication": "Oui : \\(X_j - X_j'\\) suit \\(\\mathcal{N}(0, 2)\\), donc \\((X_j - X_j')^2\\) a pour espérance 2 et pour variance \\(12 - 4 = 8\\) ; rapport \\(\\sqrt{50 \\times 8}/(50 \\times 2)\\), puis borne égale au carré du rapport divisé par \\(0{,}5^2\\)."}, {"id": "b", "texte": "Rapport 0,10, borne 0,04.", "correcte": false, "explication": "La variance de \\((X_j - X_j')^2\\) a été prise égale à 2, celle d'un khi-deux à un degré de liberté, en oubliant que \\(X_j - X_j'\\) a pour variance 2 et non 1 : \\((X_j - X_j')^2 = 2 Z^2\\) avec \\(Z\\) normale centrée réduite, de variance \\(2^2\\,\\mathrm{Var}(Z^2) = 8\\)."}, {"id": "c", "texte": "Rapport 0,04, borne 0,0064.", "correcte": false, "explication": "0,04 est \\(\\mathrm{Var}(D^2)/\\mathbb{E}[D^2]^2\\), le **carré** du rapport demandé ; la borne a ensuite été calculée avec ce carré, élevé de nouveau au carré."}, {"id": "d", "texte": "Rapport 0,20, borne 0,4.", "correcte": false, "explication": "C'est le rapport divisé par 0,5, sans carré : Tchebychev borne la probabilité par \\(\\mathrm{Var}/a^2\\), donc par le carré du rapport divisé par \\(\\varepsilon^2\\), soit \\(0{,}04/0{,}25\\)."}], "solution": "Réponse : rapport \\(0{,}20\\), borne \\(\\tfrac{4}{25} = 0{,}16\\).\n\nÉtape 1 : \\(X_j - X_j'\\), différence de deux normales indépendantes centrées réduites, suit \\(\\mathcal{N}(0, 2)\\). Ses moments : \\(\\mathbb{E}[(X_j - X_j')^2] = 2\\), \\(\\mathbb{E}[(X_j - X_j')^4] = 3 \\times 2^2 = 12\\) (moment d'ordre 4 d'une normale centrée de variance \\(s^2\\) : \\(3s^4\\) ; intégrales calculées par sympy dans le script). Donc \\(v = \\mathrm{Var}\\big((X_j - X_j')^2\\big) = 8\\).\n\nÉtape 2 (leçon, partie 3) : \\(D^2\\) est une somme de 50 termes indépendants de même loi : \\(\\mathbb{E}[D^2] = 50 \\times 2 = 100\\), \\(\\mathrm{Var}(D^2) = 50 \\times 8 = 400\\). Rapport \\(\\sqrt{400}/100 = 0{,}20\\), égal à \\(\\sqrt{2/p}\\) avec \\(p = 50\\).\n\nÉtape 3, Tchebychev : \\(\\mathbb{P}(\\lvert D^2 - \\mathbb{E}D^2 \\rvert \\ge 0{,}5\\,\\mathbb{E}D^2) \\le \\mathrm{Var}(D^2)/(0{,}5\\,\\mathbb{E}D^2)^2 = 0{,}04/0{,}25 = 0{,}16\\).\n\nSimulation (script, 100 000 paires) : espérance \\(99{,}99\\), variance \\(403{,}3\\), et fréquence observée de l'événement \\(0{,}0144\\), bien sous la borne : Tchebychev est valable pour toute loi, donc rarement serrée.", "type": "qcm", "multiple": false, "reponse": "Rapport 0,20, borne 0,16.", "fiche": null, "verif": {"script": "verif/seance_ml_3.py", "cles": ["Q07_borne", "Q07_borne_den", "Q07_borne_num", "Q07_d_carre_borne", "Q07_d_carre_ratio", "Q07_d_lin_borne", "Q07_d_var2_borne", "Q07_d_var2_ratio", "Q07_esp", "Q07_esp_mc", "Q07_freq", "Q07_m2", "Q07_m2sq", "Q07_m4", "Q07_ratio", "Q07_ratio2", "Q07_var", "Q07_var1", "Q07_var_mc"]}}, {"id": "ML3-08", "section": "mlf", "theme": "Validation croisée temporelle : purge et embargo", "difficulte": 4, "temps_cible_s": 120, "enonce": "Données quotidiennes, dates numérotées de 0 à 1499 ; les prix sont connus assez longtemps avant et après pour que toutes les variables et étiquettes ci-dessous soient définies. On note \\(R_s\\) le rendement du jour \\(s\\).\n\n- L'étiquette de la date \\(t\\) est \\(R_{t+1} + \\dots + R_{t+10}\\) (horizon 10 jours).\n- Les variables de la date \\(t\\) sont calculées à partir de \\(R_{t-59}, \\dots, R_t\\) (60 jours).\n- Validation croisée par 5 blocs de 300 dates contiguës ; on considère le pli dont le bloc de test est formé des dates 600 à 899.\n- **Purge** : on retire de l'apprentissage toute date (hors bloc de test) dont l'étiquette contient au moins un rendement qui entre aussi dans l'étiquette d'au moins une date de test.\n- **Embargo** : on retire en plus toute date postérieure au bloc de test, non purgée, dont les variables utilisent au moins un rendement qui entre dans l'étiquette d'au moins une date de test.\n\nCombien de dates restent dans l'ensemble d'apprentissage de ce pli ?", "options": [{"id": "a", "texte": "1122", "correcte": true, "explication": "Oui : 1200 dates hors test, moins 9 purgées avant, 9 purgées après, et 60 sous embargo."}, {"id": "b", "texte": "1182", "correcte": false, "explication": "C'est la purge seule (18 dates). Les dates 909 à 968 ont des variables qui contiennent des rendements \\(R_{601}, \\dots, R_{909}\\) utilisés par les étiquettes de test : l'embargo les retire."}, {"id": "c", "texte": "1120", "correcte": false, "explication": "La purge a retiré \\(h\\) dates de chaque côté au lieu de \\(h - 1\\). La date 590 a pour étiquette \\(R_{591} + \\dots + R_{600}\\), qui ne contient aucun rendement des étiquettes de test (elles commencent à \\(R_{601}\\)) : elle reste. Une étiquette à horizon \\(h\\) impose \\(h - 1\\) dates de purge de chaque côté."}, {"id": "d", "texte": "1062", "correcte": false, "explication": "L'embargo a été appliqué des deux côtés. Avant le bloc, les variables n'utilisent que des rendements antérieurs à la date, donc antérieurs à \\(R_{601}\\) une fois la purge faite : rien à retirer. L'embargo ne concerne que l'après-bloc."}], "solution": "Réponse : \\(1122\\) dates.\n\nÉtape 1, purge (leçon, partie 4) : les étiquettes de test utilisent les rendements \\(R_{601}, \\dots, R_{909}\\). L'étiquette de \\(t\\), \\(R_{t+1}, \\dots, R_{t+10}\\), en contient un si et seulement si \\(t + 10 \\ge 601\\) et \\(t + 1 \\le 909\\), soit \\(591 \\le t \\le 908\\). Hors test : dates 591 à 599 et 900 à 908, soit \\(18\\) dates.\n\nÉtape 2, embargo : les variables de \\(t\\) utilisent \\(R_{t-59}, \\dots, R_t\\) ; elles contiennent un rendement de \\(R_{601}, \\dots, R_{909}\\) si et seulement si \\(t - 59 \\le 909\\) (pour \\(t\\) après le bloc), soit \\(t \\le 968\\). Après la purge : dates 909 à 968, soit \\(60\\) dates, la longueur de la fenêtre des variables.\n\nÉtape 3 : \\(1500 - 300 - 18 - 60 = 1122\\).\n\nVérification (script) : énumération directe des 1500 dates avec les deux règles, et contrôle des formules générales (purge de \\(h - 1\\) dates de chaque côté, embargo de \\(L\\) dates après) sur 200 configurations tirées au hasard.", "type": "qcm", "multiple": false, "reponse": "1122", "fiche": null, "verif": {"script": "verif/seance_ml_3.py", "cles": ["Q08_avant_purge", "Q08_d_emb_deux", "Q08_d_purge_h", "Q08_d_purge_seule", "Q08_emb1", "Q08_emb2", "Q08_exact", "Q08_n_emb", "Q08_n_pap", "Q08_n_pav", "Q08_n_purge", "Q08_pap1", "Q08_pap2", "Q08_pav1", "Q08_pav2", "Q08_r1", "Q08_r2", "Q08_sans", "Q08_t0"]}}]}]}</script>
+<script>
+'use strict';
+const D = JSON.parse(document.getElementById('donnees').textContent);
+const ITEMS = D.sections.flatMap(s => s.questions.map(q => Object.assign({ nomSection: s.nom }, q)));
+const CLE = 'atelier-quant:' + D.id;
+const SERVEUR = location.protocol.startsWith('http');
+// La session survit à un rechargement de l'onglet : on se reconnecte alors au même noyau, variables comprises.
+const SESSION = (() => { const neuve = Math.random().toString(36).slice(2) + Date.now().toString(36); try { const s = sessionStorage.getItem('atelier-quant:session') || neuve; sessionStorage.setItem('atelier-quant:session', s); return s; } catch (e) { return neuve; } })();
+const page = document.getElementById('page');
+const noyauxDemarres = {};
+let E = etatNeuf('accueil');
+
+function etatNeuf(phase) { return { phase, courant: 0, debut: null, fin: null, reponses: {}, temps: {}, ordre: {}, cellules: {}, code: {}, controles: {}, ordreControles: {}, vus: {}, partie: {}, enregistrement: null, pauseDepuis: null, pauseTotale: 0 }; }
+// Options par défaut : la pause et « Je ne sais pas » sont permis, sauf si l'examen les interdit (examens blancs).
+const PAUSE_PERMISE = D.options.pause !== false;
+const NSP_PERMIS = D.options.je_ne_sais_pas !== false;
+function dureeEcoulee(fin) { return (fin - E.debut - (E.pauseTotale || 0) - (E.pauseDepuis ? fin - E.pauseDepuis : 0)) / 1000; }
+const NOTEES = ITEMS.filter(q => q.type !== 'lecon');
+function sauver() { try { localStorage.setItem(CLE, JSON.stringify(E)); } catch (e) {} }
+function charger() { try { const s = localStorage.getItem(CLE); if (s) E = Object.assign(etatNeuf('accueil'), JSON.parse(s)); } catch (e) {} }
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function enLigne(t) { return esc(t).replace(/`([^`]+)`/g, '<code class="sans-math">$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); }
+
+// Markdown réduit : titres #, tableaux |, listes - et 1., paragraphes, `code`, **gras**, blocs entre triples accents graves.
+function rendre(t) {
+  let h = '';
+  String(t).split('```').forEach((bloc, i) => {
+    if (i % 2) {
+      const info = (bloc.match(/^(\w*)\n/) || [])[1];
+      h += '<pre class="sans-math' + (info === 'sortie' ? ' sortie-lecon' : '') + '"><code>' + esc(bloc.replace(/^\w*\n/, '')) + '</code></pre>';
+      return;
+    }
+    const lignes = bloc.split('\n');
+    let k = 0;
+    while (k < lignes.length) {
+      const l = lignes[k];
+      if (!l.trim()) { k++; continue; }
+      const titre = l.match(/^(#{1,4})\s+(.*)$/);
+      if (titre) { const n = Math.min(4, titre[1].length + 1); h += '<h' + n + '>' + enLigne(titre[2]) + '</h' + n + '>'; k++; continue; }
+      if (l.trim().startsWith('|')) {
+        const rangs = [];
+        while (k < lignes.length && lignes[k].trim().startsWith('|')) { rangs.push(lignes[k].trim()); k++; }
+        const cellules = r => r.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+        h += '<div class="defile"><table><tr>' + cellules(rangs[0]).map(c => '<th>' + enLigne(c) + '</th>').join('') + '</tr>';
+        rangs.slice(1).filter(r => !/^\|[\s|:-]+\|$/.test(r)).forEach(r => { h += '<tr>' + cellules(r).map(c => '<td>' + enLigne(c) + '</td>').join('') + '</tr>'; });
+        h += '</table></div>'; continue;
+      }
+      const puce = /^\s*[-*]\s+/, numero = /^\s*\d+\.\s+/;
+      if (puce.test(l) || numero.test(l)) {
+        const motif = puce.test(l) ? puce : numero, balise = motif === puce ? 'ul' : 'ol';
+        h += '<' + balise + '>';
+        while (k < lignes.length && motif.test(lignes[k])) { h += '<li>' + enLigne(lignes[k].replace(motif, '')) + '</li>'; k++; }
+        h += '</' + balise + '>'; continue;
+      }
+      const par = [];
+      while (k < lignes.length && lignes[k].trim() && !/^(#{1,4}\s|\s*\||\s*[-*]\s|\s*\d+\.\s)/.test(lignes[k])) { par.push(lignes[k]); k++; }
+      const texte = par.join('\n').trim();
+      // Un paragraphe réduit à une seule formule est centré ; une formule au milieu d'une phrase reste dans la ligne.
+      const seule = texte.startsWith('\\(') && texte.endsWith('\\)') && texte.indexOf('\\(', 2) < 0;
+      h += (seule ? '<p class="formule">' : '<p>') + enLigne(par.join('\n')) + '</p>';
+    }
+  });
+  return h;
+}
+function composer(el) { if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([el || page]).catch(() => {}); }
+function mmss(s) { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+function melanger(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+async function api(chemin, corps) {
+  const r = await fetch(chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  return r.json();
+}
+
+let dernierTic = null;
+function tic() {
+  const ch = document.getElementById('chrono');
+  const bouton = document.getElementById('pause');
+  bouton.hidden = !(PAUSE_PERMISE && E.phase === 'epreuve');
+  document.getElementById('recommencerHaut').hidden = E.phase !== 'epreuve';
+  document.getElementById('voile').hidden = !(E.phase === 'epreuve' && E.pauseDepuis);
+  if (E.phase !== 'epreuve' || E.pauseDepuis) { dernierTic = null; return; }
+  const maintenant = Date.now();
+  if (dernierTic !== null) { const q = ITEMS[E.courant]; E.temps[q.id] = (E.temps[q.id] || 0) + (maintenant - dernierTic) / 1000; }
+  dernierTic = maintenant;
+  const reste = D.duree_minutes * 60 - dureeEcoulee(maintenant);
+  ch.textContent = (reste < 0 ? '+' : '') + mmss(Math.abs(reste));
+  ch.classList.toggle('depasse', reste < 0);
+}
+setInterval(() => { tic(); if (E.phase === 'epreuve') sauver(); }, 500);
+if (SERVEUR) document.getElementById('lienAccueil').hidden = false;
+document.getElementById('lienAccueil').onclick = () => {
+  if (E.phase === 'epreuve' && PAUSE_PERMISE && !E.pauseDepuis) { tic(); E.pauseDepuis = Date.now(); sauver(); }
+};
+document.getElementById('recommencerHaut').onclick = () => {
+  if (!confirm('Effacer ce passage (réponses, code, chronomètre) et revenir au début de la séance ?')) return;
+  try { localStorage.removeItem(CLE); } catch (e) {}
+  E = etatNeuf('accueil'); dernierTic = null; afficher();
+};
+document.getElementById('pause').onclick = () => { tic(); E.pauseDepuis = Date.now(); sauver(); tic(); };
+document.getElementById('reprendre').onclick = () => {
+  if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+  dernierTic = null; sauver(); tic();
+};
+
+// ------------------------------------------------------------------ accueil
+function accueil() {
+  page.className = '';
+  document.getElementById('position').textContent = '';
+  document.getElementById('chrono').textContent = mmss(D.duree_minutes * 60);
+  let h = '<div class="carte presentation"><h2>' + esc(D.titre) + '</h2><p class="meta">' + D.duree_minutes + ' min · ' + NOTEES.length + ' question' + (NOTEES.length > 1 ? 's' : '') + (D.options.pause === false ? ' · sans pause' : '') + '</p>' + rendre(D.presentation);
+  h += '<div class="sections-liste">';
+  D.sections.forEach(s => { const n = s.questions.filter(q => q.type !== 'lecon').length; h += '<div><span>' + esc(s.nom) + '</span><span class="meta">' + (n ? n + ' question' + (n > 1 ? 's' : '') : 'leçon') + ' · ' + s.budget_min + ' min</span></div>'; });
+  h += '</div>';
+  D.avertissements.forEach(a => { h += '<div class="note">' + rendre(a) + '</div>'; });
+  if (!SERVEUR && ITEMS.some(q => q.type === 'code')) h += '<div class="note"><p><strong>Le notebook ne peut pas s\'exécuter :</strong> cette page est ouverte comme un fichier. Lance <code class="sans-math">python lancer.py</code> dans le dossier du projet, puis ouvre l\'examen depuis la page qui s\'affiche.</p></div>';
+  h += '<p class="meta">' + esc(D.conventions) + '</p>';
+  h += '<div class="barre"><button class="principal" id="demarrer">Commencer</button></div></div>';
+  page.innerHTML = h;
+  document.getElementById('demarrer').onclick = () => {
+    E = etatNeuf('epreuve');
+    E.debut = Date.now();
+    ITEMS.forEach(q => {
+      if (q.type === 'qcm') E.ordre[q.id] = melanger(q.options.map(o => o.id));
+      if (q.cellules_initiales) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+      if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => { E.ordreControles[q.id + ':' + cid] = melanger(c.options.map(o => o.id)); });
+    });
+    sauver(); afficher();
+  };
+  composer();
+}
+
+// ------------------------------------------------------------------ épreuve
+function pastilles() {
+  const faite = it => it.type === 'lecon' ? !!E.vus[it.id] : it.type === 'code' ? (E.code[it.id] || {}).soumissions > 0 : E.reponses[it.id] !== undefined;
+  const barre = document.querySelector('#progression > span');
+  if (barre) barre.style.width = (100 * ITEMS.filter(faite).length / ITEMS.length) + '%';
+  let h = '<div class="cadre"><aside class="plan"><div id="pastilles">', section = null, n = 0;
+  ITEMS.forEach((it, i) => {
+    if (it.nomSection !== section) { section = it.nomSection; h += '<div class="groupe">' + esc(section) + '</div>'; }
+    const libelle = it.type === 'lecon' ? 'Leçon' : 'Question ' + (++n);
+    h += '<button class="pastille' + (faite(it) ? ' faite' : '') + (i === E.courant ? ' courante' : '') + '" data-i="' + i + '" title="' + esc(it.theme) + '"' + (D.options.retour_arriere || i === E.courant ? '' : ' disabled') + '><span class="etat"></span><span class="libelle">' + libelle + '</span></button>';
+  });
+  return h + '</div></aside><div class="contenu">';
+}
+const FIN_CADRE = '</div></div>';
+function navigation() {
+  let h = '<div class="barre navigation">';
+  if (D.options.retour_arriere) h += '<button id="prec"' + (E.courant === 0 ? ' disabled' : '') + '>Précédente</button>';
+  if (E.courant < ITEMS.length - 1) h += '<button class="principal" id="suiv">Suivante</button>';
+  return h + '<button id="finir">Terminer et corriger</button></div>';
+}
+function brancherNavigation() {
+  const aller = i => { tic(); E.courant = i; sauver(); afficher(); };
+  page.querySelectorAll('.pastille').forEach(b => b.onclick = () => aller(Number(b.dataset.i)));
+  const p = document.getElementById('prec'); if (p) p.onclick = () => aller(E.courant - 1);
+  const s = document.getElementById('suiv'); if (s) s.onclick = () => aller(E.courant + 1);
+  document.getElementById('finir').onclick = () => {
+    const manquantes = NOTEES.filter(it => it.type === 'code' ? !((E.code[it.id] || {}).soumissions > 0) : E.reponses[it.id] === undefined).length;
+    if (manquantes && !confirm(manquantes + ' question(s) sans réponse ou jamais soumise(s). Terminer quand même ?')) return;
+    tic();
+    if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+    E.phase = 'bilan'; E.fin = Date.now(); sauver(); afficher();
+  };
+}
+
+function epreuve() {
+  tic();
+  const q = ITEMS[E.courant];
+  document.getElementById('position').textContent = q.nomSection + (q.type === 'lecon' ? ' · étape ' : ' · question ') + (E.courant + 1) + ' sur ' + ITEMS.length;
+  if (q.type === 'lecon') E.vus[q.id] = true;
+  if (q.cellules_initiales) return epreuveCode(q);
+  if (q.type === 'lecon') return epreuveLecon(q);
+  page.className = '';
+  const rang = NOTEES.indexOf(q) + 1;
+  let h = pastilles() + '<div class="carte question"><div class="surtitre"><span class="rang">Question ' + rang + ' sur ' + NOTEES.length + '</span><span class="chip">' + esc(q.theme) + '</span><span>temps visé ' + mmss(q.temps_cible_s) + '</span></div>' + rendre(q.enonce);
+  h += '<p class="consigne">' + (q.multiple ? 'Une ou plusieurs réponses : coche toutes les affirmations justes, et seulement elles (notation tout ou rien).' : 'Une seule réponse.') + '</p>';
+  E.ordre[q.id].forEach((oid, k) => {
+    const o = q.options.find(x => x.id === oid);
+    h += '<div class="option' + (choisies(q).includes(oid) ? ' choisie' : '') + '" data-o="' + oid + '"><span class="lettre' + (q.multiple ? ' carre' : '') + '">' + 'ABCDE'[k] + '</span><div>' + rendre(o.texte) + '</div></div>';
+  });
+  if (NSP_PERMIS) h += '<div class="option' + (E.reponses[q.id] === 'nsp' ? ' choisie' : '') + '" data-o="nsp"><span class="lettre">?</span><div><p>Je ne sais pas (compte comme faux, mais évite qu\'un hasard heureux masque une lacune)</p></div></div>';
+  page.innerHTML = h + navigation() + '</div>' + FIN_CADRE;
+  page.querySelectorAll('.option').forEach(el => el.onclick = () => {
+    const o = el.dataset.o;
+    if (q.multiple && o !== 'nsp') {
+      const s = choisies(q), k = s.indexOf(o);
+      if (k >= 0) s.splice(k, 1); else s.push(o);
+      if (s.length) E.reponses[q.id] = s.sort(); else delete E.reponses[q.id];
+    } else if (E.reponses[q.id] === o) delete E.reponses[q.id]; else E.reponses[q.id] = o;
+    sauver(); afficher();
+  });
+  brancherNavigation();
+  composer();
+}
+
+// ------------------------------------------------------------------ notebook
+function epreuveLecon(q) {
+  page.className = 'lecture';
+  page.innerHTML = pastilles() + '<div class="carte enonce"><div class="surtitre"><span class="rang">Leçon</span><span class="chip">' + esc(q.theme) + '</span><span>environ ' + Math.round(q.temps_cible_s / 60) + ' min</span></div>' + rendreLecon(q) + navigation() + '</div>' + FIN_CADRE;
+  brancherControles(q);
+  brancherNavigation();
+  composer();
+}
+
+// Points de contrôle : question corrigée dès le clic, non notée.
+function rendreLecon(q) {
+  const brut = rendre(q.contenu).replace(/<p>\[\[controle:([\w-]+)\]\]<\/p>/g, (_, cid) => '<div class="controle" data-c="' + cid + '"></div>');
+  // Une partie par titre de niveau 2 ; dans chaque partie, un bloc par rubrique (problème, énoncé, preuve, exemple...).
+  const source = document.createElement('div');
+  source.innerHTML = brut;
+  const parties = [];
+  Array.from(source.childNodes).forEach(n => {
+    if (n.nodeName === 'H3' || !parties.length) parties.push({ titre: n.nodeName === 'H3' ? n.textContent : 'Introduction', noeuds: [] });
+    parties[parties.length - 1].noeuds.push(n);
+  });
+  const genre = t => /preuve/i.test(t) ? 'preuve' : /pi[èe]ge/i.test(t) ? 'pieges' : /exemple|exp[ée]rience/i.test(t) ? 'exemple'
+    : /[ée]nonc[ée]/i.test(t) ? 'enonce-bloc' : /intuition/i.test(t) ? 'intuition' : /probl[èe]me/i.test(t) ? 'probleme'
+    : /cas limites/i.test(t) ? 'limites' : /d[ée]finition|notation|cadre|mod[èe]le/i.test(t) ? 'definitions' : '';
+  const courante = Math.min((E.partie || {})[q.id] || 0, parties.length - 1);
+  let h = '<div class="lecon-corps" data-lecon="' + q.id + '"><nav class="sommaire">';
+  parties.forEach((p, k) => { h += '<button data-partie="' + k + '"' + (k === courante ? ' class="active"' : '') + '>' + (k + 1) + '. ' + esc(p.titre.replace(/^(Leçon|Partie \d+|Outil \d+|\d+\.)\s*:?\s*/i, '').slice(0, 42) || p.titre) + '</button>'; });
+  h += '</nav>';
+  parties.forEach((p, k) => {
+    h += '<section class="partie" data-partie="' + k + '"' + (k === courante ? '' : ' hidden') + '>';
+    let bloc = null;
+    const fermer = () => { if (bloc) { h += bloc.genre === 'question' ? ficheDebrief(bloc.titre, bloc.noeuds) : bloc.genre === 'preuve' ? '</details>' : '</div>'; bloc = null; } };
+    p.noeuds.forEach(n => {
+      if (bloc && bloc.genre === 'question' && n.nodeName !== 'H4' && n.nodeName !== 'H3') { bloc.noeuds.push(n); return; }
+      if (n.nodeName === 'H4' && /^Question \d+/.test(n.textContent)) {
+        fermer();
+        bloc = { genre: 'question', titre: n.textContent, noeuds: [] };
+      } else if (n.nodeName === 'H4') {
+        fermer();
+        const g = genre(n.textContent);
+        bloc = { genre: g };
+        if (g === 'preuve') h += '<details class="bloc preuve"><summary>' + esc(n.textContent) + '<span class="meta">déplier pour la lire</span></summary>';
+        else h += '<div class="bloc ' + g + '"><h4>' + esc(n.textContent) + '</h4>';
+      } else if (n.nodeName === 'H3') { fermer(); h += n.outerHTML; }
+      else h += n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    });
+    fermer();
+    h += '<div class="pied-partie"><button data-aller="' + (k - 1) + '"' + (k === 0 ? ' disabled' : '') + '>Partie précédente</button>'
+      + '<span class="meta">Partie ' + (k + 1) + ' sur ' + parties.length + '</span>'
+      + (k < parties.length - 1 ? '<button class="principal" data-aller="' + (k + 1) + '">Partie suivante</button>' : '<span class="meta">Fin de la leçon : passe à la suite avec « Suivante ».</span>') + '</div></section>';
+  });
+  return h + '</div>';
+}
+// Une question du débrief : en-tête (numéro, titre, verdict), énoncé, réponses côte à côte, rubriques, à retenir.
+function ficheDebrief(titre, noeuds) {
+  const m = titre.match(/^(Question \d+)\s*:?\s*(.*)$/);
+  const gras = n => n.nodeName === 'P' && n.firstChild && n.firstChild.nodeName === 'STRONG' ? n.firstChild.textContent.trim() : '';
+  const reste = n => { const c = n.cloneNode(true); c.removeChild(c.firstChild); return c.innerHTML.trim(); };
+  let enonce = '', ta = null, attendue = null, verdict = '', corps = '', retenir = '', revoir = '', etat = 'enonce';
+  noeuds.forEach(n => {
+    const g = gras(n), html = n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    if (/^Ta réponse/.test(g)) { ta = reste(n); etat = 'corps'; }
+    else if (/^Réponse attendue/.test(g)) { attendue = reste(n); etat = 'corps'; }
+    else if (/^Verdict/.test(g)) { verdict = reste(n); etat = 'corps'; }
+    else if (/^À retenir/.test(g)) { retenir = '<h5>À retenir</h5><p>' + reste(n) + '</p>'; etat = 'retenir'; }
+    else if (/^Leçon à revoir/.test(g)) { revoir = reste(n); etat = 'fin'; }
+    else if (g && n.textContent.trim() === g) { corps += '<h5>' + esc(g.replace(/[.:]\s*$/, '')) + '</h5>'; etat = 'corps'; }
+    else if (etat === 'enonce') enonce += n.nodeName === 'P' && /^Type :/.test(n.textContent) ? '<p class="meta">' + n.innerHTML + '</p>' : n.nodeName === 'UL' ? '<ul class="choix">' + n.innerHTML + '</ul>' : html;
+    else if (etat === 'retenir') retenir += html;
+    else corps += html;
+  });
+  const brut = verdict.replace(/<[^>]+>/g, '').trim();
+  const v = /^juste/i.test(brut) ? ['v-juste', 'Juste'] : /^fausse/i.test(brut) ? ['v-fausse', 'Fausse'] : /^incompl/i.test(brut) ? ['v-incomplete', 'Incomplète']
+    : /^non visible/i.test(brut) ? ['', 'Réponse non visible'] : ['', ''];
+  const suite = brut.replace(/^[^.]*\.\s*/, '');
+  let h = '<article class="fiche ' + v[0] + '"><header class="fiche-tete"><span class="num">' + esc(m[1]) + '</span><span class="titre">' + esc(m[2]) + '</span>'
+    + (v[1] ? '<span class="verdict">' + v[1] + '</span>' : '') + '</header><div class="fiche-corps">';
+  if (ta === null && attendue === null) return h + enonce + corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '') + '</div></article>';
+  h += '<h5>Énoncé</h5>' + enonce;
+  h += '<div class="fiche-reponses"><div><span class="lab">Ta réponse</span>' + (ta || 'non visible') + '</div><div><span class="lab">Réponse attendue</span>' + (attendue || '') + '</div></div>';
+  if (suite) h += '<p class="meta">' + verdict.replace(/^[^.]*\.\s*/, '') + '</p>';
+  h += corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '');
+  return h + '</div></article>';
+}
+function brancherLecon(q) {
+  const corps = page.querySelector('.lecon-corps');
+  if (!corps) return;
+  const aller = k => {
+    if (!E.partie) E.partie = {};
+    E.partie[q.id] = k; sauver();
+    corps.querySelectorAll('.partie').forEach(sec => { sec.hidden = Number(sec.dataset.partie) !== k; });
+    corps.querySelectorAll('.sommaire button').forEach(b => b.classList.toggle('active', Number(b.dataset.partie) === k));
+    const cadre = corps.closest('.enonce');
+    if (cadre) cadre.scrollTop = 0;
+    window.scrollTo(0, 0);
+  };
+  corps.querySelectorAll('.sommaire button').forEach(b => b.onclick = () => aller(Number(b.dataset.partie)));
+  corps.querySelectorAll('[data-aller]').forEach(b => b.onclick = () => aller(Number(b.dataset.aller)));
+}
+function dessinerControle(q, el) {
+  const cid = el.dataset.c, c = q.controles[cid], cle = q.id + ':' + cid, choix = E.controles[cle];
+  const ordre = E.ordreControles[cle] || c.options.map(o => o.id);
+  let h = '<p class="titre-controle">Point de contrôle' + (choix ? (c.options.find(o => o.id === choix).correcte ? ' · juste' : ' · à revoir') : '') + '</p>' + rendre(c.question);
+  ordre.forEach((oid, k) => {
+    const o = c.options.find(x => x.id === oid);
+    const classe = choix ? (o.correcte ? ' juste' : (oid === choix ? ' fausse' : '')) + (oid === choix ? ' choisie' : '') : '';
+    const montrer = choix && (oid === choix || o.correcte);
+    h += '<div class="option' + classe + '" data-co="' + oid + '"><span class="lettre">' + 'ABCD'[k] + '</span><div>' + rendre(o.texte)
+      + (montrer ? '<div class="explication">' + rendre(o.explication) + '</div>' : '') + '</div></div>';
+  });
+  el.innerHTML = h;
+  if (!choix) el.querySelectorAll('.option').forEach(op => op.onclick = () => { E.controles[cle] = op.dataset.co; sauver(); dessinerControle(q, el); composer(el); });
+}
+function brancherControles(q) { page.querySelectorAll('.controle').forEach(el => dessinerControle(q, el)); brancherLecon(q); }
+
+function epreuveCode(q) {
+  page.className = 'large';
+  const lecon = q.type === 'lecon';
+  let h = pastilles() + '<div class="deux' + (lecon ? ' lecon' : '') + '"><div class="carte enonce"><div class="meta">' + esc(q.theme) + (lecon ? ' · durée visée ' : ' · temps cible ') + mmss(q.temps_cible_s) + '</div>' + (lecon ? rendreLecon(q) : rendre(q.enonce)) + '</div>';
+  h += '<div class="carte"><div class="notebook-barre"><button id="toutExecuter">Tout exécuter</button><button id="redemarrer">Redémarrer le noyau</button><button id="ajouter">Ajouter une cellule</button><span class="meta" id="versions">' + (SERVEUR ? 'noyau : démarrage...' : 'noyau indisponible : lance python lancer.py') + '</span><span class="meta" id="modeEditeur"></span></div>';
+  h += '<div id="cellules"></div>';
+  if (!lecon) h += '<div class="barre"><button id="testsVisibles">Tests visibles</button><button class="principal" id="soumettre">Soumettre</button><span class="meta" id="etatSoumission"></span></div>';
+  h += '<div class="resultats-tests" id="resultatsTests"></div>' + navigation() + '</div></div>' + FIN_CADRE;
+  page.innerHTML = h;
+  dessinerCellules(q);
+  if (lecon) brancherControles(q); else afficherEtatSoumission(q);
+  brancherNavigation();
+  document.getElementById('toutExecuter').onclick = async () => { for (let i = 0; i < E.cellules[q.id].length; i++) { if (!(await executerCellule(q, i))) break; } };
+  document.getElementById('redemarrer').onclick = () => demarrerNoyau(q, true);
+  document.getElementById('ajouter').onclick = () => { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(E.cellules[q.id].length - 1); };
+  if (!lecon) {
+    document.getElementById('testsVisibles').onclick = () => lancerTests(q, 'visibles');
+    document.getElementById('soumettre').onclick = () => lancerTests(q, 'caches');
+  }
+  if (!SERVEUR) page.querySelectorAll('.notebook-barre button, #testsVisibles, #soumettre').forEach(b => b.disabled = true);
+  else if (!noyauxDemarres[q.id]) demarrerNoyau(q, false, true);
+  else document.getElementById('versions').textContent = noyauxDemarres[q.id];
+  composer(page.querySelector('.enonce'));
+}
+
+async function demarrerNoyau(q, confirmer, reconnexion) {
+  if (confirmer && !confirm('Redémarrer le noyau ? Toutes les variables seront perdues.')) return;
+  const zone = document.getElementById('versions');
+  zone.textContent = 'noyau : démarrage...';
+  let v;
+  try { v = await api(reconnexion ? '/api/connecter' : '/api/redemarrer', { session: SESSION, dossier: q.dossier }); }
+  catch (e) { v = null; }
+  if (!v) noyauxDemarres[q.id] = 'noyau injoignable : le serveur lancer.py est-il démarré ?';
+  else {
+    const etat = v.neuf ? 'noyau neuf' : 'noyau reconnecté, variables conservées';
+    noyauxDemarres[q.id] = v.erreur ? 'noyau : ' + v.erreur : etat + ' · Python ' + v.python + ' · pandas ' + v.pandas + ' · numpy ' + v.numpy;
+    if (v.neuf) (E.cellules[q.id] || []).forEach(c => c.numero = null);
+    sauver(); majNumeros(q);
+  }
+  const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id];
+}
+
+function rendreSortie(c) { return c.sortie || ''; }
+
+// ------------------------------------------------------------------ éditeur
+// Monaco (l'éditeur de VS Code) depuis cdnjs ; les suggestions, signatures et aides viennent de jedi
+// dans le noyau, qui connaît les variables déjà exécutées. Sans connexion, repli sur une zone de texte simple.
+const MONACO_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min';
+let MONACO = null, promesseMonaco = null;
+const EDITEURS = [];
+window.EDITEURS = EDITEURS;
+// Monaco annule ses tâches en cours quand on ferme un éditeur ; cette annulation n'est pas une erreur.
+window.addEventListener('unhandledrejection', ev => { if (ev.reason && ev.reason.name === 'Canceled') ev.preventDefault(); });
+function sombre() { return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches; }
+function questionCode() { const q = ITEMS[E.courant]; return E.phase === 'epreuve' && q && q.cellules_initiales ? q : null; }
+function chargerMonaco() {
+  if (promesseMonaco) return promesseMonaco;
+  promesseMonaco = new Promise(resolve => {
+    const abandon = setTimeout(() => fini(null), 20000);
+    function fini(m) { clearTimeout(abandon); if (window.MODE_EDITEUR === undefined) { MONACO = m; window.MODE_EDITEUR = m ? 'monaco' : 'simple'; } resolve(MONACO); }
+    const s = document.createElement('script');
+    s.src = MONACO_BASE + '/vs/loader.js';
+    s.onerror = () => fini(null);
+    s.onload = () => {
+      window.MonacoEnvironment = { getWorkerUrl: () => 'data:text/javascript;charset=utf-8,' + encodeURIComponent("self.MonacoEnvironment={baseUrl:'" + MONACO_BASE + "/'};importScripts('" + MONACO_BASE + "/vs/base/worker/workerMain.js');") };
+      window.require.config({ paths: { vs: MONACO_BASE + '/vs' } });
+      window.require(['vs/editor/editor.main'], () => { try { configurerMonaco(window.monaco); fini(window.monaco); } catch (e) { fini(null); } }, () => fini(null));
+    };
+    document.head.appendChild(s);
+  });
+  return promesseMonaco;
+}
+async function aide(type, model, position) {
+  const q = questionCode();
+  if (!q || !SERVEUR) return null;
+  try { return await api('/api/' + type, { session: SESSION, dossier: q.dossier, code: model.getValue(), ligne: position.lineNumber, colonne: position.column - 1 }); }
+  catch (e) { return null; }
+}
+function configurerMonaco(m) {
+  const K = m.languages.CompletionItemKind;
+  const genres = { module: K.Module, class: K.Class, instance: K.Variable, function: K.Function, param: K.Variable, path: K.File, keyword: K.Keyword, property: K.Property, statement: K.Variable };
+  m.languages.registerCompletionItemProvider('python', {
+    triggerCharacters: ['.'],
+    provideCompletionItems: async (model, position) => {
+      const r = await aide('completer', model, position);
+      if (!r || !r.completions) return { suggestions: [] };
+      const mot = model.getWordUntilPosition(position);
+      const plage = new m.Range(position.lineNumber, mot.startColumn, position.lineNumber, mot.endColumn);
+      return { suggestions: r.completions.map((c, k) => ({ label: c.nom, kind: genres[c.type] ?? K.Variable, insertText: c.nom, detail: c.description, range: plage, sortText: String(k).padStart(4, '0') })) };
+    }
+  });
+  m.languages.registerSignatureHelpProvider('python', {
+    signatureHelpTriggerCharacters: ['(', ','],
+    provideSignatureHelp: async (model, position) => {
+      const r = await aide('signatures', model, position);
+      if (!r || !r.signatures || !r.signatures.length) return null;
+      return { value: { signatures: r.signatures.map(x => ({ label: x.texte, documentation: x.doc, parameters: x.parametres.map(p => ({ label: p })) })), activeSignature: 0, activeParameter: r.signatures[0].index ?? 0 }, dispose() {} };
+    }
+  });
+  m.languages.registerHoverProvider('python', {
+    provideHover: async (model, position) => {
+      const r = await aide('aide', model, position);
+      if (!r || !r.aide || !r.aide.length) return null;
+      return { contents: r.aide.map(a => ({ value: '```text\n' + a.doc + '\n```' })) };
+    }
+  });
+}
+function creerEditeur(conteneur, code, rappels) {
+  if (MONACO) {
+    const m = MONACO;
+    const ed = m.editor.create(conteneur, {
+      value: code, language: 'python', theme: sombre() ? 'vs-dark' : 'vs', fontSize: 14, tabSize: 4, insertSpaces: true,
+      minimap: { enabled: false }, scrollBeyondLastLine: false, automaticLayout: true, lineNumbersMinChars: 3, folding: false,
+      glyphMargin: false, renderLineHighlight: 'none', overviewRulerLanes: 0, wordBasedSuggestions: 'off', fixedOverflowWidgets: true,
+      quickSuggestions: { other: true, comments: false, strings: false }, padding: { top: 6, bottom: 6 },
+      scrollbar: { alwaysConsumeMouseWheel: false, vertical: 'hidden', horizontalScrollbarSize: 8 }
+    });
+    // Sous Windows, Monaco utilise des fins de ligne \r\n ; le code est toujours lu avec des \n, comme dans un notebook.
+    const lire = () => ed.getModel().getValue(m.editor.EndOfLinePreference.LF);
+    const hauteur = () => { conteneur.style.height = Math.max(38, ed.getContentHeight()) + 'px'; };
+    ed.onDidContentSizeChange(hauteur); hauteur();
+    ed.onDidChangeModelContent(() => rappels.modif(lire()));
+    ed.onDidFocusEditorText(rappels.focus);
+    ed.addCommand(m.KeyMod.Shift | m.KeyCode.Enter, rappels.executerSuivant, '!suggestWidgetVisible');
+    ed.addCommand(m.KeyMod.CtrlCmd | m.KeyCode.Enter, rappels.executer, '!suggestWidgetVisible');
+    return { brut: ed, getValue: lire, setValue: v => ed.setValue(v), focus: () => ed.focus(), dispose: () => ed.dispose() };
+  }
+  const zone = document.createElement('textarea');
+  zone.spellcheck = false; zone.autocomplete = 'off'; zone.className = 'sans-math';
+  zone.value = code;
+  conteneur.appendChild(zone);
+  zone.addEventListener('input', () => { rappels.modif(zone.value); ajuster(zone); });
+  zone.addEventListener('focus', rappels.focus);
+  zone.addEventListener('keydown', ev => clavier(ev, zone, rappels));
+  setTimeout(() => ajuster(zone));
+  return { brut: zone, getValue: () => zone.value, setValue: v => { zone.value = v; zone.dispatchEvent(new Event('input')); }, focus: () => zone.focus(), dispose: () => {} };
+}
+function libererEditeurs() { EDITEURS.forEach(e => e.dispose()); EDITEURS.length = 0; }
+
+function dessinerCellules(q) {
+  const conteneur = document.getElementById('cellules');
+  if (!conteneur) return;
+  if (SERVEUR && window.MODE_EDITEUR === undefined) {
+    conteneur.innerHTML = '<p class="meta">Chargement de l\'éditeur...</p>';
+    chargerMonaco().then(() => { if (questionCode() === q) dessinerCellules(q); });
+    return;
+  }
+  libererEditeurs();
+  conteneur.innerHTML = '';
+  const etat = document.getElementById('modeEditeur');
+  if (etat) etat.textContent = MONACO ? 'éditeur VS Code, autocomplétion' : 'éditeur simple' + (SERVEUR ? ' (Monaco injoignable)' : '');
+  E.cellules[q.id].forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'cellule';
+    div.innerHTML = '<div class="numero">[' + (c.numero === null ? ' ' : c.numero) + ']</div><div><div class="editeur"></div>'
+      + '<div class="actions"><button data-a="executer">Exécuter</button><button data-a="dessous">Insérer dessous</button><button data-a="supprimer">Supprimer</button></div>'
+      + '<pre class="sortie sans-math"></pre></div>';
+    div.querySelector('pre.sortie').innerHTML = rendreSortie(c);
+    conteneur.appendChild(div);
+    EDITEURS.push(creerEditeur(div.querySelector('.editeur'), c.code, {
+      modif: v => { c.code = v; sauver(); },
+      focus: () => { conteneur.querySelectorAll('.cellule').forEach(x => x.classList.remove('active')); div.classList.add('active'); },
+      executer: () => executerCellule(q, i),
+      executerSuivant: () => {
+        executerCellule(q, i);
+        if (i === E.cellules[q.id].length - 1) { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); }
+        focaliser(i + 1);
+      }
+    }));
+    div.querySelector('[data-a=executer]').onclick = () => executerCellule(q, i);
+    div.querySelector('[data-a=dessous]').onclick = () => { E.cellules[q.id].splice(i + 1, 0, { code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(i + 1); };
+    div.querySelector('[data-a=supprimer]').onclick = () => { if (E.cellules[q.id].length > 1) { E.cellules[q.id].splice(i, 1); sauver(); dessinerCellules(q); } };
+  });
+}
+function majNumeros(q) { document.querySelectorAll('#cellules .numero').forEach((n, i) => { const c = E.cellules[q.id][i]; n.textContent = '[' + (c && c.numero !== null ? c.numero : ' ') + ']'; }); }
+function ajuster(zone) { zone.style.height = 'auto'; zone.style.height = (zone.scrollHeight + 2) + 'px'; }
+function focaliser(i) { const e = EDITEURS[i]; if (e) e.focus(); }
+function inserer(zone, texte) {
+  zone.focus();
+  if (!document.execCommand('insertText', false, texte)) zone.setRangeText(texte, zone.selectionStart, zone.selectionEnd, 'end');
+  zone.dispatchEvent(new Event('input'));
+}
+function clavier(ev, zone, rappels) {
+  if (ev.key === 'Enter' && (ev.shiftKey || ev.ctrlKey)) {
+    ev.preventDefault();
+    if (ev.shiftKey) rappels.executerSuivant(); else rappels.executer();
+    return;
+  }
+  const debut = zone.selectionStart, fin = zone.selectionEnd, v = zone.value;
+  const debutLigne = v.lastIndexOf('\n', debut - 1) + 1;
+  if (ev.key === 'Tab') {
+    ev.preventDefault();
+    const multi = v.slice(debut, fin).includes('\n');
+    if (!ev.shiftKey && !multi) { inserer(zone, '    '); return; }
+    const finBloc = fin;
+    const bloc = v.slice(debutLigne, finBloc);
+    const nouveau = ev.shiftKey ? bloc.replace(/^ {1,4}/gm, '') : bloc.replace(/^/gm, '    ');
+    zone.setSelectionRange(debutLigne, finBloc);
+    inserer(zone, nouveau);
+    zone.setSelectionRange(debutLigne, debutLigne + nouveau.length);
+    return;
+  }
+  if (ev.key === 'Enter' && !ev.altKey && !ev.metaKey) {
+    ev.preventDefault();
+    const ligne = v.slice(debutLigne, debut);
+    let retrait = ligne.match(/^ */)[0];
+    if (/:\s*(#.*)?$/.test(ligne)) retrait += '    ';
+    inserer(zone, '\n' + retrait);
+  }
+}
+
+async function executerCellule(q, i) {
+  if (!SERVEUR) return false;
+  const c = E.cellules[q.id][i];
+  const div = document.querySelectorAll('#cellules .cellule')[i];
+  if (div) { div.querySelector('.numero').textContent = '[*]'; div.querySelector('pre.sortie').innerHTML = ''; }
+  let r;
+  try { r = await api('/api/executer', { session: SESSION, dossier: q.dossier, code: c.code, nom: 'cellule ' + (i + 1) }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  E.compteur = (E.compteur || 0) + 1;
+  c.numero = E.compteur;
+  let h = '';
+  if (r.sortie) h += esc(r.sortie);
+  if (r.valeur !== null && r.valeur !== undefined) h += (h && !h.endsWith('\n') ? '\n' : '') + esc(r.valeur);
+  if (r.erreur) h += (h && !h.endsWith('\n') ? '\n' : '') + '<span class="erreur">' + esc(r.erreur) + '</span>';
+  if (r.redemarre) { noyauxDemarres[q.id] = 'noyau redémarré : variables perdues'; const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id]; }
+  c.sortie = h;
+  sauver();
+  const d = document.querySelectorAll('#cellules .cellule')[i];
+  if (d) { d.querySelector('.numero').textContent = '[' + c.numero + ']'; d.querySelector('pre.sortie').innerHTML = h; }
+  return !r.erreur;
+}
+
+function codeSource(q) { return E.cellules[q.id].map((c, i) => '# %% cellule ' + (i + 1) + '\n' + c.code).join('\n\n') + '\n'; }
+function afficherEtatSoumission(q) {
+  const s = E.code[q.id] || {};
+  const z = document.getElementById('etatSoumission');
+  if (z) z.textContent = s.soumissions ? s.soumissions + ' soumission(s) · dernière : ' + s.caches_reussis + '/' + s.caches_total + ' tests cachés réussis' : 'jamais soumis';
+}
+async function lancerTests(q, mode) {
+  const zone = document.getElementById('resultatsTests');
+  zone.innerHTML = '<p class="meta">' + (mode === 'visibles' ? 'Tests visibles' : 'Tests cachés') + ' en cours...</p>';
+  let r;
+  try { r = await api('/api/tests', { session: SESSION, dossier: q.dossier, module: q.module_tests, mode }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  if (r.erreur) { zone.innerHTML = '<pre class="sans-math"><span class="erreur">' + esc(r.erreur) + '</span></pre>'; return; }
+  let h = '<p class="etiquette ' + (r.reussis === r.total ? 'bon' : 'faux') + '">' + (mode === 'visibles' ? 'Tests visibles : ' : 'Tests cachés : ') + r.reussis + '/' + r.total + ' réussis</p>';
+  if (mode === 'visibles') {
+    h += '<div class="defile"><table><tr><th>Test</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th><th class="nombre">Durée</th></tr>';
+    r.resultats.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? '') + '</code></td><td class="nombre">' + t.duree_s + ' s</td></tr>'; });
+    h += '</table></div>';
+    r.resultats.filter(t => t.erreur).forEach(t => { h += '<pre class="sans-math"><span class="erreur">' + esc(t.nom + ' :\n' + t.erreur) + '</span></pre>'; });
+    E.code[q.id] = Object.assign(E.code[q.id] || {}, { visibles_reussis: r.reussis });
+  } else {
+    h += '<div class="defile"><table><tr><th>Test caché</th><th>Résultat</th></tr>';
+    r.resultats.forEach((t, k) => { h += '<tr><td>Test ' + (k + 1) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec' + (t.erreur ? ' (exception ou temps dépassé)' : '')) + '</td></tr>'; });
+    h += '</table></div>';
+    const s = E.code[q.id] || {};
+    E.code[q.id] = Object.assign(s, { soumissions: (s.soumissions || 0) + 1, caches_reussis: r.reussis, caches_total: r.total, details: r.resultats, code_source: codeSource(q) });
+    afficherEtatSoumission(q);
+    const p = page.querySelector('.pastille.courante'); if (p) p.classList.add('faite');
+  }
+  sauver();
+  zone.innerHTML = h;
+}
+
+// ------------------------------------------------------------------ bilan
+function points(q) {
+  if (q.type === 'code') { const c = E.code[q.id]; return c && c.soumissions ? c.caches_reussis / c.caches_total : 0; }
+  const r = E.reponses[q.id];
+  if (r === undefined || r === 'nsp') return 0;
+  // Une question à plusieurs réponses est notée tout ou rien : l'ensemble coché doit être exactement l'ensemble juste.
+  const s = choisies(q), bonnes = q.options.filter(o => o.correcte).map(o => o.id);
+  return s.length === bonnes.length && bonnes.every(b => s.includes(b)) ? 1 : -D.options.penalite;
+}
+function choisies(q) { const r = E.reponses[q.id]; return r === undefined || r === 'nsp' ? [] : Array.isArray(r) ? r.slice() : [r]; }
+function texteOption(q, id) { const o = q.options.find(x => x.id === id); return o ? o.texte : null; }
+
+function resultatJSON(duree) {
+  return {
+    examen: D.id, debut: new Date(E.debut).toISOString(), duree_s: Math.round(duree), pauses_s: Math.round((E.pauseTotale || 0) / 1000), options: D.options,
+    lecons: ITEMS.filter(q => q.type === 'lecon').map(q => {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      return { id: q.id, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), controles_justes_du_premier_coup: justes, controles_total: ids.length };
+    }),
+    questions: NOTEES.map(q => {
+      const base = { id: q.id, type: q.type, section: q.section, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), temps_cible_s: q.temps_cible_s, points: Number(points(q).toFixed(4)) };
+      if (q.type === 'code') {
+        const c = E.code[q.id] || {};
+        return Object.assign(base, { soumissions: c.soumissions || 0, caches_reussis: c.caches_reussis || 0, caches_total: c.caches_total || q.tests_caches, visibles_reussis: c.visibles_reussis ?? null, code_source: c.code_source || codeSource(q) });
+      }
+      const r = E.reponses[q.id] ?? null;
+      return Object.assign(base, { reponse: r, reponse_texte: r && r !== 'nsp' ? choisies(q).map(i => texteOption(q, i)).join(' ; ') : null, bonne_reponse_texte: q.options.filter(o => o.correcte).map(o => o.texte).join(' ; ') });
+    })
+  };
+}
+
+function bilan() {
+  page.className = '';
+  document.getElementById('position').textContent = 'Bilan';
+  const duree = dureeEcoulee(E.fin);
+  document.getElementById('chrono').textContent = mmss(duree);
+  let total = 0;
+  let h = '<div class="carte"><h2>Bilan</h2>@SCORE@<div class="defile"><table><tr><th>Section</th><th class="nombre">Score</th><th class="nombre">Temps passé</th><th class="nombre">Temps indicatif</th></tr>';
+  D.sections.forEach(s => {
+    const notees = s.questions.filter(q => q.type !== 'lecon');
+    const pts = notees.reduce((a, q) => a + points(q), 0);
+    const t = s.questions.reduce((a, q) => a + (E.temps[q.id] || 0), 0);
+    total += pts;
+    h += '<tr><td>' + esc(s.nom) + '</td><td class="nombre">' + (notees.length ? pts.toFixed(2).replace('.', ',') + ' / ' + notees.length : 'non notée') + '</td><td class="nombre">' + mmss(t) + '</td><td class="nombre">' + mmss(s.budget_min * 60) + '</td></tr>';
+  });
+  h += '<tr><th>Total</th><th class="nombre">' + total.toFixed(2).replace('.', ',') + ' / ' + NOTEES.length + '</th><th class="nombre">' + mmss(duree) + '</th><th class="nombre">' + mmss(D.duree_minutes * 60) + '</th></tr></table></div>';
+  h = h.replace('@SCORE@', '<div class="score-total"><strong>' + total.toFixed(2).replace('.', ',').replace(/,00$/, '') + ' / ' + NOTEES.length + '</strong><span class="meta">en ' + mmss(duree) + '</span></div>');
+  const barreFin = document.querySelector('#progression > span'); if (barreFin) barreFin.style.width = '100%';
+  h += '<p id="enregistrement" class="meta"></p>';
+  h += '<details><summary>Résultat brut (JSON)</summary><textarea readonly class="json sans-math" id="json"></textarea><div class="barre"><button id="telecharger">Enregistrer le fichier</button></div></details>';
+  h += '<div class="barre">' + (SERVEUR ? '<button class="principal" id="retourAccueil">Retour à l\'accueil (séance suivante)</button>' : '')
+    + '<button id="recommencer">Effacer et recommencer</button></div></div>';
+  ITEMS.forEach((q, i) => {
+    const temps = mmss(E.temps[q.id] || 0) + ' sur ' + mmss(q.temps_cible_s) + ' visés';
+    const tete = (classe, verdict) => '<article class="fiche ' + classe + '"><header class="fiche-tete"><span class="num">' + (q.type === 'lecon' ? 'Leçon' : 'Question ' + (i + 1)) + '</span><span class="titre">' + esc(q.theme)
+      + '</span><span class="temps">' + esc(q.nomSection) + ' · ' + temps + '</span>' + (verdict ? '<span class="verdict">' + verdict + '</span>' : '') + '</header><div class="fiche-corps">';
+    if (q.type === 'lecon') {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      h += tete('', '') + '<p>Points de contrôle justes du premier coup : ' + justes + ' sur ' + ids.length + '. La leçon reste consultable depuis la séance.</p></div></article>';
+      return;
+    }
+    if (q.type === 'qcm') {
+      const r = E.reponses[q.id], juste = points(q) === 1;
+      const s = choisies(q), incomplete = !juste && q.multiple && s.length > 0 && s.every(id => q.options.find(o => o.id === id).correcte);
+      h += tete(juste ? 'v-juste' : incomplete ? 'v-incomplete' : r === undefined || r === 'nsp' ? '' : 'v-fausse',
+        juste ? 'Juste' : r === undefined ? 'Sans réponse' : r === 'nsp' ? 'Je ne sais pas' : incomplete ? 'Incomplète' : 'Fausse');
+      h += '<h5>Énoncé</h5>' + rendre(q.enonce) + '<h5>' + (q.multiple ? 'Options (plusieurs réponses, tout ou rien)' : 'Options') + '</h5>';
+      E.ordre[q.id].forEach((oid, k) => {
+        const o = q.options.find(x => x.id === oid), choisie = s.includes(oid);
+        const puces = (o.correcte ? '<span class="puce bon">' + (q.multiple ? 'Juste' : 'Bonne réponse') + '</span>' : '') + (choisie ? '<span class="puce' + (o.correcte ? ' bon' : ' faux') + '">Ta réponse</span>' : '');
+        h += '<div class="option ' + (o.correcte ? 'juste' : 'fausse') + (choisie ? ' choisie' : '') + '"><span class="lettre">' + 'ABCDE'[k] + '</span><div>' + puces + rendre(o.texte)
+          + '<div class="explication">' + (o.correcte && !q.multiple ? '' : rendre(o.explication)) + '</div></div></div>';
+      });
+      h += '<h5>Correction</h5>' + rendre(q.solution);
+    } else {
+      const c = E.code[q.id] || {};
+      const tout = c.soumissions && c.caches_reussis === c.caches_total;
+      h += tete(tout ? 'v-juste' : c.soumissions ? 'v-incomplete' : '', c.soumissions ? c.caches_reussis + ' / ' + c.caches_total + ' tests cachés' : 'Jamais soumis');
+      h += '<details><summary>Énoncé</summary>' + rendre(q.enonce) + '</details>';
+      if (c.details) {
+        h += '<h5>Tests cachés</h5><div class="defile"><table><tr><th>Test caché</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th></tr>';
+        c.details.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? (t.erreur ? 'exception' : '')) + '</code></td></tr>'; });
+        h += '</table></div>';
+        c.details.filter(t => t.erreur).forEach(t => { h += '<details><summary>Erreur : ' + esc(t.nom) + '</summary><pre class="sans-math">' + esc(t.erreur) + '</pre></details>'; });
+      }
+      h += '<details><summary>Ton code soumis</summary><pre class="sans-math"><code>' + esc(c.code_source || codeSource(q)) + '</code></pre></details>';
+      h += '<details><summary>Correction</summary>' + rendre(q.solution) + '</details>';
+    }
+    h += '<p class="revoir">Vérification des nombres : <code class="sans-math">' + esc(q.verif.script) + '</code></p></div></article>';
+  });
+  page.innerHTML = h;
+  const resultat = resultatJSON(duree);
+  const zone = document.getElementById('json');
+  zone.value = JSON.stringify(resultat, null, 1);
+  document.getElementById('telecharger').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([zone.value], { type: 'application/json' }));
+    a.download = D.id + '_resultat.json'; a.click();
+  };
+  const retour = document.getElementById('retourAccueil'); if (retour) retour.onclick = () => { location.href = '/'; };
+  document.getElementById('recommencer').onclick = () => { if (confirm('Effacer ce passage ?')) { try { localStorage.removeItem(CLE); } catch (e) {} E = etatNeuf('accueil'); afficher(); } };
+  const info = document.getElementById('enregistrement');
+  if (E.enregistrement) info.textContent = E.enregistrement;
+  else if (!SERVEUR) info.textContent = 'Page ouverte comme un fichier : le résultat n\'est pas enregistré automatiquement. Copie le JSON ci-dessous dans la conversation.';
+  else {
+    info.textContent = 'Enregistrement du résultat...';
+    api('/api/resultat', resultat).then(r => {
+      E.enregistrement = r.erreur ? null : 'Résultat enregistré dans ' + r.fichier + ' ; ' + r.erreurs_ajoutees + ' erreur(s) ajoutée(s) au journal suivi/erreurs.md.';
+      info.textContent = E.enregistrement || 'Échec de l\'enregistrement : ' + r.erreur;
+      sauver();
+    }).catch(() => { info.textContent = 'Serveur injoignable : le résultat n\'est pas enregistré. Copie le JSON ci-dessous dans la conversation.'; });
+  }
+  composer();
+}
+
+function afficher() {
+  libererEditeurs();
+  document.getElementById('titre').textContent = D.titre;
+  document.title = D.titre;
+  if (E.phase === 'epreuve') epreuve(); else if (E.phase === 'bilan') bilan(); else accueil();
+  window.scrollTo(0, 0);
+}
+function completerEtat() {
+  ['reponses', 'temps', 'ordre', 'cellules', 'code', 'controles', 'ordreControles', 'vus', 'partie'].forEach(k => { if (!E[k] || typeof E[k] !== 'object') E[k] = {}; });
+  if (typeof E.courant !== 'number' || E.courant < 0 || E.courant >= ITEMS.length) E.courant = 0;
+  ITEMS.forEach(q => {
+    if (q.cellules_initiales && !Array.isArray(E.cellules[q.id])) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+    if (q.type === 'qcm') {
+      const ids = q.options.map(o => o.id);
+      const o = E.ordre[q.id];
+      if (!Array.isArray(o) || o.length !== ids.length || !ids.every(i => o.includes(i))) E.ordre[q.id] = melanger(ids);
+      const rep = E.reponses[q.id];
+      if (rep !== undefined && rep !== 'nsp' && (Array.isArray(rep) !== !!q.multiple || !choisies(q).length || !choisies(q).every(i => ids.includes(i)))) delete E.reponses[q.id];
+    }
+    if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => {
+      const cle = q.id + ':' + cid;
+      if (!Array.isArray(E.ordreControles[cle])) E.ordreControles[cle] = melanger(c.options.map(o => o.id));
+    });
+  });
+}
+charger();
+completerEtat();
+if (SERVEUR && ITEMS.some(q => q.cellules_initiales)) chargerMonaco();
+afficher();
+</script>
+</body>
+</html>

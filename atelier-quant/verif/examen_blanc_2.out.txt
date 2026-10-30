@@ -1,0 +1,26 @@
+M01                      exact=4.750000  MC=4.760605  se=0.016046  z=+0.66
+M02                      exact=0.111111  MC=0.111040  se=0.000497  z=-0.14
+M04_E                    exact=4.000000  MC=3.987957  se=0.007044  z=-1.71
+M04_E2                   exact=36.000000  MC=35.748173  se=0.134706  z=-1.87
+M05                      exact=0.633333  MC=0.633435  se=0.000775  z=+0.13
+M07 : écart-type simulé de ln(moyenne) = 0.1 (méthode delta : 0.1)
+M08                      exact=0.045500  MC=0.045545  se=0.000147  z=+0.30
+M08_binom                exact=0.051040  MC=0.050954  se=0.000220  z=-0.39
+M09                      exact=0.083315  MC=0.083226  se=0.000185  z=-0.49
+M10 : variance de la somme de Riemann à 10 pas = 0.385000 (limite 1/3)
+M10 : variance de la somme de Riemann à 100 pas = 0.338350 (limite 1/3)
+M10 : variance de la somme de Riemann à 400 pas = 0.334584 (limite 1/3)
+M10_riemann_200          exact=0.335838  MC=0.334468  se=0.001059  z=-1.29
+F03 : coût moyen simulé 0.45 au seuil 0,1 contre 1.253 au seuil 0,5
+F04                      exact=0.010000  MC=0.010145  se=0.000157  z=+0.92
+A08_moyenne              exact=1.000000  MC=0.999573  se=0.000612  z=-0.70
+A08_var                  exact=0.750000  MC=0.749732  se=0.000751  z=-0.36
+merge_asof : écart 5000 retenu (tolérance incluse), 5001 rejeté, égalité exclue (pandas 2.3.3)
+C1 : « cotation de même instant acceptée » échoue à 6 test(s) caché(s), dont « cotation au même instant seulement »
+C1 : « sans tolérance de 5 s » échoue à 5 test(s) caché(s), dont « écart de 5001 ms : cotation trop ancienne »
+C1 : « tolérance stricte (moins de 5000 ms) » échoue à 4 test(s) caché(s), dont « écart de exactement 5000 ms : cotation retenue »
+C1 : « cotation d'un autre actif » échoue à 6 test(s) caché(s), dont « cotation plus récente d'un autre actif »
+C1 : « prix au milieu compté à la vente » échoue à 6 test(s) caché(s), dont « cotations incomplètes ignorées »
+C1 : « cotations invalides non filtrées avant la jointure » échoue à 6 test(s) caché(s), dont « dernière cotation bloquée (achat = vente), la précédente est valide »
+232 valeurs exportées dans verif/examen_blanc_2.out.json.
+Toutes les vérifications passent.

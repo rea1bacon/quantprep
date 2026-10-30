@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier quant</title>
+<style>
+:root { --fond:#f5f6f8; --carte:#ffffff; --texte:#1f2328; --doux:#646b75; --trait:#e3e6ea; --trait-fort:#cdd2d8; --accent:#2f5bd3; --accent-doux:#eef2fc; --bon:#1f7a4d; --bon-doux:#eaf6ef; --faux:#c0392b; --faux-doux:#fcecea; --alerte:#9a5a08; --alerte-doux:#fdf3e4; --code:#f6f8fa; --ombre:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06); }
+@media (prefers-color-scheme: dark) { :root { --fond:#0f1115; --carte:#171a20; --texte:#e6e8eb; --doux:#9aa1ab; --trait:#262b33; --trait-fort:#363c46; --accent:#86a8ff; --accent-doux:#1a2135; --bon:#5cc98f; --bon-doux:#13251c; --faux:#f08479; --faux-doux:#2b1716; --alerte:#e2a54f; --alerte-doux:#2a2013; --code:#12151a; --ombre:none; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--fond); color:var(--texte); font:15.5px/1.6 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:var(--accent); }
+
+/* Barre supérieure */
+header { position:sticky; top:0; z-index:10; background:var(--carte); border-bottom:1px solid var(--trait); height:56px; padding:0 20px; display:flex; gap:14px; align-items:center; }
+#lienAccueil { display:flex; align-items:center; gap:8px; color:var(--texte); font-weight:650; font-size:15px; text-decoration:none; white-space:nowrap; padding-right:14px; border-right:1px solid var(--trait); }
+#lienAccueil::before { content:""; width:22px; height:22px; border-radius:6px; background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #7b4bd6)); }
+#lienAccueil[hidden] { display:none; }
+header h1 { font-size:14.5px; font-weight:600; margin:0; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#position { font-size:13px; color:var(--doux); white-space:nowrap; }
+#progression { position:absolute; left:0; right:0; bottom:-1px; height:2px; background:transparent; }
+#progression > span { display:block; height:100%; width:0; background:var(--accent); transition:width .3s; }
+#chrono { font:600 15px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric:tabular-nums; background:var(--fond); border:1px solid var(--trait); border-radius:999px; padding:7px 12px; }
+#chrono.depasse { color:var(--faux); border-color:var(--faux); }
+@media (max-width:720px) { #position { display:none; } header { padding:0 12px; gap:8px; } }
+
+/* Mise en page */
+main { padding:28px 24px 96px; }
+main > .carte, main > .fiche, main > .tableau-bord { max-width:880px; margin-left:auto; margin-right:auto; }
+.cadre { display:grid; grid-template-columns:250px minmax(0, 1fr); gap:32px; max-width:1180px; margin:0 auto; align-items:start; }
+main.large .cadre { max-width:none; }
+.contenu { min-width:0; max-width:820px; }
+main.lecture .contenu { max-width:880px; }
+main.large .contenu { max-width:none; }
+@media (max-width:1000px) { .cadre { grid-template-columns:1fr; gap:16px; } }
+
+/* Plan de la séance (colonne gauche) */
+.plan { scrollbar-width:thin; scrollbar-color:var(--trait-fort) transparent; position:sticky; top:84px; max-height:calc(100vh - 104px); overflow-y:auto; font-size:13.5px; }
+.plan .groupe { font-size:11.5px; font-weight:650; letter-spacing:.06em; text-transform:uppercase; color:var(--doux); margin:16px 0 6px 10px; }
+.plan .groupe:first-child { margin-top:0; }
+#pastilles { display:flex; flex-direction:column; gap:2px; }
+.pastille { display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:none; border-radius:8px; padding:6px 10px; font-size:13.5px; color:var(--texte); }
+.pastille:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 9%, transparent); }
+.pastille .etat { flex:none; width:18px; height:18px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:10px; color:#fff; }
+.pastille.faite .etat { background:var(--accent); border-color:var(--accent); }
+.pastille.faite .etat::after { content:"✓"; }
+.pastille .libelle { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pastille.courante { background:var(--accent-doux); color:var(--accent); font-weight:600; }
+.pastille.courante .etat { border-color:var(--accent); }
+@media (max-width:1000px) { .plan { position:static; max-height:none; } #pastilles { flex-direction:row; flex-wrap:wrap; } .pastille { width:auto; } .pastille .libelle { display:none; } .plan .groupe { display:none; } }
+
+/* Cartes */
+.carte { background:var(--carte); border:1px solid var(--trait); border-radius:12px; padding:22px 26px; margin-bottom:18px; box-shadow:var(--ombre); }
+h2 { font-size:21px; font-weight:650; letter-spacing:-.01em; margin:0 0 10px; }
+h3 { font-size:17px; font-weight:650; margin:20px 0 6px; }
+h4 { font-size:15px; font-weight:650; margin:16px 0 4px; }
+.meta { color:var(--doux); font-size:13.5px; }
+.surtitre { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:14px; font-size:13px; color:var(--doux); }
+.surtitre .rang { font-weight:650; color:var(--texte); }
+.chip { display:inline-block; max-width:420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; font-size:12px; font-weight:550; padding:2px 10px; border-radius:999px; background:var(--accent-doux); color:var(--accent); }
+.note { background:var(--alerte-doux); border-radius:10px; padding:10px 14px; color:var(--texte); font-size:14px; margin:12px 0; }
+.note p { margin:4px 0; }
+.consigne { font-size:13px; color:var(--doux); margin:18px 0 8px; }
+
+/* Boutons */
+button { font:inherit; font-size:14px; font-weight:550; padding:8px 14px; border-radius:8px; border:1px solid var(--trait-fort); background:var(--carte); color:var(--texte); cursor:pointer; transition:background .15s, border-color .15s; }
+button:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 8%, var(--carte)); }
+button.principal { background:var(--accent); border-color:var(--accent); color:#fff; }
+button.principal:hover:not(:disabled) { background:color-mix(in srgb, var(--accent) 88%, #000); }
+@media (prefers-color-scheme: dark) { button.principal { color:#0d1220; } }
+button:disabled { opacity:.45; cursor:default; }
+header button { padding:6px 12px; font-size:13px; }
+.barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:16px; }
+.navigation { border-top:1px solid var(--trait); margin-top:26px; padding-top:18px; }
+.navigation #prec { margin-right:auto; }
+.navigation #finir { order:1; }
+.navigation #suiv { order:2; }
+
+/* Options d'une question */
+.option { display:flex; gap:14px; align-items:flex-start; border:1px solid var(--trait-fort); border-radius:10px; padding:13px 16px; margin:10px 0; cursor:pointer; background:var(--carte); transition:border-color .12s, background .12s; }
+.option:hover { border-color:var(--accent); }
+.option .lettre { flex:none; width:26px; height:26px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:12.5px; font-weight:650; color:var(--doux); margin-top:-1px; }
+.option .lettre.carre { border-radius:6px; }
+.option p { margin:0; }
+.option.choisie { border-color:var(--accent); background:var(--accent-doux); }
+.option.choisie .lettre { background:var(--accent); border-color:var(--accent); color:#fff; }
+.option.juste { border-color:var(--bon); }
+.option.fausse { border-color:var(--trait); }
+.explication { font-size:14px; color:var(--doux); margin-top:6px; }
+.etiquette { font-size:13px; font-weight:600; }
+.bon { color:var(--bon); } .faux { color:var(--faux); }
+
+/* Code, tableaux */
+pre { background:var(--code); border:1px solid var(--trait); border-radius:8px; padding:12px 14px; overflow-x:auto; font:13px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+code { font:13px ui-monospace, "Cascadia Mono", Consolas, monospace; background:var(--code); border:1px solid var(--trait); padding:0 4px; border-radius:4px; }
+pre code { background:none; border:0; padding:0; }
+.defile { overflow-x:auto; }
+table { border-collapse:collapse; width:100%; font-size:14px; margin:10px 0; }
+th { font-size:12px; font-weight:650; letter-spacing:.04em; text-transform:uppercase; color:var(--doux); }
+th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--trait); vertical-align:top; }
+td.nombre, th.nombre { text-align:right; font-variant-numeric:tabular-nums; }
+textarea.json { width:100%; min-height:140px; font:12.5px ui-monospace, Consolas, monospace; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px; }
+details { margin-top:10px; } summary { cursor:pointer; color:var(--accent); font-weight:550; }
+
+/* Question de code : énoncé à gauche, notebook à droite */
+.deux { display:grid; grid-template-columns:minmax(300px, 38%) 1fr; gap:18px; align-items:start; }
+.deux > .carte { margin:0; }
+.deux .enonce { position:sticky; top:76px; max-height:calc(100vh - 96px); overflow-y:auto; }
+@media (max-width:1100px) { .deux { grid-template-columns:1fr; } .deux .enonce { position:static; max-height:none; } }
+.notebook-barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--trait); padding-bottom:12px; margin-bottom:12px; }
+.notebook-barre button { font-size:13px; padding:6px 11px; }
+.notebook-barre #versions { margin-left:auto; }
+.notebook-barre .meta { font-size:12.5px; }
+.cellule { display:grid; grid-template-columns:48px 1fr; gap:6px; margin:12px 0; }
+.cellule .numero { font:12px ui-monospace, Consolas, monospace; color:var(--doux); text-align:right; padding-top:9px; }
+.cellule .editeur { border:1px solid var(--trait); border-radius:8px; overflow:hidden; background:var(--code); }
+.cellule.active .editeur { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-doux); }
+.cellule .editeur textarea { border:none; border-radius:0; }
+.cellule textarea { width:100%; resize:none; overflow:hidden; min-height:44px; font:13.5px/1.5 ui-monospace, Consolas, monospace; tab-size:4; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px 10px; white-space:pre; overflow-x:auto; }
+.cellule .actions { display:flex; gap:6px; margin-top:4px; }
+.cellule .actions button { font-size:12px; padding:2px 8px; font-weight:500; }
+.cellule pre.sortie { margin:4px 0 0; max-height:420px; overflow:auto; }
+.cellule pre.sortie:empty { display:none; }
+pre .erreur { color:var(--faux); }
+.resultats-tests { margin-top:12px; }
+#voile { position:fixed; inset:0; z-index:20; background:color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:16px; }
+#voile[hidden] { display:none; }
+#voile .carte { max-width:480px; text-align:center; }
+#voile .barre { justify-content:center; }
+.deux.lecon { grid-template-columns:minmax(320px, 56%) 1fr; }
+.deux.lecon .enonce { max-height:calc(100vh - 96px); }
+pre.sortie-lecon { margin-top:-6px; border-style:dashed; color:var(--doux); }
+
+/* Leçons : colonne de lecture, une partie à la fois, onglets */
+main.lecture .carte.enonce { padding:26px 40px 30px; }
+.lecon-corps { font-size:16px; line-height:1.72; max-width:74ch; margin:0 auto; }
+.lecon-corps p { margin:0.75em 0; }
+.lecon-corps li { margin:0.4em 0; padding-left:2px; }
+.lecon-corps ol, .lecon-corps ul { padding-left:1.4em; }
+.lecon-corps ol > li::marker { font-weight:650; color:var(--doux); }
+.lecon-corps h3 { font-size:23px; font-weight:700; letter-spacing:-.015em; line-height:1.3; margin:8px 0 16px; }
+.lecon-corps table { font-size:14.5px; line-height:1.55; }
+.lecon-corps mjx-container { font-size:102% !important; }
+.lecon-corps mjx-container[display="true"], .lecon-corps p.formule > mjx-container { display:block; text-align:center; margin:0.7em 0; overflow-x:auto; overflow-y:hidden; }
+.sommaire { display:flex; flex-wrap:wrap; gap:0 2px; margin:0 0 24px; border-bottom:1px solid var(--trait); }
+.sommaire button { flex:none; font-size:13px; font-weight:550; padding:10px 12px; border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--doux); margin-bottom:-1px; }
+.sommaire button:hover:not(:disabled) { background:none; color:var(--texte); }
+.sommaire button.active { color:var(--accent); border-bottom-color:var(--accent); }
+.partie[hidden] { display:none; }
+.pied-partie { display:flex; gap:10px; align-items:center; justify-content:space-between; margin:28px 0 4px; padding-top:18px; border-top:1px solid var(--trait); }
+.pied-partie .meta { flex:1; text-align:center; }
+.bloc { --teinte:var(--doux); border:1px solid var(--trait); border-radius:10px; padding:6px 20px 10px; margin:18px 0; background:var(--carte); }
+.bloc > h4, .bloc > summary { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--teinte); margin:10px 0 2px; }
+.bloc.enonce-bloc { --teinte:var(--accent); background:var(--accent-doux); border-color:transparent; }
+.bloc.exemple { --teinte:var(--bon); } .bloc.pieges { --teinte:var(--faux); } .bloc.limites { --teinte:var(--alerte); }
+.bloc.preuve { background:var(--fond); }
+details.bloc > summary { cursor:pointer; list-style:revert; padding:6px 0; }
+details.bloc > summary .meta { text-transform:none; letter-spacing:0; font-weight:400; margin-left:6px; }
+details.bloc[open] > summary { margin-bottom:6px; }
+.controle { border:1px solid var(--trait-fort); border-radius:12px; padding:14px 18px; margin:22px 0; background:var(--fond); }
+.controle .titre-controle { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accent); margin:0 0 6px; }
+.controle .option { background:var(--carte); }
+
+/* Fiche de question : débrief et bilan */
+.fiche { background:var(--carte); border:1px solid var(--trait); border-radius:12px; margin:0 0 20px; overflow:hidden; font-size:15px; line-height:1.65; box-shadow:var(--ombre); }
+.lecon-corps .fiche { margin:24px 0; }
+.fiche-tete { display:flex; align-items:center; flex-wrap:wrap; gap:6px 14px; padding:14px 22px; border-bottom:1px solid var(--trait); }
+.fiche-tete .num { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); white-space:nowrap; }
+.fiche-tete .titre { flex:1; min-width:200px; font-weight:650; font-size:16px; }
+.fiche-tete .temps { font-size:12.5px; color:var(--doux); white-space:nowrap; }
+.verdict { font-size:12px; font-weight:650; padding:3px 10px; border-radius:999px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.v-juste .verdict { color:var(--bon); background:var(--bon-doux); } .v-fausse .verdict { color:var(--faux); background:var(--faux-doux); } .v-incomplete .verdict { color:var(--alerte); background:var(--alerte-doux); }
+.fiche-corps { padding:4px 22px 20px; }
+.fiche h5 { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin:22px 0 8px; }
+.fiche-corps > h5:first-child { margin-top:16px; }
+.fiche p { margin:0.6em 0; }
+.fiche li { margin:0.35em 0; }
+.fiche-reponses { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:18px 0 6px; }
+.fiche-reponses > div { background:var(--fond); border-radius:10px; padding:10px 14px; }
+.fiche-reponses .lab { display:block; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin-bottom:2px; }
+.fiche ul.choix { list-style:none; padding:0; margin:8px 0; }
+.fiche ul.choix > li { border:1px solid var(--trait); border-radius:10px; padding:9px 14px; margin:8px 0; }
+.fiche ul.choix > li > strong:first-child { display:inline-block; min-width:1.8em; color:var(--doux); }
+.fiche .retenir { border-radius:10px; padding:12px 16px; margin-top:20px; background:var(--accent-doux); }
+.fiche .retenir h5 { margin:0 0 2px; color:var(--accent); }
+.fiche .retenir p { margin:0.3em 0 0; }
+.fiche .revoir { font-size:13.5px; color:var(--doux); margin:14px 0 0; }
+.fiche .option { cursor:default; }
+.fiche .option:hover { border-color:var(--trait); }
+.fiche .option p { margin:0; }
+.fiche .option .explication p { margin:3px 0 0; }
+.fiche .option.juste { border-color:color-mix(in srgb, var(--bon) 45%, var(--trait)); background:var(--bon-doux); }
+.fiche .option.choisie:not(.juste) { border-color:color-mix(in srgb, var(--faux) 45%, var(--trait)); background:var(--faux-doux); }
+.fiche .option.choisie .lettre { background:none; color:var(--doux); border-color:var(--trait-fort); }
+.fiche .option > div { flex:1; }
+.puce { float:right; font-size:11px; font-weight:650; padding:2px 9px; border-radius:999px; margin-left:8px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.puce.bon { color:var(--bon); background:var(--carte); } .puce.faux { color:var(--faux); background:var(--carte); }
+.fiche details { margin-top:16px; border-top:1px solid var(--trait); padding-top:12px; }
+.fiche details > summary { cursor:pointer; font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); }
+
+/* Présentation d'une séance et bilan */
+.presentation h2 { font-size:26px; letter-spacing:-.02em; }
+.sections-liste { display:grid; gap:8px; margin:18px 0; }
+.sections-liste > div { display:flex; justify-content:space-between; gap:12px; background:var(--fond); border-radius:10px; padding:10px 14px; font-size:14px; }
+.score-total { display:flex; align-items:baseline; gap:10px; margin:4px 0 14px; }
+.score-total strong { font-size:34px; font-weight:700; letter-spacing:-.02em; }
+</style>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  options: { ignoreHtmlClass: 'sans-math', skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+};
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+</head>
+<body>
+<header>
+  <a id="lienAccueil" href="/" hidden>Atelier quant</a>
+  <h1 id="titre"></h1>
+  <span class="meta" id="position"></span>
+  <button id="recommencerHaut" hidden>Recommencer</button>
+  <button id="pause" hidden>Pause</button>
+  <span id="chrono">00:00</span>
+  <div id="progression"><span></span></div>
+</header>
+<div id="voile" hidden><div class="carte"><h2>En pause</h2><p>Le chronomètre est arrêté et le contenu masqué : le temps de pause n'est compté ni dans la durée de la séance, ni dans le temps par question.</p><div class="barre"><button class="principal" id="reprendre">Reprendre</button></div></div></div>
+<main id="page"></main>
+<script type="application/json" id="donnees">{"id": "seance-quant-1", "titre": "Séance quantitative : sélection de modèles, finance quantitative et optimisation", "duree_minutes": 46, "options": {"pause": true, "je_ne_sais_pas": true, "retour_arriere": true, "penalite": 0}, "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.", "presentation": "D'abord une leçon express d'environ 30 minutes sur les outils de la recherche quantitative : choisir un modèle (AIC, BIC, double descente), expliquer un modèle (importance par permutation, valeurs de Shapley), juger un signal (coefficient d'information, étiquettes qui se chevauchent, non-stationnarité, biais de sélection, erreur-type du ratio de Sharpe) et optimiser (Taylor, convexité, Lagrange, portefeuille de variance minimale), avec cinq points de contrôle corrigés immédiatement. Ensuite 8 questions à choix multiple graduées, dont la moitié de difficulté 4.\n\nObjectif de vitesse : chaque question se résout dans son temps cible avec les résultats de la leçon (tableau « Réflexes en 30 secondes »). Au-delà du double du temps cible affiché, choisis « Je ne sais pas » et passe à la suivante : c'est la règle d'abandon à suivre dans un test chronométré.", "avertissements": ["Les questions sont présentées ici en choix multiple à une seule bonne réponse. Cherche la réponse avant de lire les options, pour t'entraîner aussi au format à réponse numérique.", "Ici le retour en arrière est permis et il n'y a pas de pénalité : ce sont les règles de cette plateforme, pas celles de tout test en ligne."], "sections": [{"id": "lecon", "nom": "Leçon", "budget_min": 30, "questions": [{"id": "L-QUANT-1", "type": "lecon", "section": "lecon", "theme": "Leçon quantitative : sélection de modèles, finance quantitative, optimisation", "difficulte": 4, "temps_cible_s": 1800, "dossier": "coding/lecons", "contenu": "## Leçon express : sélection de modèles, finance quantitative et optimisation\n\nDurée visée : 30 minutes (environ 5 000 mots, dont une dizaine de preuves) ; les preuves de la partie 7 (Taylor, convexité, Lagrange) sont des rappels de classe préparatoire, à survoler si elles sont acquises. Cette leçon réunit les outils de la recherche quantitative qui servent à décider si un modèle ou un signal est réel. Sept parties courtes, chacune dans l'ordre : le problème, l'énoncé, la preuve, un exemple calculé, les pièges. Les nombres sont calculés, et contrôlés par simulation, par le script `verif/seance_quant_1.py` ; la seule expérience affichée (double descente) est exécutée à la construction de cette page.\n\n**Conventions de notation**, valables pour toute la leçon :\n\n- une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice ; une matrice en gras est fixe sauf mention contraire ;\n- \\(n\\) est un nombre d'observations, \\(k\\) un nombre de paramètres, \\(p\\) un nombre de variables explicatives ;\n- exceptions d'usage, toutes des entiers fixes : \\(N\\) est un nombre d'actifs ou de paris, \\(T\\) un nombre de dates ou d'années, \\(P\\) le nombre total de variables disponibles (partie 2) ; les sigles AIC, BIC, IC (coefficient d'information) et IR (ratio d'information) désignent des nombres calculés sur des données observées ;\n- un estimateur à chapeau calculé à partir de variables aléatoires est aléatoire, même écrit avec une lettre grecque : \\(\\hat\\theta\\) ;\n- \\(\\mathbb{P}\\), \\(\\mathbb{E}\\), \\(\\mathrm{Var}\\), \\(\\mathrm{Cov}\\) désignent probabilité, espérance, variance et covariance ; \\(Z\\) désigne toujours une variable de loi normale centrée réduite \\(\\mathcal{N}(0, 1)\\), \\(\\Phi\\) sa fonction de répartition et \\(\\varphi\\) sa densité ; \\(\\mathbf{1}\\) est le vecteur dont toutes les coordonnées valent 1, \\(^\\top\\) la transposée, \\(\\mathrm{tr}\\) la trace.\n\n## Partie 1 : AIC et BIC\n\n### Le problème\n\nUn modèle à plus de paramètres s'ajuste toujours au moins aussi bien aux données d'entraînement : sa log-vraisemblance maximale ne peut que monter. Pour comparer des modèles de tailles différentes, il faut pénaliser le nombre de paramètres. AIC et BIC le font différemment, et ne répondent pas à la même question.\n\n### Les définitions\n\nPour un modèle à \\(k\\) paramètres estimés sur \\(n\\) observations, on note \\(\\hat\\ell\\) sa log-vraisemblance maximale, un nombre calculé sur les données observées. Le critère d'Akaike (Akaike, 1974, IEEE Transactions on Automatic Control) et le critère bayésien de Schwarz (Schwarz, 1978, Annals of Statistics) valent :\n\n\\(\\displaystyle \\mathrm{AIC} = -2\\hat\\ell + 2k, \\qquad \\mathrm{BIC} = -2\\hat\\ell + k \\ln n.\\)\n\nOn retient le modèle de critère le plus **petit**. Chaque paramètre coûte 2 pour l'AIC et \\(\\ln n\\) pour le BIC : le BIC pénalise davantage dès que \\(\\ln n > 2\\), c'est-à-dire \\(n > e^2 \\approx 7{,}389\\), soit dès \\(n = 8\\).\n\n### Ce que chacun estime\n\n1. (A1) **AIC, cas démontré.** Modèle linéaire gaussien à plan fixe : \\(\\mathbf{Y} = \\boldsymbol{\\mu} + \\boldsymbol{\\varepsilon}\\), où \\(\\boldsymbol{\\mu} \\in \\mathbb{R}^n\\) est fixe, \\(\\boldsymbol{\\varepsilon}\\) suit \\(\\mathcal{N}(\\mathbf{0}, \\sigma^2 \\mathbf{I})\\) avec \\(\\sigma^2\\) connu ; le modèle candidat utilise les \\(k\\) colonnes d'une matrice fixe \\(\\mathbf{X}\\) de rang \\(k\\), et il est juste : \\(\\boldsymbol{\\mu}\\) est dans l'image de \\(\\mathbf{X}\\). On note \\(\\mathbf{H} = \\mathbf{X}(\\mathbf{X}^\\top\\mathbf{X})^{-1}\\mathbf{X}^\\top\\) la matrice chapeau, et \\(\\mathbf{Y}'\\) de nouvelles données de même loi, indépendantes de \\(\\mathbf{Y}\\). Alors la déviance hors échantillon du modèle ajusté, \\(-2\\) fois la log-vraisemblance de \\(\\mathbf{Y}'\\) évaluée en l'estimateur, a pour espérance \\(\\mathbb{E}[\\mathrm{AIC}]\\) : l'AIC estime sans biais l'erreur de prédiction sur de nouvelles données.\n2. Hors de ce cas, le résultat d'Akaike n'est qu'asymptotique, sous des conditions de régularité (admis).\n3. (A2) **BIC.** Il vient d'une approximation de la vraisemblance marginale d'un modèle en statistique bayésienne (admis). Sa propriété : si le vrai modèle est l'un des candidats, de dimension finie, le BIC le choisit avec une probabilité qui tend vers 1 quand \\(n\\) grandit ; l'AIC, non. Cas démontré ci-dessous.\n\n### La preuve de (A1)\n\n1. La log-vraisemblance gaussienne d'un vecteur \\(\\mathbf{y}\\) de moyenne \\(\\mathbf{m}\\) vaut \\(-\\tfrac{n}{2}\\ln(2\\pi\\sigma^2) - \\lVert \\mathbf{y} - \\mathbf{m} \\rVert^2/(2\\sigma^2)\\). Son maximum sur les \\(\\mathbf{m}\\) de l'image de \\(\\mathbf{X}\\) est atteint en \\(\\mathbf{H}\\mathbf{y}\\) (projection orthogonale, leçon de régression linéaire, `outils/lecons_reglin.py`, partie 1). Donc \\(-2\\hat\\ell = n\\ln(2\\pi\\sigma^2) + \\lVert \\mathbf{Y} - \\mathbf{H}\\mathbf{Y} \\rVert^2/\\sigma^2\\), et la déviance hors échantillon vaut \\(n\\ln(2\\pi\\sigma^2) + \\lVert \\mathbf{Y}' - \\mathbf{H}\\mathbf{Y} \\rVert^2/\\sigma^2\\).\n2. Entraînement : \\(\\mathbf{Y} - \\mathbf{H}\\mathbf{Y} = (\\mathbf{I} - \\mathbf{H})\\boldsymbol{\\varepsilon}\\), car \\(\\mathbf{H}\\boldsymbol{\\mu} = \\boldsymbol{\\mu}\\). Son carré moyen vaut \\(\\sigma^2(n - k)\\) (même leçon, partie 2, preuve, étape 3 : trace de \\(\\mathbf{I} - \\mathbf{H}\\)).\n3. Hors échantillon : \\(\\mathbf{Y}' - \\mathbf{H}\\mathbf{Y} = \\boldsymbol{\\varepsilon}' - \\mathbf{H}\\boldsymbol{\\varepsilon}\\). En développant, \\(\\mathbb{E}\\lVert \\boldsymbol{\\varepsilon}' \\rVert^2 = n\\sigma^2\\) ; le double produit est d'espérance nulle, car \\(\\boldsymbol{\\varepsilon}'\\) est indépendant de \\(\\boldsymbol{\\varepsilon}\\) et centré ; et \\(\\mathbb{E}\\lVert \\mathbf{H}\\boldsymbol{\\varepsilon} \\rVert^2 = \\mathbb{E}[\\boldsymbol{\\varepsilon}^\\top \\mathbf{H}\\boldsymbol{\\varepsilon}] = \\sigma^2\\,\\mathrm{tr}(\\mathbf{H}) = \\sigma^2 k\\), car \\(\\mathbf{H}\\) est symétrique et idempotente, de trace \\(k\\). Total : \\(\\sigma^2(n + k)\\).\n4. La différence des espérances vaut \\(2k\\sigma^2\\), soit \\(2k\\) une fois divisée par \\(\\sigma^2\\) : \\(\\mathbb{E}[\\text{déviance hors échantillon}] = \\mathbb{E}[-2\\hat\\ell] + 2k = \\mathbb{E}[\\mathrm{AIC}]\\).\n\nContrôle par simulation (script, \\(n = 30\\), \\(k = 4\\), \\(\\sigma^2 = 1\\)) : écart moyen entre erreur hors échantillon et erreur d'entraînement \\(7{,}97\\), pour une valeur exacte \\(2k\\sigma^2 = 8\\).\n\n### Le cas où ils divergent, démontré\n\nDeux modèles emboîtés, M0 à \\(k\\) colonnes et M1 à \\(k + 1\\) colonnes (celles de M0 plus une), même cadre gaussien, et le vrai \\(\\boldsymbol{\\mu}\\) est dans l'image de M0 : la colonne ajoutée est inutile. On note \\(\\mathbf{H}_0\\) et \\(\\mathbf{H}_1\\) leurs matrices chapeau.\n\n1. L'image de M0 est incluse dans celle de M1, donc \\(\\mathbf{H}_1\\mathbf{H}_0 = \\mathbf{H}_0\\) (projeter un vecteur déjà dans l'image ne le change pas), et, en transposant, \\(\\mathbf{H}_0\\mathbf{H}_1 = \\mathbf{H}_0\\).\n2. \\(\\mathbf{I} - \\mathbf{H}_0 = (\\mathbf{I} - \\mathbf{H}_1) + (\\mathbf{H}_1 - \\mathbf{H}_0)\\), et le produit des deux termes est nul par l'étape 1 ; par Pythagore, la baisse de la somme des carrés des résidus vaut \\(\\lVert (\\mathbf{H}_1 - \\mathbf{H}_0)\\mathbf{Y} \\rVert^2\\), et \\(2(\\hat\\ell_1 - \\hat\\ell_0) = \\lVert (\\mathbf{H}_1 - \\mathbf{H}_0)\\mathbf{Y} \\rVert^2/\\sigma^2\\).\n3. \\(\\mathbf{H}_1 - \\mathbf{H}_0\\) est symétrique, idempotente (développer avec l'étape 1) et de trace 1 : ses valeurs propres valent 0 ou 1 (\\(\\lambda^2 = \\lambda\\)), une seule vaut 1, donc par le théorème spectral \\(\\mathbf{H}_1 - \\mathbf{H}_0 = \\mathbf{u}\\mathbf{u}^\\top\\) pour un vecteur unitaire \\(\\mathbf{u}\\). Comme \\((\\mathbf{H}_1 - \\mathbf{H}_0)\\boldsymbol{\\mu} = \\boldsymbol{\\mu} - \\boldsymbol{\\mu} = \\mathbf{0}\\), on obtient \\(2(\\hat\\ell_1 - \\hat\\ell_0) = (\\mathbf{u}^\\top\\boldsymbol{\\varepsilon}/\\sigma)^2 = Z^2\\), car \\(\\mathbf{u}^\\top\\boldsymbol{\\varepsilon}\\) est gaussienne centrée de variance \\(\\sigma^2\\lVert \\mathbf{u} \\rVert^2 = \\sigma^2\\).\n4. L'AIC choisit M1 si et seulement si \\(Z^2 > 2\\) : probabilité \\(\\mathbb{P}(\\lvert Z \\rvert > \\sqrt2) \\approx 0{,}1573\\), **quel que soit** \\(n\\). Le BIC choisit M1 si et seulement si \\(Z^2 > \\ln n\\) : 0,0319 pour \\(n = 100\\), 0,0086 pour \\(n = 1000\\), et cette probabilité tend vers 0.\n\nSimulation de la régression elle-même (script, \\(n = 100\\)) : l'AIC ajoute la variable inutile dans une proportion 0,1583 des cas, le BIC dans 0,0327.\n\nRègle générale : si le grand modèle a \\(\\Delta k\\) paramètres de plus et une log-vraisemblance maximale plus grande de \\(\\Delta\\ell\\), l'AIC le préfère si \\(2\\Delta\\ell > 2\\Delta k\\), le BIC si \\(2\\Delta\\ell > \\Delta k \\ln n\\). Ils divergent quand \\(2\\Delta k < 2\\Delta\\ell < \\Delta k \\ln n\\).\n\n### Pièges\n\n1. On ne compare des AIC que pour des modèles ajustés sur les **mêmes** observations de la **même** variable cible (pas \\(y\\) contre \\(\\ln y\\)). Seules les différences comptent.\n2. \\(k\\) compte tous les paramètres estimés (constante, variance du bruit si elle est estimée), de la même façon pour tous les modèles comparés.\n3. AIC : vise la prédiction, sur-ajuste avec une probabilité qui ne s'annule pas. BIC : vise à retrouver le vrai modèle s'il est parmi les candidats, et choisit des modèles au plus aussi grands que l'AIC dès \\(n \\ge 8\\).\n\n[[controle:aic_bic]]\n\n## Partie 2 : la double descente\n\n### Le problème\n\nLa courbe en U classique dit qu'au-delà d'une certaine complexité l'erreur de test remonte, et qu'un modèle qui interpole les données d'entraînement (erreur nulle) est mauvais. Or des modèles avec bien plus de paramètres que d'observations prédisent bien. Belkin, Hsu, Ma et Mandal (PNAS, 2019) ont nommé « double descente » la courbe qui réconcilie les deux constats.\n\n### L'expérience\n\n\\(n = 40\\) observations d'entraînement, \\(P = 200\\) variables gaussiennes indépendantes de variance 1, cible \\(y = \\mathbf{x}^\\top\\boldsymbol{\\beta} + \\) bruit d'écart-type 0,5, avec \\(\\lVert \\boldsymbol{\\beta} \\rVert = 1\\). On ajuste les moindres carrés sur les \\(p\\) premières variables seulement ; pour \\(p > n\\), il existe une infinité de solutions, et `np.linalg.lstsq` renvoie celle de **norme minimale**. Deux profils : signal concentré sur les premières variables (\\(\\beta_j\\) proportionnel à \\(1/j\\)) ou réparti (\\(\\beta_j\\) constant). Pour chaque \\(p\\) : erreur de test médiane sur 100 échantillons d'entraînement, plus grande erreur d'entraînement, et plus petite valeur singulière médiane de la matrice des données.\n\n```python\nimport numpy as np\n\ndef double_descente(profil):\n    g = np.random.default_rng(0)\n    n, P, sigma, R = 40, 200, 0.5, 100\n    j = np.arange(1, P + 1)\n    beta = 1.0 / j if profil == \"concentre\" else np.ones(P)\n    beta = beta / np.linalg.norm(beta)\n    ps = [2, 5, 10, 20, 30, 38, 40, 42, 50, 80, 120, 200]\n    Xt = g.standard_normal((5000, P))                      # points de test\n    yt = Xt.dot(beta) + sigma * g.standard_normal(5000)\n    test, entr, smin = {p: [] for p in ps}, {p: [] for p in ps}, {p: [] for p in ps}\n    for _ in range(R):\n        X = g.standard_normal((n, P))\n        y = X.dot(beta) + sigma * g.standard_normal(n)\n        for p in ps:\n            b = np.linalg.lstsq(X[:, :p], y, rcond=None)[0]  # norme minimale si p > n\n            test[p].append(np.mean((Xt[:, :p].dot(b) - yt) ** 2))\n            entr[p].append(np.mean((X[:, :p].dot(b) - y) ** 2))\n            smin[p].append(np.linalg.svd(X[:, :p], compute_uv=False).min())\n    print(\"profil\", profil)\n    for p in ps:\n        print(f\"  p = {p:3d}: test (médiane) {np.median(test[p]):8.3f}   entraînement (max) {np.max(entr[p]):.1e}   \"\n              f\"plus petite valeur singulière {np.median(smin[p]):.3f}\")\n\ndouble_descente(\"concentre\")\ndouble_descente(\"reparti\")\n```\n\n```sortie\nprofil concentre\n  p =   2: test (médiane)    0.517   entraînement (max) 7.5e-01   plus petite valeur singulière 5.575\n  p =   5: test (médiane)    0.407   entraînement (max) 4.9e-01   plus petite valeur singulière 4.583\n  p =  10: test (médiane)    0.397   entraînement (max) 3.8e-01   plus petite valeur singulière 3.611\n  p =  20: test (médiane)    0.526   entraînement (max) 2.6e-01   plus petite valeur singulière 2.164\n  p =  30: test (médiane)    0.957   entraînement (max) 1.5e-01   plus petite valeur singulière 1.093\n  p =  38: test (médiane)    3.989   entraînement (max) 5.8e-02   plus petite valeur singulière 0.277\n  p =  40: test (médiane)   21.229   entraînement (max) 1.5e-26   plus petite valeur singulière 0.085\n  p =  42: test (médiane)    4.828   entraînement (max) 1.1e-28   plus petite valeur singulière 0.271\n  p =  50: test (médiane)    1.472   entraînement (max) 3.1e-29   plus petite valeur singulière 0.930\n  p =  80: test (médiane)    1.014   entraînement (max) 1.5e-29   plus petite valeur singulière 2.844\n  p = 120: test (médiane)    1.042   entraînement (max) 2.3e-29   plus petite valeur singulière 4.874\n  p = 200: test (médiane)    1.109   entraînement (max) 3.1e-29   plus petite valeur singulière 8.034\nprofil reparti\n  p =   2: test (médiane)    1.288   entraînement (max) 1.7e+00   plus petite valeur singulière 5.575\n  p =   5: test (médiane)    1.379   entraînement (max) 1.7e+00   plus petite valeur singulière 4.583\n  p =  10: test (médiane)    1.540   entraînement (max) 1.6e+00   plus petite valeur singulière 3.611\n  p =  20: test (médiane)    2.169   entraînement (max) 1.4e+00   plus petite valeur singulière 2.164\n  p =  30: test (médiane)    4.310   entraînement (max) 5.5e-01   plus petite valeur singulière 1.093\n  p =  38: test (médiane)   15.850   entraînement (max) 2.0e-01   plus petite valeur singulière 0.277\n  p =  40: test (médiane)   79.031   entraînement (max) 8.1e-27   plus petite valeur singulière 0.085\n  p =  42: test (médiane)   17.487   entraînement (max) 1.4e-28   plus petite valeur singulière 0.271\n  p =  50: test (médiane)    4.867   entraînement (max) 3.2e-29   plus petite valeur singulière 0.930\n  p =  80: test (médiane)    1.899   entraînement (max) 1.5e-29   plus petite valeur singulière 2.844\n  p = 120: test (médiane)    1.370   entraînement (max) 1.6e-29   plus petite valeur singulière 4.874\n  p = 200: test (médiane)    1.109   entraînement (max) 2.4e-29   plus petite valeur singulière 8.034\n```\n\nLecture, contrôlée par les assertions du script sur la même expérience : l'erreur d'entraînement est nulle (aux arrondis près) dès \\(p \\ge n = 40\\) ; l'erreur de test culmine exactement au seuil d'interpolation \\(p = n\\), là où la plus petite valeur singulière médiane est minimale ; au-delà, elle redescend. Profil concentré : une première descente puis une remontée avant le pic, et le meilleur modèle reste un modèle sous-paramétré. Profil réparti : le meilleur modèle est le plus sur-paramétré, \\(p = 200\\).\n\n### Ce qui est démontré\n\n1. (DD1) Si \\(p \\ge n\\) et si la matrice \\(\\mathbf{X}\\) (\\(n \\times p\\)) est de rang \\(n\\), les interpolateurs (\\(\\mathbf{X}\\mathbf{b} = \\mathbf{y}\\)) existent, et celui de norme minimale est \\(\\mathbf{b}^\\star = \\mathbf{X}^\\top(\\mathbf{X}\\mathbf{X}^\\top)^{-1}\\mathbf{y}\\). Preuve : \\(\\mathbf{X}\\mathbf{b}^\\star = \\mathbf{y}\\) ; tout autre interpolateur s'écrit \\(\\mathbf{b}^\\star + \\mathbf{h}\\) avec \\(\\mathbf{X}\\mathbf{h} = \\mathbf{0}\\) ; \\(\\mathbf{b}^\\star = \\mathbf{X}^\\top \\mathbf{c}\\) avec \\(\\mathbf{c} = (\\mathbf{X}\\mathbf{X}^\\top)^{-1}\\mathbf{y}\\), donc \\(\\mathbf{h}^\\top\\mathbf{b}^\\star = (\\mathbf{X}\\mathbf{h})^\\top\\mathbf{c} = 0\\), et par Pythagore \\(\\lVert \\mathbf{b}^\\star + \\mathbf{h} \\rVert^2 = \\lVert \\mathbf{b}^\\star \\rVert^2 + \\lVert \\mathbf{h} \\rVert^2\\).\n2. (DD2) Amplification du bruit, à \\(\\mathbf{X}\\) fixé (l'espérance porte sur le bruit seul). Soient \\(s_1, \\dots, s_r\\) les valeurs singulières non nulles de \\(\\mathbf{X}\\), \\(r = \\min(n, p)\\), rang plein. Si \\(\\boldsymbol{\\varepsilon}\\) est un bruit centré de covariance \\(\\sigma^2\\mathbf{I}\\), la part de l'estimateur due au bruit, \\(\\mathbf{X}^{+}\\boldsymbol{\\varepsilon}\\) (où \\(\\mathbf{X}^{+}\\) vaut \\((\\mathbf{X}^\\top\\mathbf{X})^{-1}\\mathbf{X}^\\top\\) si \\(p \\le n\\) et \\(\\mathbf{X}^\\top(\\mathbf{X}\\mathbf{X}^\\top)^{-1}\\) si \\(p \\ge n\\)), vérifie \\(\\mathbb{E}\\lVert \\mathbf{X}^{+}\\boldsymbol{\\varepsilon} \\rVert^2 = \\sigma^2 \\sum_{j=1}^{r} 1/s_j^2\\). Preuve : \\(\\mathbb{E}\\lVert \\mathbf{M}\\boldsymbol{\\varepsilon} \\rVert^2 = \\sigma^2\\,\\mathrm{tr}(\\mathbf{M}\\mathbf{M}^\\top)\\) ; \\(\\mathbf{X}^{+}\\mathbf{X}^{+\\top}\\) vaut \\((\\mathbf{X}^\\top\\mathbf{X})^{-1}\\) ou \\((\\mathbf{X}\\mathbf{X}^\\top)^{-1}\\), dont les valeurs propres sont les \\(1/s_j^2\\). Pour un nouveau point \\(\\mathbf{x}\\) centré, de covariance \\(\\mathbf{I}\\), indépendant des données, l'erreur quadratique en excès d'un estimateur \\(\\hat{\\mathbf{b}}\\) vaut \\(\\lVert \\hat{\\mathbf{b}} - \\boldsymbol{\\beta} \\rVert^2\\) ; en moyenne sur le bruit, la part \\(\\sigma^2\\sum_j 1/s_j^2\\) s'ajoute exactement au reste (le terme croisé est d'espérance nulle). Une seule petite valeur singulière suffit à faire exploser l'erreur. Dans l'expérience, les variables non utilisées, indépendantes des autres, jouent le rôle d'un bruit supplémentaire de variance \\(\\sum_{j > p}\\beta_j^2\\), qui s'ajoute à \\(\\sigma^2\\).\n\n### Ce qui n'est pas démontré ici\n\n- Que la plus petite valeur singulière d'une matrice gaussienne \\(n \\times p\\) soit proche de 0 quand \\(p\\) est proche de \\(n\\) : c'est **constaté** dans la dernière colonne. Avec (DD2), cela explique le pic.\n- La forme exacte de la courbe, et quand la seconde descente bat la première : établies asymptotiquement par Hastie, Montanari, Rosset et Tibshirani (Annals of Statistics, 2022) pour la régression sans pénalité à norme minimale ; ici, c'est un constat sur deux profils, et les deux conclusions diffèrent.\n\n### Pièges\n\n1. « L'interpolation est toujours à proscrire » : faux sur le profil réparti. « Plus de paramètres est toujours mieux » : faux sur le profil concentré.\n2. Le pic est un artefact de l'estimateur sans régularisation au seuil d'interpolation, pas une propriété de la complexité en général.\n3. Lien quantitatif : 40 dates et 200 signaux placent une régression exactement dans ce régime.\n\n[[controle:double_descente]]\n\n## Partie 3 : importance par permutation et valeurs de Shapley\n\n### Importance par permutation et variables corrélées\n\nDéfinitions, biais de l'importance par impureté, espérance nulle pour une variable indépendante (I2) et dilution entre variables redondantes (I3) : leçon sur les arbres, `outils/lecons_arbres.py`, partie 7. On ajoute ici un résultat exact qui montre d'où vient la dilution.\n\n(P1) Modèle linéaire \\(f(\\mathbf{x}) = b_0 + \\sum_j b_j x_j\\), données \\(Y = f(\\mathbf{X}) + \\varepsilon\\) avec \\(\\varepsilon\\) centré et indépendant de \\(\\mathbf{X}\\) (le modèle est juste). On idéalise la permutation de la variable \\(j\\) sur un grand jeu de validation par son remplacement par une copie \\(\\tilde X_j\\), indépendante de tout le reste et de même loi que \\(X_j\\). Alors la hausse d'erreur quadratique espérée vaut \\(2\\,b_j^2\\,\\mathrm{Var}(X_j)\\).\n\nPreuve : \\(Y - f(\\tilde{\\mathbf{X}}) = \\varepsilon + b_j(X_j - \\tilde X_j)\\). Le double produit est d'espérance nulle (\\(\\varepsilon\\) centré, indépendant de \\(X_j\\) et de \\(\\tilde X_j\\)) ; \\(\\mathbb{E}[(X_j - \\tilde X_j)^2] = 2\\,\\mathrm{Var}(X_j)\\), car les deux sont indépendantes de même loi. L'erreur passe de \\(\\mathrm{Var}(\\varepsilon)\\) à \\(\\mathrm{Var}(\\varepsilon) + 2b_j^2\\,\\mathrm{Var}(X_j)\\).\n\nConséquence, variables corrélées : si \\(X_2 = X_1\\) exactement, les modèles \\(x_1\\) et \\(\\tfrac12 x_1 + \\tfrac12 x_2\\) font les **mêmes** prédictions, mais (P1) leur donne des importances différentes, \\((2 ; 0)\\) contre \\((0{,}5 ; 0{,}5)\\) pour \\(\\mathrm{Var}(X_1) = 1\\) (simulation du script : 2,003 et 0,500). L'importance mesure le modèle choisi, pas l'information des données. Quand la corrélation est forte sans être parfaite, permuter \\(X_1\\) fabrique en plus des couples \\((\\tilde X_1, X_2)\\) absents des données : le modèle est évalué là où il n'a jamais été entraîné. Remèdes possibles, non traités ici : permuter ensemble un groupe de variables corrélées.\n\n### Valeurs de Shapley : définition\n\n**Le problème** : répartir entre les \\(p\\) variables, de façon équitable, l'écart entre la prédiction en un point \\(\\mathbf{x}\\) et la prédiction moyenne.\n\nOn note \\(F = \\{1, \\dots, p\\}\\) l'ensemble des variables, et, pour toute coalition \\(S \\subset F\\), \\(v(S)\\) la prédiction attendue quand on ne connaît que les coordonnées de \\(\\mathbf{x}\\) indicées par \\(S\\). Deux choix usuels : la valeur **conditionnelle** \\(v(S) = \\mathbb{E}[f(\\mathbf{X}) \\mid \\mathbf{X}_S = \\mathbf{x}_S]\\), et la valeur **interventionnelle**, où les variables hors de \\(S\\) sont tirées selon leur loi marginale, indépendamment de \\(\\mathbf{x}_S\\). La valeur de Shapley de la variable \\(j\\) (Shapley, 1953 ; appliquée aux modèles par Lundberg et Lee, NeurIPS 2017, méthode SHAP) est :\n\n\\(\\displaystyle \\phi_j = \\sum_{S \\subset F \\setminus \\{j\\}} \\frac{\\lvert S \\rvert!\\,(p - \\lvert S \\rvert - 1)!}{p!}\\,\\big[v(S \\cup \\{j\\}) - v(S)\\big].\\)\n\nLecture : on fait entrer les variables une à une dans un ordre tiré uniformément parmi les \\(p!\\) ordres ; \\(\\phi_j\\) est l'espérance de la contribution marginale de \\(j\\) à son arrivée. Le poids est exactement la probabilité que l'ensemble des variables arrivées avant \\(j\\) soit \\(S\\) : \\(\\lvert S \\rvert!\\) façons de ranger \\(S\\) avant \\(j\\), puis \\((p - \\lvert S \\rvert - 1)!\\) façons de ranger le reste après, sur \\(p!\\) ordres. Ces poids somment donc à 1 (contrôlé par le script pour \\(p = 1\\) à 8).\n\n### Les quatre axiomes\n\n1. **Efficacité** : \\(\\sum_j \\phi_j = v(F) - v(\\emptyset)\\). Preuve : pour un ordre fixé, les contributions marginales successives se télescopent en \\(v(F) - v(\\emptyset)\\) ; on prend l'espérance sur l'ordre.\n2. **Symétrie** : deux variables interchangeables dans \\(v\\) reçoivent la même valeur.\n3. **Joueur nul** : si \\(v(S \\cup \\{j\\}) = v(S)\\) pour tout \\(S\\), alors \\(\\phi_j = 0\\) (chaque crochet est nul).\n4. **Additivité** : \\(\\phi\\) est linéaire en \\(v\\) (la formule l'est).\n\nThéorème de Shapley (1953), admis : \\(\\phi\\) est la **seule** répartition qui vérifie les quatre axiomes.\n\n### Cas linéaire à variables indépendantes, démontré\n\nÉnoncé : si \\(f(\\mathbf{x}) = b_0 + \\sum_k b_k x_k\\) et si les coordonnées de \\(\\mathbf{X}\\) sont indépendantes, d'espérances \\(\\mu_k\\), alors, avec la valeur conditionnelle, \\(\\phi_j = b_j(x_j - \\mu_j)\\).\n\nPreuve :\n\n1. Par indépendance, \\(\\mathbb{E}[X_k \\mid \\mathbf{X}_S = \\mathbf{x}_S] = \\mu_k\\) pour \\(k \\notin S\\) ; par linéarité, \\(v(S) = b_0 + \\sum_{k \\in S} b_k x_k + \\sum_{k \\notin S} b_k \\mu_k\\).\n2. Pour tout \\(S\\) qui ne contient pas \\(j\\), \\(v(S \\cup \\{j\\}) - v(S) = b_j(x_j - \\mu_j)\\) : la contribution ne dépend pas de \\(S\\).\n3. Les poids somment à 1, donc \\(\\phi_j = b_j(x_j - \\mu_j)\\).\n\nExemple calculé (script, par la formule des coalitions) : \\(f(\\mathbf{x}) = 1 + 2x_1 - 3x_2 + 0{,}5\\,x_3\\), \\(\\boldsymbol{\\mu} = (1, 0, 2)\\), \\(\\mathbf{x} = (2, 1, 2)\\). Valeurs : \\(2\\), \\(-3\\), \\(0\\). Efficacité : leur somme \\(-1\\) égale \\(f(\\mathbf{x}) - \\mathbb{E}f(\\mathbf{X}) = 3 - 4\\). La troisième variable a un coefficient non nul mais vaut sa moyenne : contribution nulle.\n\nAvec deux variables, la formule se réduit à \\(\\phi_1 = \\tfrac12\\big[v(\\{1\\}) - v(\\emptyset)\\big] + \\tfrac12\\big[v(\\{1, 2\\}) - v(\\{2\\})\\big]\\) : la moyenne de la contribution de la variable 1 arrivée première et arrivée seconde. Pour un modèle avec interaction, ces deux contributions diffèrent, et l'interaction est partagée.\n\n### Pièges\n\n1. Variables corrélées, valeur conditionnelle : soit \\(X_2 = X_1\\), \\(\\mathbb{E}[X_1] = 1\\), \\(f(\\mathbf{x}) = x_1\\) et le point \\(\\mathbf{x} = (3, 3)\\). Connaître \\(x_2\\) revient à connaître \\(x_1\\), donc \\(v(\\{2\\}) = 3\\) : on obtient \\(\\phi = (1 ; 1)\\), et la variable 2, absente du modèle, reçoit une part. La valeur interventionnelle donne \\((2 ; 0)\\). Les deux répondent à des questions différentes : « que dit cette information ? » contre « que fait le modèle de cette entrée ? ».\n2. \\(\\phi_j = b_j\\,x_j\\) est faux : il faut retrancher la moyenne.\n3. Le calcul exact demande \\(2^{p}\\) coalitions : on l'estime en tirant des ordres au hasard.\n\n[[controle:shapley]]\n\n## Partie 4 : coefficient d'information et loi fondamentale\n\n### Définition\n\nÀ une date donnée, \\(N\\) actifs ; pour l'actif \\(i\\), \\(s_i\\) est la valeur du signal, connue à cette date, et \\(r_i\\) le rendement sur la période suivante, observé plus tard. Le **coefficient d'information** (IC) de la date est la corrélation de rang de Spearman entre \\((s_i)\\) et \\((r_i)\\) : la corrélation de Pearson entre les rangs \\(a_i\\) des \\(s_i\\) et les rangs \\(b_i\\) des \\(r_i\\) (rang 1 pour la plus petite valeur, rang moyen en cas d'égalité, comme `rank()` de pandas). Il mesure si le signal **classe** bien les actifs, sans dépendre de l'échelle du signal ni des rendements extrêmes.\n\n### Formule sans égalités, démontrée\n\nÉnoncé : sans égalités, avec \\(d_i = a_i - b_i\\), \\(\\mathrm{IC} = 1 - \\dfrac{6\\sum_i d_i^2}{N(N^2 - 1)}\\).\n\n1. Les \\(a_i\\) sont une permutation de \\(1, \\dots, N\\) : moyenne \\(\\bar a = (N+1)/2\\), et \\(\\sum_i a_i^2 = N(N+1)(2N+1)/6\\), d'où une variance (division par \\(N\\)) \\(\\kappa = \\sum_i a_i^2/N - \\bar a^2 = (N^2 - 1)/12\\). Idem pour les \\(b_i\\).\n2. \\(\\sum_i d_i^2 = \\sum_i a_i^2 + \\sum_i b_i^2 - 2\\sum_i a_i b_i\\), donc \\(\\sum_i a_i b_i/N = \\sum_i a_i^2/N - \\sum_i d_i^2/(2N)\\).\n3. La corrélation vaut \\(\\big(\\sum_i a_i b_i/N - \\bar a^2\\big)/\\kappa = \\big(\\kappa - \\sum_i d_i^2/(2N)\\big)/\\kappa = 1 - \\sum_i d_i^2/(2N\\kappa)\\), et \\(2N\\kappa = N(N^2 - 1)/6\\).\n\nExemple : signal \\((0{,}3 ; -1{,}0 ; 2{,}1 ; 0{,}7 ; -0{,}2)\\), rendements \\((0{,}5 ; -1{,}1 ; 0{,}2 ; 1{,}4 ; -0{,}3)\\). Rangs \\((3 ; 1 ; 5 ; 4 ; 2)\\) et \\((4 ; 1 ; 3 ; 5 ; 2)\\), écarts \\((-1 ; 0 ; 2 ; -1 ; 0)\\), \\(\\sum d_i^2 = 6\\), \\(\\mathrm{IC} = 1 - 6 \\times 6/120 = 0{,}7\\).\n\n### Loi sous l'hypothèse nulle, démontrée\n\nÉnoncé : si le signal n'a aucun lien avec les rendements (les rangs \\(b\\) sont une permutation uniforme, indépendante des \\(a\\)), alors \\(\\mathbb{E}[\\mathrm{IC}] = 0\\) et \\(\\mathrm{Var}(\\mathrm{IC}) = 1/(N - 1)\\) exactement. L'IC est ici vu comme une variable aléatoire.\n\n1. On centre : \\(a'_i = a_i - \\bar a\\), \\(b'_i = b_i - \\bar a\\), et \\(\\mathrm{IC} = \\sum_i a'_i B'_i/(N\\kappa)\\), où \\(B'_i\\) est le rang centré aléatoirement attribué à l'actif \\(i\\).\n2. \\(\\mathbb{E}[B'_i] = 0\\) par symétrie ; \\(\\mathbb{E}[B'^2_i] = \\sum_k b'^2_k/N\\) ; pour \\(i \\ne i'\\), \\(\\mathbb{E}[B'_i B'_{i'}] = \\sum_{k \\ne l} b'_k b'_l/(N(N-1)) = -\\sum_k b'^2_k/(N(N-1))\\), car \\(\\sum_{k \\ne l} b'_k b'_l = (\\sum_k b'_k)^2 - \\sum_k b'^2_k\\) et \\(\\sum_k b'_k = 0\\).\n3. \\(\\mathrm{Var}\\big(\\sum_i a'_i B'_i\\big) = \\tfrac{\\sum_k b'^2_k}{N}\\big[\\sum_i a'^2_i - \\tfrac{1}{N-1}\\sum_{i \\ne i'} a'_i a'_{i'}\\big] = \\tfrac{\\sum_k b'^2_k}{N}\\,\\sum_i a'^2_i\\,\\big[1 + \\tfrac{1}{N-1}\\big] = \\tfrac{(N\\kappa)^2}{N-1}\\), en utilisant de même \\(\\sum_{i \\ne i'} a'_i a'_{i'} = -\\sum_i a'^2_i\\) et \\(\\sum_i a'^2_i = \\sum_k b'^2_k = N\\kappa\\). On divise par \\((N\\kappa)^2\\).\n\nOrdres de grandeur : avec \\(N = 500\\) actifs, l'écart-type d'un IC sans effet vaut \\(1/\\sqrt{499} \\approx 0{,}0448\\) ; la moyenne de 250 IC de dates **indépendantes** a un écart-type \\(0{,}0028\\). Un IC moyen de 0,02 est donc très significatif sur 250 dates indépendantes, et rien du tout sur une seule date. L'indépendance entre dates tombe avec des étiquettes qui se chevauchent (partie 5).\n\n### Loi fondamentale de la gestion active\n\nÉnoncé de Grinold (« The Fundamental Law of Active Management », Journal of Portfolio Management, vol. 15, n° 3, 1989) : \\(\\mathrm{IR} \\approx \\mathrm{IC} \\times \\sqrt{\\mathrm{BR}}\\), où IR est le ratio d'information (rendement actif moyen divisé par son écart-type), BR (breadth) le nombre de paris **indépendants** par an, et IC la corrélation entre prévisions et rendements, la même pour tous les paris. C'est une approximation, qui suppose en outre une utilisation optimale des prévisions et un IC petit.\n\nVersion démontrée ici, sous hypothèses explicites. Une période, \\(N\\) paris indépendants. Pour le pari \\(i\\) : \\(G_i\\) est le signal standardisé, de loi \\(\\mathcal{N}(0, 1)\\) ; le rendement est \\(R_i = \\omega\\,\\big(c\\,G_i + \\sqrt{1 - c^2}\\,E_i\\big)\\), où \\(E_i\\) est un bruit \\(\\mathcal{N}(0, 1)\\) indépendant, \\(\\omega > 0\\) la volatilité et \\(c \\in [0, 1[\\) la corrélation entre signal et rendement ; tous les \\(G_i, E_i\\) sont indépendants. Position proportionnelle au signal : gain \\(\\Pi = \\sum_i G_i R_i\\). Alors \\(\\mathrm{IR} = \\mathbb{E}[\\Pi]/\\sqrt{\\mathrm{Var}(\\Pi)} = c\\sqrt{N}/\\sqrt{1 + c^2}\\).\n\n1. \\(\\mathbb{E}[G_i R_i] = \\omega c\\,\\mathbb{E}[G_i^2] = \\omega c\\).\n2. \\(\\mathrm{Var}(G_i R_i) = \\omega^2\\big[c^2\\,\\mathrm{Var}(G_i^2) + (1 - c^2)\\,\\mathrm{Var}(G_i E_i) + 2c\\sqrt{1 - c^2}\\,\\mathrm{Cov}(G_i^2, G_i E_i)\\big]\\), avec \\(\\mathrm{Var}(G_i^2) = \\mathbb{E}[G_i^4] - 1 = 2\\), \\(\\mathrm{Var}(G_i E_i) = \\mathbb{E}[G_i^2]\\,\\mathbb{E}[E_i^2] = 1\\), et \\(\\mathrm{Cov}(G_i^2, G_i E_i) = \\mathbb{E}[G_i^3]\\,\\mathbb{E}[E_i] = 0\\). Total : \\(\\omega^2(1 + c^2)\\).\n3. Les \\(N\\) paris sont indépendants : espérance \\(N\\omega c\\), variance \\(N\\omega^2(1 + c^2)\\), d'où le ratio.\n\nExemple : \\(c = 0{,}05\\), \\(N = 100\\) : \\(\\mathrm{IR} = 0{,}4994\\) par période (approximation \\(c\\sqrt{N} = 0{,}5\\) ; simulation 0,5000). Sur 12 périodes indépendantes par an, l'espérance et la variance sont multipliées par 12, l'IR par \\(\\sqrt{12}\\) : \\(1{,}73\\).\n\nPièges : des paris corrélés (même secteur, même facteur) comptent pour moins de \\(N\\) paris indépendants ; l'IC réel varie dans le temps ; les coûts de transaction ne sont pas dans la formule.\n\n## Partie 5 : étiquettes qui se chevauchent, non-stationnarité\n\n### Étiquettes qui se chevauchent\n\n**Le problème** : on prédit le rendement des \\(h\\) prochains jours, et on calcule cette étiquette chaque jour. Deux étiquettes voisines partagent \\(h - 1\\) rendements quotidiens : leur corrélation vaut \\((h - 1)/h\\) si les rendements quotidiens sont non corrélés et de même variance (leçon de régression linéaire, `outils/lecons_reglin.py`, partie 2, autocorrélation, point 4).\n\nÉnoncé. Rendements quotidiens \\(X_1, X_2, \\dots\\) non corrélés, de variance \\(v\\) ; étiquettes \\(Y_t = X_t + \\dots + X_{t+h-1}\\) pour \\(t = 1, \\dots, T\\), avec \\(T \\ge h\\) ; \\(\\bar Y\\) leur moyenne. Alors\n\n\\(\\displaystyle \\mathrm{Var}(\\bar Y) = \\frac{v}{T^2}\\Big[(T - h + 1)\\,h^2 + 2\\sum_{k=1}^{h-1} k^2\\Big],\\)\n\nalors que la formule naïve, qui traite les \\(T\\) étiquettes (chacune de variance \\(hv\\)) comme indépendantes, donne \\(hv/T\\). Le rapport des deux tend vers \\(h\\) quand \\(T \\to \\infty\\).\n\n1. \\(\\bar Y = \\tfrac1T \\sum_s c_s X_s\\), où \\(c_s\\) est le nombre d'étiquettes qui contiennent le jour \\(s\\) : \\(c_s = h\\) pour \\(h \\le s \\le T\\) (\\(T - h + 1\\) jours), \\(c_s = s\\) pour \\(s < h\\), et \\(c_s\\) décroît de \\(h - 1\\) à 1 pour \\(s > T\\).\n2. Les \\(X_s\\) étant non corrélés, \\(\\mathrm{Var}(\\bar Y) = \\tfrac{v}{T^2}\\sum_s c_s^2\\), d'où la formule.\n3. Le rapport à \\(hv/T\\) vaut \\(\\big[(T - h + 1)h^2 + 2\\sum_{k<h} k^2\\big]/(Th)\\), qui tend vers \\(h\\).\n\nExemple : \\(h = 5\\), \\(T = 1000\\) : rapport des variances \\(4{,}992\\), donc l'erreur-type naïve est trop petite d'un facteur \\(2{,}234\\), et une statistique t calculée naïvement est gonflée d'autant. Simulation (script) : variance de la moyenne 0,02473 pour une valeur exacte 0,02496, avec \\(v = 1\\).\n\nConséquences :\n\n1. Les tests sur des étiquettes chevauchantes demandent une erreur-type corrigée (Newey-West, même leçon, même partie) ou des étiquettes non chevauchantes, une tous les \\(h\\) jours.\n2. Validation croisée : une observation de test dont la fenêtre d'étiquette recoupe celle d'une observation d'entraînement fuit de l'information. On **purge** l'entraînement des observations dont l'étiquette recoupe la période de test, et on ajoute un **embargo**, une marge d'observations retirées après la période de test (López de Prado, Advances in Financial Machine Learning, Wiley, 2018).\n\n### Non-stationnarité\n\n**Définition** : une série \\((X_t)\\) est faiblement stationnaire si \\(\\mathbb{E}[X_t]\\) et \\(\\mathrm{Cov}(X_t, X_{t+j})\\), pour chaque décalage entier \\(j\\), ne dépendent pas de \\(t\\). Un prix n'en est pas une (sa variance croît avec le temps pour une marche aléatoire) ; on modélise les rendements, et même eux changent de régime.\n\nÉnoncé démontré : \\(X_i = \\mu_i + e_i\\), \\(i = 1, \\dots, n\\), avec \\(e_i\\) indépendantes, centrées, de variance \\(\\sigma^2\\), et des moyennes \\(\\mu_i\\) fixes. Avec \\(\\bar\\mu\\) la moyenne des \\(\\mu_i\\) et \\(S^2\\) la variance empirique (division par \\(n - 1\\)) : \\(\\mathbb{E}[S^2] = \\sigma^2 + \\sum_i (\\mu_i - \\bar\\mu)^2/(n - 1)\\).\n\nPreuve : \\(\\sum_i (X_i - \\bar X)^2 = \\sum_i (\\mu_i - \\bar\\mu)^2 + 2\\sum_i (\\mu_i - \\bar\\mu)(e_i - \\bar e) + \\sum_i (e_i - \\bar e)^2\\), où \\(\\bar X\\), \\(\\bar e\\) sont les moyennes empiriques ; le terme croisé est d'espérance nulle (\\(e\\) centrées), le dernier a pour espérance \\((n - 1)\\sigma^2\\) (variance empirique sans biais).\n\nExemple : une rupture de moyenne d'amplitude \\(\\Delta\\) au milieu de l'échantillon (\\(n\\) pair) donne \\(\\sum_i (\\mu_i - \\bar\\mu)^2 = n\\Delta^2/4\\). Avec \\(\\sigma = 1\\), \\(\\Delta = 2\\), \\(n = 100\\) : \\(\\mathbb{E}[S^2] = 2{,}0101\\) (simulation 2,0082). La volatilité estimée double presque alors qu'aucun jour n'est plus risqué ; et la moyenne de l'échantillon, \\((\\mu_1 + \\mu_2)/2\\), n'est la moyenne d'aucun des deux régimes. D'où les validations glissantes (walk-forward), qui n'estiment qu'avec le passé de chaque date, et le compromis de longueur de fenêtre : longue, moins de variance ; courte, moins de retard sur un changement de régime.\n\n[[controle:non_stationnarite]]\n\n## Partie 6 : biais de sélection, ratio de Sharpe\n\n### Le meilleur de \\(m\\) stratégies sans effet\n\n**Le problème** : on teste \\(m\\) stratégies, aucune n'a d'effet réel, et l'on retient la meilleure. Son ratio de Sharpe estimé est positif par construction.\n\nNotations : \\(T\\) années de rendements quotidiens, \\(n = 252\\,T\\) jours ; pour chaque stratégie, rendements i.i.d. normaux d'espérance nulle ; \\(\\hat S_i\\) est son ratio de Sharpe annualisé estimé, \\(\\sqrt{252}\\) fois la moyenne divisée par l'écart-type empiriques. D'après la question DIAG-A5 du test de positionnement, \\(\\sqrt{T}\\,\\hat S_i\\) est exactement la statistique de Student du test « espérance nulle », de loi de Student à \\(n - 1\\) degrés de liberté, très proche de \\(\\mathcal{N}(0, 1)\\) pour \\(n\\) grand. Si les \\(m\\) stratégies sont indépendantes, \\(\\mathbb{E}[\\max_i \\hat S_i] \\approx \\mathbb{E}[M_m]/\\sqrt{T}\\), où \\(M_m\\) est le maximum de \\(m\\) variables \\(\\mathcal{N}(0, 1)\\) indépendantes \\(Z_1, \\dots, Z_m\\).\n\nÉnoncé : pour tout réel \\(a\\),\n\n\\(\\displaystyle a\\big(1 - \\Phi(a)^m\\big) - \\varphi(a)\\,\\Phi(a)^{m-1} \\;\\le\\; \\mathbb{E}[M_m] \\;\\le\\; \\sqrt{2 \\ln m}.\\)\n\nPreuve du majorant :\n\n1. Pour \\(t > 0\\), la fonction exponentielle est convexe, donc par l'inégalité de Jensen \\(e^{t\\,\\mathbb{E}[M_m]} \\le \\mathbb{E}[e^{t M_m}]\\).\n2. \\(e^{t M_m} = \\max_i e^{t Z_i} \\le \\sum_i e^{t Z_i}\\), car tous les termes sont positifs.\n3. \\(\\mathbb{E}[e^{t Z_i}] = e^{t^2/2}\\) (on complète le carré : \\(tx - x^2/2 = t^2/2 - (x - t)^2/2\\), et la densité translatée intègre à 1).\n4. Donc \\(\\mathbb{E}[M_m] \\le \\ln(m)/t + t/2\\) ; le choix \\(t = \\sqrt{2\\ln m}\\) donne \\(\\sqrt{2\\ln m}\\).\n\nPreuve du minorant :\n\n1. \\(\\mathbb{E}[M_m] = \\mathbb{E}[M_m I_{\\{M_m \\ge a\\}}] + \\mathbb{E}[M_m I_{\\{M_m < a\\}}]\\), où \\(I_A\\) est l'indicatrice de l'événement \\(A\\).\n2. Sur \\(\\{M_m \\ge a\\}\\), \\(M_m \\ge a\\) : le premier terme est au moins \\(a\\,\\mathbb{P}(M_m \\ge a) = a(1 - \\Phi(a)^m)\\), par indépendance.\n3. Partout, \\(M_m \\ge Z_1\\) : le second terme est au moins \\(\\mathbb{E}[Z_1 I_{\\{M_m < a\\}}]\\). L'événement \\(\\{M_m < a\\}\\) est l'intersection des \\(\\{Z_i < a\\}\\) ; par indépendance, ce terme vaut \\(\\mathbb{E}[Z_1 I_{\\{Z_1 < a\\}}]\\,\\Phi(a)^{m-1}\\), et \\(\\mathbb{E}[Z_1 I_{\\{Z_1 < a\\}}] = \\int_{-\\infty}^{a} x\\varphi(x)\\,dx = -\\varphi(a)\\), car \\(\\varphi'(x) = -x\\varphi(x)\\).\n\nValeurs (script : intégration numérique de \\(\\mathbb{E}[M_m] = \\int x\\,m\\,\\varphi(x)\\Phi(x)^{m-1}dx\\), simulation, et minorant optimisé en \\(a\\)) :\n\n| \\(m\\) | minorant | \\(\\mathbb{E}[M_m]\\) | simulation | majorant \\(\\sqrt{2\\ln m}\\) |\n|---|---|---|---|---|\n| 10 | 0,786 | 1,5388 | 1,5383 | 2,146 |\n| 100 | 1,799 | 2,5076 | 2,5077 | 3,035 |\n| 1000 | 2,616 | 3,2414 | 3,2446 | 3,717 |\n\nExemple : 100 stratégies sans effet sur 10 ans donnent un meilleur Sharpe annualisé espéré de \\(2{,}5076/\\sqrt{10} \\approx 0{,}79\\). Remèdes : seuil corrigé pour \\(m\\) essais (Bonferroni, leçon de probabilités, `outils/lecons_probas.py`, outil 4), Sharpe « dégonflé » (deflated Sharpe ratio, Bailey et López de Prado, Journal of Portfolio Management, 2014), et une période de test jamais utilisée pour choisir. Piège : des stratégies corrélées comptent pour moins de \\(m\\) essais indépendants, et la formule surestime alors le biais ; ne pas compter les essais abandonnés le sous-estime.\n\n### Erreur-type du ratio de Sharpe\n\nÉnoncé (Lo, « The Statistics of Sharpe Ratios », Financial Analysts Journal, vol. 58, n° 4, 2002). Rendements par période \\(R_1, \\dots, R_n\\) i.i.d. normaux, d'espérance \\(\\mu\\) et d'écart-type \\(\\sigma\\) ; \\(\\theta = \\mu/\\sigma\\) est le vrai ratio de Sharpe par période, \\(\\hat\\theta = \\bar R/S\\) son estimateur (moyenne et écart-type empiriques). Alors \\(\\sqrt{n}(\\hat\\theta - \\theta)\\) converge en loi vers \\(\\mathcal{N}(0, 1 + \\theta^2/2)\\). Avec \\(q\\) périodes par an et \\(T\\) années (\\(n = qT\\)), le ratio annualisé \\(\\theta_a = \\sqrt{q}\\,\\theta\\) a pour erreur-type approchée\n\n\\(\\displaystyle \\mathrm{se}(\\hat\\theta_a) \\approx \\sqrt{\\frac{1 + \\theta_a^2/(2q)}{T}}.\\)\n\nPreuve par la méthode delta (admise : si un vecteur d'estimateurs est asymptotiquement normal, une fonction dérivable de ce vecteur l'est aussi, de variance \\(\\nabla g^\\top \\mathbf{C}\\,\\nabla g\\), où \\(\\mathbf{C}\\) est la matrice de covariance asymptotique et \\(\\nabla g\\) le gradient de la fonction) :\n\n1. \\(\\hat\\theta = g(\\bar R, S^2)\\) avec \\(g(u, w) = u/\\sqrt{w}\\). Au point \\((\\mu, \\sigma^2)\\), \\(\\partial g/\\partial u = 1/\\sigma\\) et \\(\\partial g/\\partial w = -\\mu/(2\\sigma^3)\\).\n2. À un terme en \\(1/n\\) près, \\(S^2\\) est la moyenne des \\((R_i - \\mu)^2\\) ; par le théorème central limite (admis), \\(\\sqrt{n}\\big(\\bar R - \\mu, S^2 - \\sigma^2\\big)\\) a pour covariance asymptotique la covariance de \\(\\big(R, (R - \\mu)^2\\big)\\) : \\(\\mathrm{Var}(R) = \\sigma^2\\), \\(\\mathrm{Var}((R - \\mu)^2) = \\mathbb{E}[(R - \\mu)^4] - \\sigma^4 = 2\\sigma^4\\) (moment d'ordre 4 d'une normale : \\(3\\sigma^4\\)), et \\(\\mathrm{Cov}(R, (R - \\mu)^2) = \\mathbb{E}[(R - \\mu)^3] = 0\\) (symétrie).\n3. Variance asymptotique : \\(\\tfrac{1}{\\sigma^2}\\sigma^2 + \\tfrac{\\mu^2}{4\\sigma^6}\\,2\\sigma^4 = 1 + \\theta^2/2\\).\n4. Annualisation : \\(\\mathrm{Var}(\\hat\\theta_a) = q\\,\\mathrm{Var}(\\hat\\theta) \\approx q(1 + \\theta^2/2)/(qT)\\), et \\(\\theta^2 = \\theta_a^2/q\\).\n\nExemple : rendements quotidiens, 4 ans, Sharpe annualisé 1 : erreur-type \\(0{,}5005\\) (simulation 0,5014), presque \\(1/\\sqrt{T} = 0{,}5\\). Le lien avec DIAG-A5 : \\(t = \\hat\\theta_a\\sqrt{T}\\), soit le Sharpe divisé par l'erreur-type \\(1/\\sqrt{T}\\) qu'il aurait sous l'hypothèse nulle.\n\nCas limites et pièges :\n\n1. Hors normalité, la même preuve, avec l'asymétrie \\(\\gamma_3\\) et le kurtosis \\(\\gamma_4\\) (moments centrés d'ordre 3 et 4 divisés par \\(\\sigma^3\\) et \\(\\sigma^4\\)), donne \\(1 - \\gamma_3\\theta + (\\gamma_4 - 1)\\theta^2/4\\) ; contrôlé par simulation sur des rendements de loi exponentielle (écart relatif -0,005).\n2. Avec des rendements autocorrélés, le facteur \\(\\sqrt{q}\\) d'annualisation est faux (Lo, 2002).\n3. Le terme \\(\\theta_a^2/(2q)\\) est négligeable en quotidien ; il compte en mensuel avec un Sharpe élevé.\n\n## Partie 7 : optimisation\n\n### Développement de Taylor à l'ordre 2\n\nÉnoncé : si \\(f : \\mathbb{R}^d \\to \\mathbb{R}\\) est deux fois continûment dérivable, de gradient \\(\\nabla f\\) et de matrice hessienne \\(\\nabla^2 f\\) (matrice des dérivées secondes), alors \\(f(\\mathbf{x} + \\mathbf{h}) = f(\\mathbf{x}) + \\nabla f(\\mathbf{x})^\\top\\mathbf{h} + \\tfrac12\\,\\mathbf{h}^\\top\\nabla^2 f(\\mathbf{x})\\,\\mathbf{h} + o(\\lVert \\mathbf{h} \\rVert^2)\\).\n\nPreuve : \\(u(t) = f(\\mathbf{x} + t\\mathbf{h})\\) a pour dérivées \\(u'(t) = \\nabla f(\\mathbf{x} + t\\mathbf{h})^\\top\\mathbf{h}\\) et \\(u''(t) = \\mathbf{h}^\\top\\nabla^2 f(\\mathbf{x} + t\\mathbf{h})\\,\\mathbf{h}\\). La formule de Taylor-Lagrange en dimension 1 (admise) donne \\(u(1) = u(0) + u'(0) + \\tfrac12 u''(\\tau)\\) pour un \\(\\tau \\in\\, ]0, 1[\\). L'écart \\(\\tfrac12\\lvert \\mathbf{h}^\\top(\\nabla^2 f(\\mathbf{x} + \\tau\\mathbf{h}) - \\nabla^2 f(\\mathbf{x}))\\mathbf{h} \\rvert\\) est au plus \\(\\tfrac12\\lVert \\mathbf{h} \\rVert^2\\) fois la norme d'opérateur de la différence des hessiennes, qui tend vers 0 par continuité.\n\nExemple, la croissance logarithmique (le critère utilisé, sous contrainte de drawdown, pour dimensionner ses positions) : on investit une fraction \\(w\\) de sa richesse dans un pari de rendement \\(R\\) ; la croissance espérée est \\(\\psi(w) = \\mathbb{E}[\\ln(1 + wR)]\\). Taylor à l'ordre 2 de \\(\\ln(1 + u)\\) en 0 donne \\(\\psi(w) \\approx w\\,\\mathbb{E}[R] - \\tfrac{w^2}{2}\\mathbb{E}[R^2]\\), maximal en \\(w \\approx \\mathbb{E}[R]/\\mathbb{E}[R^2]\\). Pour \\(R = 0{,}2\\) avec probabilité 0,4 et \\(R = -0{,}1\\) avec probabilité 0,6 : \\(\\mathbb{E}[R] = 0{,}02\\), \\(\\mathbb{E}[R^2] = 0{,}022\\), approximation \\(w \\approx \\tfrac{10}{11} \\approx 0{,}909\\) ; l'optimum exact (dérivée de \\(\\psi\\) nulle) est \\(w = 1\\), et la croissance perdue est faible : \\(0{,}00964\\) contre \\(0{,}00971\\), car \\(\\psi\\) est plate près de son maximum.\n\n### Convexité\n\nDéfinition : \\(f\\), définie sur un ensemble convexe, est convexe si \\(f(t\\mathbf{x} + (1 - t)\\mathbf{y}) \\le t f(\\mathbf{x}) + (1 - t) f(\\mathbf{y})\\) pour tous \\(\\mathbf{x}, \\mathbf{y}\\) et \\(t \\in [0, 1]\\) ; strictement convexe si l'inégalité est stricte pour \\(\\mathbf{x} \\ne \\mathbf{y}\\) et \\(t \\in\\, ]0, 1[\\).\n\nÉnoncé, pour \\(f\\) deux fois continûment dérivable sur un intervalle ouvert (dimension 1) ou un convexe ouvert (dimension \\(d\\)) :\n\n1. (C1) Dimension 1 : \\(f\\) convexe si et seulement si \\(f'' \\ge 0\\).\n2. (C2) Dimension \\(d\\) : \\(f\\) convexe si et seulement si \\(\\nabla^2 f(\\mathbf{x})\\) est semi-définie positive en tout point.\n3. (C3) Hessienne définie positive partout : strictement convexe. La réciproque est fausse : \\(x^4\\) est strictement convexe et sa dérivée seconde est nulle en 0.\n4. (C4) Si \\(f\\) est convexe et dérivable, \\(\\nabla f(\\mathbf{x}^\\star) = \\mathbf{0}\\) si et seulement si \\(\\mathbf{x}^\\star\\) est un minimum global ; si \\(f\\) est strictement convexe, ce minimum est unique.\n\nPreuve :\n\n1. (C1), sens direct : si \\(f''(x_0) < 0\\), Taylor-Young donne \\(\\tfrac12[f(x_0 + h) + f(x_0 - h)] - f(x_0) = \\tfrac12 f''(x_0)h^2 + o(h^2) < 0\\) pour \\(h\\) petit, ce qui contredit la convexité avec \\(t = \\tfrac12\\).\n2. (C1), réciproque : Taylor-Lagrange donne \\(f(y) = f(z) + f'(z)(y - z) + \\tfrac12 f''(\\tau)(y - z)^2 \\ge f(z) + f'(z)(y - z)\\) (la courbe est au-dessus de ses tangentes). Avec \\(z = tx + (1 - t)y\\), on écrit cette inégalité en \\(x\\) et en \\(y\\), on les multiplie par \\(t\\) et \\(1 - t\\) et on additionne : les termes en \\(f'(z)\\) se compensent car \\(t(x - z) + (1 - t)(y - z) = 0\\).\n3. (C2) : la définition ne fait intervenir que des points d'un segment, donc \\(f\\) est convexe si et seulement si chaque restriction \\(u(t) = f(\\mathbf{x} + t\\mathbf{h})\\) l'est, soit par (C1) \\(u''(t) = \\mathbf{h}^\\top\\nabla^2 f(\\mathbf{x} + t\\mathbf{h})\\mathbf{h} \\ge 0\\) pour tous \\(\\mathbf{x}, \\mathbf{h}, t\\), ce qui est la semi-définie positivité en tout point.\n4. (C3) : même argument avec des inégalités strictes, l'inégalité de Taylor-Lagrange devenant stricte pour \\(y \\ne z\\).\n5. (C4) : l'inégalité des tangentes de l'étape 2, appliquée sur chaque segment, donne \\(f(\\mathbf{y}) \\ge f(\\mathbf{x}^\\star) + \\nabla f(\\mathbf{x}^\\star)^\\top(\\mathbf{y} - \\mathbf{x}^\\star) = f(\\mathbf{x}^\\star)\\) ; réciproquement, en un minimum, chaque dérivée directionnelle est nulle. Unicité : deux minimums distincts auraient un milieu de valeur strictement plus petite.\n\nExemples : \\(\\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2\\) a pour hessienne \\(2\\mathbf{X}^\\top\\mathbf{X}\\), semi-définie positive ; \\(\\mathbf{w}^\\top\\boldsymbol{\\Sigma}\\mathbf{w}\\) a pour hessienne \\(2\\boldsymbol{\\Sigma}\\) ; \\(\\psi\\) ci-dessus a pour dérivée seconde \\(-\\mathbb{E}[R^2/(1 + wR)^2] < 0\\) sur l'intervalle \\(-5 < w < 10\\), où \\(1 + wR > 0\\) pour les deux valeurs de \\(R\\) : elle y est concave, et sa dérivée nulle donne bien son maximum.\n\n[[controle:convexite]]\n\n### Multiplicateur de Lagrange, une contrainte d'égalité linéaire\n\nÉnoncé : soient \\(f\\) dérivable sur \\(\\mathbb{R}^d\\), \\(\\mathbf{a} \\in \\mathbb{R}^d\\) non nul et \\(b\\) réel. Si \\(\\mathbf{x}^\\star\\) minimise \\(f\\) (même localement) sur l'hyperplan \\(\\{\\mathbf{x} : \\mathbf{a}^\\top\\mathbf{x} = b\\}\\), il existe un réel \\(\\lambda\\), le multiplicateur, tel que \\(\\nabla f(\\mathbf{x}^\\star) = \\lambda\\,\\mathbf{a}\\). Si \\(f\\) est convexe, cette condition est aussi suffisante.\n\n1. Les points de l'hyperplan sont les \\(\\mathbf{x}^\\star + t\\mathbf{h}\\) avec \\(\\mathbf{a}^\\top\\mathbf{h} = 0\\). Pour un tel \\(\\mathbf{h}\\), \\(t \\mapsto f(\\mathbf{x}^\\star + t\\mathbf{h})\\) a un minimum local en \\(t = 0\\), donc sa dérivée y est nulle : \\(\\nabla f(\\mathbf{x}^\\star)^\\top\\mathbf{h} = 0\\).\n2. On décompose \\(\\mathbf{g} = \\nabla f(\\mathbf{x}^\\star) = \\lambda\\,\\mathbf{a} + \\mathbf{r}\\) avec \\(\\lambda = \\mathbf{g}^\\top\\mathbf{a}/\\lVert \\mathbf{a} \\rVert^2\\), de sorte que \\(\\mathbf{a}^\\top\\mathbf{r} = 0\\). L'étape 1 avec \\(\\mathbf{h} = \\mathbf{r}\\) donne \\(0 = \\mathbf{g}^\\top\\mathbf{r} = \\lambda\\,\\mathbf{a}^\\top\\mathbf{r} + \\lVert \\mathbf{r} \\rVert^2 = \\lVert \\mathbf{r} \\rVert^2\\), donc \\(\\mathbf{r} = \\mathbf{0}\\).\n3. Suffisance si \\(f\\) est convexe : pour \\(\\mathbf{y}\\) de l'hyperplan, \\(f(\\mathbf{y}) \\ge f(\\mathbf{x}^\\star) + \\lambda\\,\\mathbf{a}^\\top(\\mathbf{y} - \\mathbf{x}^\\star) = f(\\mathbf{x}^\\star)\\), car \\(\\mathbf{a}^\\top\\mathbf{y} = \\mathbf{a}^\\top\\mathbf{x}^\\star = b\\).\n\n### Application : portefeuille de variance minimale\n\nÉnoncé : \\(d\\) actifs de matrice de covariance \\(\\boldsymbol{\\Sigma}\\) définie positive ; \\(\\mathbf{w}\\) est le vecteur des poids, avec la contrainte budgétaire \\(\\mathbf{1}^\\top\\mathbf{w} = 1\\) (poids négatifs permis : ventes à découvert). Le portefeuille de variance minimale est unique :\n\n\\(\\displaystyle \\mathbf{w}^\\star = \\frac{\\boldsymbol{\\Sigma}^{-1}\\mathbf{1}}{\\mathbf{1}^\\top\\boldsymbol{\\Sigma}^{-1}\\mathbf{1}}, \\qquad \\mathbf{w}^{\\star\\top}\\boldsymbol{\\Sigma}\\,\\mathbf{w}^\\star = \\frac{1}{\\mathbf{1}^\\top\\boldsymbol{\\Sigma}^{-1}\\mathbf{1}}.\\)\n\n1. \\(f(\\mathbf{w}) = \\mathbf{w}^\\top\\boldsymbol{\\Sigma}\\mathbf{w}\\) a pour hessienne \\(2\\boldsymbol{\\Sigma}\\), définie positive : \\(f\\) est strictement convexe (C3).\n2. Lagrange avec \\(\\mathbf{a} = \\mathbf{1}\\) : \\(2\\boldsymbol{\\Sigma}\\mathbf{w}^\\star = \\lambda\\,\\mathbf{1}\\), donc \\(\\mathbf{w}^\\star = \\tfrac{\\lambda}{2}\\boldsymbol{\\Sigma}^{-1}\\mathbf{1}\\).\n3. La contrainte donne \\(\\tfrac{\\lambda}{2}\\,\\mathbf{1}^\\top\\boldsymbol{\\Sigma}^{-1}\\mathbf{1} = 1\\) ; le dénominateur est strictement positif car \\(\\boldsymbol{\\Sigma}^{-1}\\) est définie positive (ses valeurs propres sont les inverses de celles de \\(\\boldsymbol{\\Sigma}\\)) et \\(\\mathbf{1} \\ne \\mathbf{0}\\).\n4. Par la suffisance (convexité), c'est un minimum global, unique par stricte convexité. Variance : \\(\\mathbf{w}^{\\star\\top}\\boldsymbol{\\Sigma}\\mathbf{w}^\\star = \\mathbf{1}^\\top\\boldsymbol{\\Sigma}^{-1}\\boldsymbol{\\Sigma}\\boldsymbol{\\Sigma}^{-1}\\mathbf{1}/(\\mathbf{1}^\\top\\boldsymbol{\\Sigma}^{-1}\\mathbf{1})^2\\). Le multiplicateur vaut \\(\\lambda = 2/(\\mathbf{1}^\\top\\boldsymbol{\\Sigma}^{-1}\\mathbf{1})\\), le double de la variance minimale.\n\nExemple (script, en fractions exactes) : volatilités 0,10, 0,15 et 0,20 ; corrélations 0,3 entre les actifs 1 et 2, 0 entre 1 et 3, 0,5 entre 2 et 3. Poids \\(\\tfrac{1}{3019}(2250 ; 280 ; 489) \\approx (0{,}745 ; 0{,}093 ; 0{,}162)\\), variance \\(\\tfrac{594}{75475}\\), volatilité \\(0{,}0887\\), sous celle du moins volatil des actifs. Contrôles du script : minimisation numérique sous contrainte, et \\(2\\boldsymbol{\\Sigma}\\mathbf{w}^\\star\\) de coordonnées toutes égales à \\(\\lambda = 0{,}01574\\).\n\nDeux actifs, de volatilités \\(\\sigma_1, \\sigma_2\\) et de corrélation \\(\\rho\\) : la formule donne \\(w_1 = \\dfrac{\\sigma_2^2 - \\rho\\sigma_1\\sigma_2}{\\sigma_1^2 + \\sigma_2^2 - 2\\rho\\sigma_1\\sigma_2}\\), et le poids \\(w_2 = 1 - w_1\\) de l'actif le plus volatil (\\(\\sigma_2 > \\sigma_1\\)) est négatif si et seulement si \\(\\rho > \\sigma_1/\\sigma_2\\). Pour \\(\\rho = 0\\), on retrouve les poids proportionnels aux inverses des variances (DIAG-M8).\n\nPièges :\n\n1. Les poids proportionnels à l'inverse des variances ne sont optimaux que pour des actifs non corrélés.\n2. \\(\\boldsymbol{\\Sigma}\\) estimée avec moins de dates que d'actifs n'est pas inversible ; même inversible, son inverse amplifie l'erreur d'estimation : rétrécissement de Ledoit-Wolf (leçon d'algèbre linéaire, `outils/lecons_algebre.py`, parties 8 et 10).\n3. Avec une contrainte d'inégalité (poids positifs), Lagrange ne suffit plus : il faut les conditions de Karush-Kuhn-Tucker, non traitées ici.\n\n## Réflexes en 30 secondes\n\n| Indice dans l'énoncé | Premier geste |\n|---|---|\n| AIC contre BIC | coût par paramètre 2 contre \\(\\ln n\\) ; comparer \\(2\\Delta\\ell\\) à \\(2\\Delta k\\) et à \\(\\Delta k \\ln n\\) |\n| AIC, variable inutile ajoutée | \\(2\\Delta\\ell = Z^2\\) ; AIC l'ajoute avec probabilité \\(\\approx 0{,}157\\) pour tout \\(n\\) |\n| interpolation, \\(p \\ge n\\) | erreur d'entraînement nulle ; norme minimale \\(\\mathbf{X}^\\top(\\mathbf{X}\\mathbf{X}^\\top)^{-1}\\mathbf{y}\\) ; bruit \\(\\sigma^2\\sum 1/s_j^2\\), pic en \\(p = n\\) |\n| importance par permutation, modèle linéaire | \\(2b_j^2\\,\\mathrm{Var}(X_j)\\) ; variables redondantes : dépend des coefficients choisis |\n| Shapley, linéaire, indépendantes | \\(b_j(x_j - \\mu_j)\\) ; deux variables : moyenne des contributions en premier et en second |\n| IC | rangs, \\(1 - 6\\sum d^2/(N(N^2 - 1))\\) ; sans effet, écart-type \\(1/\\sqrt{N - 1}\\) |\n| étiquettes de \\(h\\) jours chevauchantes | corrélation \\((h - 1)/h\\) ; variance de la moyenne environ \\(h\\) fois la valeur naïve |\n| meilleur de \\(m\\) essais sans effet | \\(\\mathbb{E}[\\max] \\le \\sqrt{2\\ln m}\\) ; Sharpe annualisé espéré \\(\\mathbb{E}[M_m]/\\sqrt{T}\\) |\n| erreur-type du Sharpe | \\(\\sqrt{(1 + \\theta_a^2/(2q))/T}\\), environ \\(1/\\sqrt{T}\\) en quotidien |\n| variance minimale | \\(\\boldsymbol{\\Sigma}^{-1}\\mathbf{1}/(\\mathbf{1}^\\top\\boldsymbol{\\Sigma}^{-1}\\mathbf{1})\\) ; deux actifs : \\(w_2 < 0\\) si \\(\\rho > \\sigma_1/\\sigma_2\\) |\n\nContrôles de vraisemblance en 5 secondes : un IC est entre \\(-1\\) et 1 ; le meilleur de \\(m\\) essais sans effet a une espérance positive et sous \\(\\sqrt{2\\ln m}\\) ; la volatilité du portefeuille de variance minimale est au plus celle du moins volatil des actifs ; les valeurs de Shapley somment à \\(f(\\mathbf{x}) - \\mathbb{E}f(\\mathbf{X})\\).\n\n## À savoir refaire sans notes\n\n- L'optimisme \\(2k\\sigma^2\\) de l'erreur d'entraînement, et \\(2\\Delta\\ell = Z^2\\) pour deux modèles emboîtés.\n- L'interpolateur de norme minimale et l'amplification du bruit \\(\\sigma^2\\sum 1/s_j^2\\).\n- (P1), et les valeurs de Shapley du modèle linéaire à variables indépendantes, avec le lemme des poids.\n- La formule de Spearman et \\(\\mathrm{Var}(\\mathrm{IC}) = 1/(N - 1)\\) sous l'hypothèse nulle ; la loi fondamentale dans le modèle gaussien.\n- La variance de la moyenne d'étiquettes chevauchantes ; \\(\\mathbb{E}[S^2]\\) avec une rupture de moyenne.\n- Le majorant \\(\\sqrt{2\\ln m}\\) par Jensen ; l'erreur-type du Sharpe par la méthode delta.\n- (C1) et (C2) ; Lagrange avec une contrainte linéaire ; le portefeuille de variance minimale.\n", "controles": {"aic_bic": {"question": "Deux modèles emboîtés sont comparés sur \\(n\\) observations. À partir de quelle valeur de \\(n\\) le BIC fait-il payer chaque paramètre supplémentaire plus cher que l'AIC ?", "options": [{"id": "a", "texte": "\\(n \\ge 8\\)", "correcte": true, "explication": "Oui : le coût par paramètre est 2 pour l'AIC et \\(\\ln n\\) pour le BIC ; \\(\\ln n > 2\\) équivaut à \\(n > e^2 \\approx 7{,}389\\)."}, {"id": "b", "texte": "\\(n \\ge 3\\)", "correcte": false, "explication": "C'est la condition \\(\\ln n > 1\\) : on a comparé \\(\\ln n\\) à 1 au lieu de 2. L'AIC compte \\(2k\\), pas \\(k\\)."}, {"id": "c", "texte": "Jamais : les deux critères pénalisent de la même façon, seule la vraisemblance diffère.", "correcte": false, "explication": "Les deux utilisent la même log-vraisemblance maximale ; c'est la pénalité qui diffère, \\(2k\\) contre \\(k \\ln n\\)."}, {"id": "d", "texte": "\\(n \\ge 100\\)", "correcte": false, "explication": "Aucun seuil n'est lié à 100 : la comparaison porte sur \\(\\ln n\\) et 2, et \\(\\ln 100 \\approx 4{,}61\\) dépasse 2 depuis longtemps."}]}, "double_descente": {"question": "Dans l'expérience de double descente de la leçon, laquelle de ces affirmations est démontrée, et non seulement constatée ?", "options": [{"id": "a", "texte": "La part de l'erreur due au bruit vaut \\(\\sigma^2\\sum_j 1/s_j^2\\) : elle est grande dès qu'une valeur singulière de la matrice des données est petite.", "correcte": true, "explication": "Oui : c'est (DD2), une identité de trace. Que la plus petite valeur singulière soit proche de 0 en \\(p = n\\) est, en revanche, constaté dans la sortie."}, {"id": "b", "texte": "Le meilleur modèle sur-paramétré bat toujours le meilleur modèle sous-paramétré.", "correcte": false, "explication": "Faux en général : sur le profil concentré, le meilleur modèle est sous-paramétré. Sur le profil réparti, c'est l'inverse : deux constats, aucune loi générale."}, {"id": "c", "texte": "Le pic de l'erreur de test se trouve en p = n pour toute loi des données.", "correcte": false, "explication": "C'est constaté sur cette expérience, pas démontré pour toute loi ; l'explication passe par la plus petite valeur singulière, dont le comportement dépend de la loi de \\(\\mathbf{X}\\)."}, {"id": "d", "texte": "Un modèle qui interpole les données d'entraînement a forcément une mauvaise erreur de test.", "correcte": false, "explication": "Contredit par l'expérience : au profil réparti, le modèle à \\(p = 200\\), qui interpole, est le meilleur."}]}, "shapley": {"question": "Modèle \\(f(\\mathbf{x}) = 3 + 2x_1 - x_2\\), variables \\(X_1\\) et \\(X_2\\) indépendantes d'espérances 0 et 1, valeur conditionnelle. Que vaut la valeur de Shapley de \\(x_2\\) au point \\(\\mathbf{x} = (1, 3)\\) ?", "options": [{"id": "a", "texte": "-2", "correcte": true, "explication": "Oui : \\(b_2(x_2 - \\mu_2) = -1 \\times (3 - 1)\\). Contrôle : \\(2 + (-2) = f(\\mathbf{x}) - \\mathbb{E}f(\\mathbf{X})\\)."}, {"id": "b", "texte": "-3", "correcte": false, "explication": "C'est \\(b_2 x_2\\) : la moyenne \\(\\mu_2 = 1\\) n'a pas été retranchée. Shapley répartit l'écart à la prédiction moyenne."}, {"id": "c", "texte": "-1", "correcte": false, "explication": "C'est le coefficient \\(b_2\\) seul. La contribution dépend aussi de l'écart de \\(x_2\\) à sa moyenne."}, {"id": "d", "texte": "0, car l'effet de la constante 3 absorbe tout.", "correcte": false, "explication": "La constante est dans \\(v(\\emptyset)\\) comme dans \\(v(F)\\) : elle disparaît des contributions marginales."}]}, "non_stationnarite": {"question": "50 rendements indépendants d'écart-type 1 : les 25 premiers d'espérance 0, les 25 suivants d'espérance 1. Que vaut l'espérance de leur variance empirique (division par 49) ?", "options": [{"id": "a", "texte": "1,2551", "correcte": true, "explication": "Oui : \\(1 + n\\Delta^2/(4(n - 1)) = 1 + 50/196\\). Simulation (script) : 1,2538."}, {"id": "b", "texte": "1", "correcte": false, "explication": "C'est la variance de chaque rendement autour de sa propre espérance ; la variance empirique mesure les écarts à la moyenne commune, qui ajoutent \\(\\sum_i (\\mu_i - \\bar\\mu)^2/(n - 1)\\)."}, {"id": "c", "texte": "1,2500", "correcte": false, "explication": "C'est \\(1 + \\Delta^2/4\\), la variance de la population mélangée : avec la division par \\(n - 1\\), le terme de rupture vaut \\(n\\Delta^2/(4(n - 1))\\)."}, {"id": "d", "texte": "2", "correcte": false, "explication": "C'est \\(\\sigma^2 + \\Delta^2\\) : chaque rendement n'est qu'à \\(\\Delta/2\\) de la moyenne commune, d'où \\(\\Delta^2/4\\) et non \\(\\Delta^2\\)."}]}, "convexite": {"question": "Laquelle de ces affirmations est vraie pour une fonction deux fois continûment dérivable ?", "options": [{"id": "a", "texte": "Une hessienne définie positive partout suffit à la stricte convexité, mais n'est pas nécessaire : \\(x^4\\) est strictement convexe avec une dérivée seconde nulle en 0.", "correcte": true, "explication": "Oui : (C3) et son contre-exemple. Le bon critère d'équivalence est la semi-définie positivité, pour la convexité simple (C2)."}, {"id": "b", "texte": "Une fonction convexe a une hessienne définie positive en tout point.", "correcte": false, "explication": "Une fonction affine est convexe et sa hessienne est nulle. (C2) donne seulement la semi-définie positivité."}, {"id": "c", "texte": "Un point où le gradient s'annule est toujours un minimum global.", "correcte": false, "explication": "Seulement pour une fonction convexe (C4). Pour \\(x^3\\), la dérivée s'annule en 0, qui n'est même pas un minimum local."}, {"id": "d", "texte": "Si la hessienne est semi-définie positive en un point, la fonction est convexe.", "correcte": false, "explication": "Il la faut semi-définie positive en **tout** point du domaine convexe ; en un seul point, cela ne dit rien de la forme globale."}]}}, "verif": {"script": "verif/seance_quant_1.py"}}]}, {"id": "mla", "nom": "Machine Learning avancé", "budget_min": 16, "questions": [{"id": "Q1-01", "section": "mla", "theme": "Sélection de modèles, AIC contre BIC", "difficulte": 3, "temps_cible_s": 90, "enonce": "Deux modèles A et B sont ajustés par maximum de vraisemblance sur les mêmes \\(n = 200\\) observations de la même variable cible. B contient tous les paramètres de A et 3 paramètres de plus. La log-vraisemblance maximale de B dépasse celle de A de 5.\n\nOn note \\(k\\) le nombre de paramètres estimés d'un modèle et \\(\\hat\\ell\\) sa log-vraisemblance maximale ; \\(\\mathrm{AIC} = -2\\hat\\ell + 2k\\) et \\(\\mathrm{BIC} = -2\\hat\\ell + k \\ln n\\), et chaque critère retient le modèle de plus petite valeur.\n\nQuel modèle chaque critère retient-il ?", "options": [{"id": "a", "texte": "L'AIC retient B, le BIC retient A.", "correcte": true, "explication": "Oui : le gain \\(2 \\times 5 = 10\\) dépasse le coût AIC \\(2 \\times 3 = 6\\), mais pas le coût BIC \\(3 \\ln 200 \\approx 15{,}89\\)."}, {"id": "b", "texte": "Les deux critères retiennent B.", "correcte": false, "explication": "Ce serait vrai si le BIC coûtait aussi 2 par paramètre. Il coûte \\(\\ln 200 \\approx 5{,}30\\) par paramètre, soit \\(15{,}89\\) pour 3 paramètres, plus que le gain \\(10\\)."}, {"id": "c", "texte": "Les deux critères retiennent A.", "correcte": false, "explication": "L'AIC compare \\(2\\Delta\\ell = 10\\) à \\(2\\Delta k = 6\\) : le gain l'emporte, l'AIC retient B. Seul le BIC, plus sévère dès \\(n \\ge 8\\), retient A."}, {"id": "d", "texte": "L'AIC retient A, le BIC retient B.", "correcte": false, "explication": "Rôles inversés : pour \\(n \\ge 8\\), \\(\\ln n > 2\\), donc le BIC est toujours le plus sévère des deux. Il ne peut pas retenir le grand modèle quand l'AIC retient le petit."}], "solution": "Réponse : l'AIC retient B, le BIC retient A.\n\nNotations : \\(\\Delta k = 3\\) paramètres de plus, \\(\\Delta\\ell = 5\\) de log-vraisemblance de plus pour B.\n\nÉtape 1, AIC : \\(\\mathrm{AIC}_B - \\mathrm{AIC}_A = -2\\Delta\\ell + 2\\Delta k = -10 + 6 = -4 < 0\\) : B a le plus petit AIC.\n\nÉtape 2, BIC : \\(\\mathrm{BIC}_B - \\mathrm{BIC}_A = -2\\Delta\\ell + \\Delta k \\ln n = -10 + 3 \\ln 200 \\approx 5{,}895 > 0\\) : A a le plus petit BIC.\n\nLecture : les critères divergent exactement quand \\(2\\Delta k < 2\\Delta\\ell < \\Delta k \\ln n\\) (leçon, partie 1). Ici \\(6 < 10 < 15{,}89\\).", "type": "qcm", "multiple": false, "reponse": "L'AIC retient B, le BIC retient A.", "fiche": null, "verif": {"script": "verif/seance_quant_1.py", "cles": ["L_n_seuil", "Q01_daic", "Q01_dbic", "Q01_gain", "Q01_ln_n", "Q01_pen_aic", "Q01_pen_bic"]}}, {"id": "Q1-02", "section": "mla", "theme": "Importance par permutation, variables redondantes", "difficulte": 3, "temps_cible_s": 100, "enonce": "Les données ont deux colonnes identiques : \\(X_2 = X_1\\), où \\(X_1\\) est de variance 1. La cible vaut \\(Y = X_1 + \\varepsilon\\), où \\(\\varepsilon\\) est centré, de variance 1, indépendant de \\(X_1\\). Le modèle retenu est \\(f(\\mathbf{x}) = 0{,}5\\,x_1 + 0{,}5\\,x_2\\), qui prédit exactement \\(X_1\\).\n\nL'importance de \\(x_1\\) est définie comme la hausse de l'erreur quadratique espérée quand on remplace \\(X_1\\), et elle seule, par une copie indépendante de même loi (idéalisation d'une permutation sur un très grand jeu de validation), \\(X_2\\) restant inchangée. Que vaut-elle ?", "options": [{"id": "a", "texte": "0,5", "correcte": true, "explication": "Oui : \\(2\\,b_1^2\\,\\mathrm{Var}(X_1) = 2 \\times 0{,}25 \\times 1\\). Simulation (script) : 0,500."}, {"id": "b", "texte": "2", "correcte": false, "explication": "C'est l'importance de \\(x_1\\) pour le modèle \\(f(\\mathbf{x}) = x_1\\), qui fait pourtant les mêmes prédictions. Ici \\(b_1 = 0{,}5\\), et l'importance est proportionnelle à \\(b_1^2\\)."}, {"id": "c", "texte": "1", "correcte": false, "explication": "C'est la moitié de l'importance du modèle \\(x_1\\), comme si l'importance se partageait linéairement entre les deux copies. Elle dépend de \\(b_1^2\\) : diviser le coefficient par 2 divise l'importance par 4."}, {"id": "d", "texte": "0,25", "correcte": false, "explication": "C'est \\(b_1^2\\,\\mathrm{Var}(X_1)\\) : il manque le facteur 2, car \\(\\mathbb{E}[(X_1 - \\tilde X_1)^2] = 2\\,\\mathrm{Var}(X_1)\\) pour une copie indépendante \\(\\tilde X_1\\)."}], "solution": "Réponse : 0,5.\n\nNotations : \\(\\tilde X_1\\) est la copie indépendante de \\(X_1\\), de même loi.\n\nÉtape 1 : après remplacement, \\(Y - f = \\varepsilon + X_1 - 0{,}5\\,\\tilde X_1 - 0{,}5\\,X_1 = \\varepsilon + 0{,}5\\,(X_1 - \\tilde X_1)\\).\n\nÉtape 2 : \\(\\varepsilon\\) est centré et indépendant de \\(X_1\\) et de \\(\\tilde X_1\\), donc le double produit est d'espérance nulle ; \\(\\mathbb{E}[(X_1 - \\tilde X_1)^2] = 2\\,\\mathrm{Var}(X_1) = 2\\).\n\nÉtape 3 : l'erreur passe de 1 à \\(1 + 0{,}25 \\times 2\\) : hausse \\(0{,}5\\) (leçon, partie 3, résultat P1). Simulation (script) : 0,500.\n\nLecture : le modèle \\(x_1\\) seul a les mêmes prédictions et une importance \\(2\\) pour \\(x_1\\). L'importance par permutation décrit le modèle choisi, pas l'information contenue dans les données (dilution entre variables redondantes, `outils/lecons_arbres.py`, partie 7, I3).", "type": "qcm", "multiple": false, "reponse": "0,5", "fiche": null, "verif": {"script": "verif/seance_quant_1.py", "cles": ["Q02_A", "Q02_d_moitie", "Q02_d_sans2", "Q02_exact", "Q02_exact_mc"]}}, {"id": "Q1-03", "section": "mla", "theme": "Valeurs de Shapley, interaction", "difficulte": 4, "temps_cible_s": 120, "enonce": "Le modèle est \\(f(\\mathbf{x}) = x_1 x_2\\). Les variables \\(X_1\\) et \\(X_2\\) sont indépendantes, d'espérances respectives 1 et 2. Pour une coalition \\(S \\subset \\{1, 2\\}\\), la valeur est \\(v(S) = \\mathbb{E}[f(\\mathbf{X}) \\mid \\mathbf{X}_S = \\mathbf{x}_S]\\), et la valeur de Shapley de la variable \\(j\\) est la moyenne, sur les deux ordres d'arrivée équiprobables des variables, de sa contribution \\(v(S \\cup \\{j\\}) - v(S)\\), où \\(S\\) est l'ensemble des variables arrivées avant elle.\n\nQue vaut la valeur de Shapley de \\(x_1\\) au point \\(\\mathbf{x} = (3, 4)\\) ?", "options": [{"id": "a", "texte": "6", "correcte": true, "explication": "Oui : moyenne de la contribution en premier, \\(4\\), et en second, \\(8\\)."}, {"id": "b", "texte": "8", "correcte": false, "explication": "C'est la contribution de \\(x_1\\) quand elle arrive en second, \\(v(\\{1, 2\\}) - v(\\{2\\}) = 12 - 4\\). Il faut la moyenner avec sa contribution quand elle arrive en premier, \\(4\\)."}, {"id": "c", "texte": "4", "correcte": false, "explication": "C'est la contribution de \\(x_1\\) quand elle arrive en premier, \\(v(\\{1\\}) - v(\\emptyset) = 6 - 2\\). C'est aussi, par coïncidence, la valeur de Shapley de \\(x_2\\) ; il manque la moyenne avec la contribution en second, \\(8\\)."}, {"id": "d", "texte": "5", "correcte": false, "explication": "C'est la moitié de l'écart total \\(f(\\mathbf{x}) - \\mathbb{E}f(\\mathbf{X}) = 10\\), comme si les deux variables jouaient des rôles symétriques. Elles ne le font pas : chacune multiplie l'autre, et \\(x_2\\) comme son espérance sont plus grands que \\(x_1\\) et la sienne, donc l'écart de \\(x_1\\) à sa moyenne pèse davantage."}], "solution": "Réponse : 6.\n\nÉtape 1, valeurs des coalitions, par indépendance : \\(v(\\emptyset) = \\mathbb{E}[X_1]\\,\\mathbb{E}[X_2] = 2\\) ; \\(v(\\{1\\}) = 3 \\times \\mathbb{E}[X_2] = 6\\) ; \\(v(\\{2\\}) = \\mathbb{E}[X_1] \\times 4 = 4\\) ; \\(v(\\{1, 2\\}) = 3 \\times 4 = 12\\).\n\nÉtape 2, contributions de \\(x_1\\) : en premier, \\(6 - 2 = 4\\) ; en second, \\(12 - 4 = 8\\).\n\nÉtape 3 : \\(\\phi_1 = \\tfrac12(4 + 8) = 6\\) (leçon, partie 3, formule à deux variables).\n\nContrôle par l'efficacité : \\(\\phi_2 = 4\\), et \\(\\phi_1 + \\phi_2 = 10 = f(\\mathbf{x}) - \\mathbb{E}f(\\mathbf{X})\\). Simulation sur des ordres tirés au hasard (script) : 5,984.", "type": "qcm", "multiple": false, "reponse": "6", "fiche": null, "verif": {"script": "verif/seance_quant_1.py", "cles": ["Q03_c1", "Q03_c2", "Q03_d_dernier", "Q03_d_moitie", "Q03_d_premier", "Q03_diff", "Q03_ef", "Q03_exact", "Q03_exact_mc", "Q03_fx", "Q03_phi2", "Q03_v1", "Q03_v2"]}}, {"id": "Q1-04", "section": "mla", "theme": "Coefficient d'information, corrélation de rang", "difficulte": 2, "temps_cible_s": 120, "enonce": "À une date donnée, six actifs ont les valeurs de signal suivantes et, sur la période suivante, les rendements suivants (en %) :\n\n| Actif | A | B | C | D | E | F |\n|---|---|---|---|---|---|---|\n| signal | 0,8 | −0,3 | 1,5 | 0,1 | −1,2 | 0,6 |\n| rendement futur | 1,2 | −0,5 | 0,9 | 0,4 | −0,8 | −0,2 |\n\nLe coefficient d'information de la date est la corrélation de rang de Spearman entre le signal et le rendement futur. Que vaut-il, arrondi à trois décimales ?", "options": [{"id": "a", "texte": "0,886", "correcte": true, "explication": "Oui : \\(\\sum d_i^2 = 4\\), et \\(1 - 24/210 = \\tfrac{31}{35}\\)."}, {"id": "b", "texte": "0,826", "correcte": false, "explication": "C'est la corrélation de Pearson des valeurs brutes. Le coefficient d'information se calcule sur les rangs, ce qui le rend insensible à l'échelle et aux valeurs extrêmes."}, {"id": "c", "texte": "0,981", "correcte": false, "explication": "Le facteur 6 du numérateur a été oublié : \\(1 - 4/210\\) au lieu de \\(1 - 6 \\times 4/210\\)."}, {"id": "d", "texte": "0,889", "correcte": false, "explication": "Le dénominateur \\(N(N^2 - 1) = 210\\) a été remplacé par \\(N^3 = 216\\) : la variance des rangs vaut \\((N^2 - 1)/12\\), pas \\(N^2/12\\)."}], "solution": "Réponse : \\(\\tfrac{31}{35} \\approx 0{,}886\\).\n\nÉtape 1, rangs (1 pour la plus petite valeur, aucune égalité) : signal \\((5 ; 2 ; 6 ; 3 ; 1 ; 4)\\), rendement \\((6 ; 2 ; 5 ; 4 ; 1 ; 3)\\), dans l'ordre A à F.\n\nÉtape 2, écarts \\(d_i\\) : \\((-1 ; 0 ; 1 ; -1 ; 0 ; 1)\\), d'où \\(\\sum d_i^2 = 4\\).\n\nÉtape 3 : \\(1 - \\dfrac{6 \\times 4}{6 \\times (6^2 - 1)} = 1 - \\tfrac{24}{210} = \\tfrac{31}{35} \\approx 0{,}886\\) (leçon, partie 4 : formule démontrée sans égalités, contrôlée par `scipy.stats.spearmanr` dans le script).\n\nLecture : sous l'hypothèse d'absence de lien, l'écart-type d'un IC sur 6 actifs vaut \\(1/\\sqrt{5} \\approx 0{,}45\\) : un IC élevé sur une seule date de 6 actifs ne prouve presque rien.", "type": "qcm", "multiple": false, "reponse": "0,886", "fiche": null, "verif": {"script": "verif/seance_quant_1.py", "cles": ["Q04_6d2", "Q04_N3", "Q04_N_cube", "Q04_d", "Q04_d2", "Q04_d_cube", "Q04_d_pearson", "Q04_d_sans6", "Q04_exact", "Q04_exact_den", "Q04_exact_num", "Q04_rangs_rend", "Q04_rangs_signal", "Q04_se_nulle"]}}, {"id": "Q1-05", "section": "mla", "theme": "Biais de sélection, meilleur de N stratégies sans effet", "difficulte": 4, "temps_cible_s": 120, "enonce": "Un chercheur teste 50 stratégies sur 4 années de rendements quotidiens (1008 jours). Les rendements de chaque stratégie sont i.i.d. normaux d'espérance **nulle**, et les 50 stratégies sont indépendantes. Pour chacune, le ratio de Sharpe annualisé estimé est \\(\\sqrt{252}\\,m/s\\), où \\(m\\) et \\(s\\) sont la moyenne et l'écart-type empiriques des rendements quotidiens. Il retient la stratégie de plus grand ratio estimé.\n\nOn donne : l'espérance du maximum de 50 variables indépendantes de loi \\(\\mathcal{N}(0, 1)\\) vaut environ \\(2{,}249\\). Quelle est, à deux décimales, l'espérance du ratio de Sharpe annualisé estimé de la stratégie retenue ?", "options": [{"id": "a", "texte": "1,12", "correcte": true, "explication": "Oui : chaque ratio annualisé vaut \\(t/\\sqrt{4}\\), où \\(t\\) est une statistique de Student très proche de \\(\\mathcal{N}(0, 1)\\) : \\(2{,}249/2\\)."}, {"id": "b", "texte": "2,25", "correcte": false, "explication": "C'est l'espérance du maximum de 50 normales centrées réduites, sans la division par \\(\\sqrt{T} = 2\\). C'est \\(\\sqrt{T}\\) fois le ratio annualisé qui est approximativement \\(\\mathcal{N}(0, 1)\\), pas le ratio lui-même."}, {"id": "c", "texte": "1,40", "correcte": false, "explication": "C'est \\(\\sqrt{2 \\ln 50}/2\\) : le majorant \\(\\sqrt{2\\ln m}\\) a été pris pour la valeur. Il majore l'espérance du maximum, \\(2{,}797\\) contre \\(2{,}249\\)."}, {"id": "d", "texte": "0,00", "correcte": false, "explication": "C'est l'espérance du ratio d'une stratégie prise au hasard. La sélection du maximum crée un biais positif : la meilleure de 50 stratégies sans effet a un ratio espéré nettement positif."}], "solution": "Réponse : environ 1,12.\n\nÉtape 1 : pour chaque stratégie, \\(\\sqrt{T}\\,\\hat S = \\sqrt{n/252}\\,\\sqrt{252}\\,m/s = \\sqrt{n}\\,m/s\\) est la statistique de Student du test « espérance nulle » (question DIAG-A5 du test de positionnement), avec \\(T = 4\\) années et \\(n = 1008\\) jours. Sous l'hypothèse d'espérance nulle et de normalité, elle suit une loi de Student à 1007 degrés de liberté, presque \\(\\mathcal{N}(0, 1)\\).\n\nÉtape 2 : les 50 statistiques sont indépendantes ; l'espérance de leur maximum vaut environ \\(2{,}249\\) (leçon, partie 6 : entre le minorant \\(1{,}516\\) et le majorant \\(\\sqrt{2\\ln 50} \\approx 2{,}797\\)).\n\nÉtape 3 : \\(\\mathbb{E}[\\max \\hat S] \\approx 2{,}249/\\sqrt{4} \\approx 1{,}125\\).\n\nContrôles (script) : avec la loi de Student exacte, \\(1{,}126\\) ; simulation directe de 2000 répétitions des 50 stratégies : 1,132. Un ratio de Sharpe supérieur à 1 sur 4 ans ne prouve rien si l'on a essayé 50 stratégies.", "type": "qcm", "multiple": false, "reponse": "1,12", "fiche": null, "verif": {"script": "verif/seance_quant_1.py", "cles": ["L_max_bas_50", "Q05_borne_z", "Q05_d_borne", "Q05_d_sans_T", "Q05_emax", "Q05_exact", "Q05_student", "Q05_student_mc"]}}, {"id": "Q1-06", "section": "mla", "theme": "Erreur-type du ratio de Sharpe annualisé", "difficulte": 4, "temps_cible_s": 120, "enonce": "Une stratégie a des rendements mensuels i.i.d. normaux ; on dispose de 10 années, soit \\(n = 120\\) mois. Son vrai ratio de Sharpe mensuel est \\(\\theta\\), et son vrai ratio annualisé \\(\\theta_a = \\sqrt{12}\\,\\theta = 1{,}2\\).\n\nOn admet le résultat de Lo (2002) : l'estimateur mensuel \\(\\hat\\theta\\) (moyenne empirique divisée par l'écart-type empirique) vérifie approximativement \\(\\mathrm{Var}(\\hat\\theta) \\approx (1 + \\theta^2/2)/n\\). On estime le ratio annualisé par \\(\\sqrt{12}\\,\\hat\\theta\\). Quelle est son erreur-type approchée, à trois décimales ?", "options": [{"id": "a", "texte": "0,326", "correcte": true, "explication": "Oui : \\(\\sqrt{12\\,(1 + \\theta^2/2)/120}\\) avec \\(\\theta^2 = 1{,}44/12\\), soit \\(\\sqrt{(1 + 1{,}44/24)/10}\\)."}, {"id": "b", "texte": "0,316", "correcte": false, "explication": "C'est \\(1/\\sqrt{10}\\), l'erreur-type sous l'hypothèse \\(\\theta = 0\\) : le terme \\(\\theta^2/2\\) a été négligé. Il vaut ici \\(1{,}44/24 = 0{,}06\\), pas négligeable à trois décimales."}, {"id": "c", "texte": "0,415", "correcte": false, "explication": "Le ratio **annualisé** 1,2 a été mis dans le terme \\(\\theta^2/2\\), qui demande le ratio **mensuel** \\(\\theta = 1{,}2/\\sqrt{12}\\)."}, {"id": "d", "texte": "0,094", "correcte": false, "explication": "C'est l'erreur-type du ratio **mensuel** : il faut la multiplier par \\(\\sqrt{12}\\) pour l'estimateur annualisé, dont la variance est 12 fois plus grande."}], "solution": "Réponse : environ \\(0{,}326\\).\n\nÉtape 1 : \\(\\theta = 1{,}2/\\sqrt{12}\\), donc \\(\\theta^2 = 1{,}44/12 = 0{,}12\\) et \\(\\mathrm{Var}(\\hat\\theta) \\approx (1 + 0{,}06)/120\\).\n\nÉtape 2 : \\(\\mathrm{Var}(\\sqrt{12}\\,\\hat\\theta) = 12\\,\\mathrm{Var}(\\hat\\theta) \\approx 0{,}106\\), d'où une erreur-type \\(\\sqrt{0{,}106} \\approx 0{,}326\\). Formule directe de la leçon (partie 6) : \\(\\sqrt{(1 + \\theta_a^2/(2q))/T}\\) avec \\(q = 12\\), \\(T = 10\\).\n\nContrôle (script) : écart-type de l'estimateur sur 40 000 simulations de 120 mois, 0,328 ; l'écart vient de ce que la formule est asymptotique.\n\nLecture : un Sharpe annualisé estimé à 1,2 sur 10 ans de données mensuelles a un intervalle approché à 95 % d'environ \\(\\pm 2 \\times 0{,}33\\) : l'incertitude reste grande.", "type": "qcm", "multiple": false, "reponse": "0,326", "fiche": null, "verif": {"script": "verif/seance_quant_1.py", "cles": ["Q06_d_annuel", "Q06_d_periode", "Q06_d_sans_sr", "Q06_exact", "Q06_mc", "Q06_terme", "Q06_theta2", "Q06_var_an"]}}, {"id": "Q1-07", "section": "mla", "theme": "Étiquettes qui se chevauchent, erreur-type de la moyenne", "difficulte": 4, "temps_cible_s": 150, "enonce": "Les rendements quotidiens \\(X_1, X_2, \\dots\\) d'un actif sont non corrélés, de même variance \\(v\\). Chaque jour \\(t = 1, \\dots, 1000\\), on calcule l'étiquette \\(Y_t = X_t + X_{t+1} + \\dots + X_{t+19}\\), le rendement des 20 jours suivants, et l'on estime l'espérance des étiquettes par leur moyenne \\(\\bar Y\\).\n\nL'erreur-type naïve traite les 1000 étiquettes comme indépendantes, chacune de variance \\(20v\\) : elle vaut \\(\\sqrt{20v/1000}\\). Par quel facteur faut-il la multiplier pour obtenir l'écart-type exact de \\(\\bar Y\\), arrondi à deux décimales ?", "options": [{"id": "a", "texte": "4,46", "correcte": true, "explication": "Oui : le rapport des variances vaut \\(397340/20000 = 19{,}867\\), et l'on prend sa racine."}, {"id": "b", "texte": "19,87", "correcte": false, "explication": "C'est le rapport des **variances**. La question porte sur l'erreur-type, un écart-type : il faut prendre la racine carrée."}, {"id": "c", "texte": "1,00", "correcte": false, "explication": "Ce serait vrai pour des étiquettes non chevauchantes. Deux étiquettes voisines partagent 19 rendements quotidiens : elles sont fortement corrélées."}, {"id": "d", "texte": "0,95", "correcte": false, "explication": "C'est la corrélation \\((h - 1)/h\\) entre deux étiquettes voisines, pas le facteur de correction : la variance de la moyenne additionne les covariances de toutes les paires d'étiquettes qui se chevauchent."}], "solution": "Réponse : environ 4,46.\n\nNotations : \\(h = 20\\), \\(T = 1000\\) ; \\(c_s\\) est le nombre d'étiquettes qui contiennent le rendement du jour \\(s\\).\n\nÉtape 1 : \\(\\bar Y = \\tfrac{1}{T}\\sum_s c_s X_s\\), donc \\(\\mathrm{Var}(\\bar Y) = \\tfrac{v}{T^2}\\sum_s c_s^2\\), les \\(X_s\\) étant non corrélés (leçon, partie 5).\n\nÉtape 2 : \\(c_s = 20\\) pour les \\(T - h + 1 = 981\\) jours \\(s = 20, \\dots, 1000\\) ; aux deux bords, \\(c_s\\) prend les valeurs 1 à 19, une fois de chaque côté. \\(\\sum_s c_s^2 = 981 \\times 400 + 2\\sum_{k=1}^{19} k^2 = 392400 + 4940 = 397340\\).\n\nÉtape 3 : rapport des variances \\(\\dfrac{v \\sum_s c_s^2/T^2}{20v/T} = \\dfrac{397340}{20000} = 19{,}867\\), et facteur sur l'erreur-type \\(\\sqrt{19{,}867} \\approx 4{,}457\\). Approximation rapide : le rapport tend vers \\(h\\), donc le facteur vers \\(\\sqrt{20} \\approx 4{,}472\\).\n\nContrôle (script) : variance de \\(\\bar Y\\) sur 20 000 simulations avec \\(v = 1\\), 0,4042, pour une valeur exacte \\(0{,}3973\\).", "type": "qcm", "multiple": false, "reponse": "4,46", "fiche": null, "verif": {"script": "verif/seance_quant_1.py", "cles": ["Q07_Th", "Q07_bords", "Q07_cle", "Q07_d_corr", "Q07_h2", "Q07_nb_plein", "Q07_racine_h", "Q07_rapport_se", "Q07_rapport_var", "Q07_somme_c2", "Q07_var_moyenne_exact", "Q07_var_moyenne_mc"]}}, {"id": "Q1-08", "section": "mla", "theme": "Portefeuille de variance minimale, corrélation forte", "difficulte": 3, "temps_cible_s": 100, "enonce": "Deux actifs ont des rendements de volatilités \\(\\sigma_1 = 0{,}1\\) et \\(\\sigma_2 = 0{,}2\\) et de corrélation \\(\\rho = 0{,}8\\). On cherche les poids \\((w_1, w_2)\\) qui minimisent la variance du portefeuille sous la contrainte \\(w_1 + w_2 = 1\\), les poids négatifs (ventes à découvert) étant permis.\n\nQue vaut \\(w_2\\) ?", "options": [{"id": "a", "texte": "-0,333", "correcte": true, "explication": "Oui : \\(w_2 = (\\sigma_1^2 - \\rho\\sigma_1\\sigma_2)/(\\sigma_1^2 + \\sigma_2^2 - 2\\rho\\sigma_1\\sigma_2)\\), négatif car \\(\\rho = 0{,}8 > \\sigma_1/\\sigma_2 = 0{,}5\\)."}, {"id": "b", "texte": "0,2", "correcte": false, "explication": "Poids proportionnels aux inverses des variances : optimal seulement pour une corrélation nulle (DIAG-M8). Ici, sa variance \\(0{,}01312\\) dépasse le minimum \\(0{,}0080\\)."}, {"id": "c", "texte": "0,333", "correcte": false, "explication": "Poids proportionnels aux inverses des volatilités : ce n'est l'optimum d'aucun critère de variance ici, et la corrélation est ignorée."}, {"id": "d", "texte": "0,5", "correcte": false, "explication": "L'équipondération ne minimise la variance que si les deux actifs ont la même volatilité."}], "solution": "Réponse : \\(w_2 = \\tfrac{-1}{3} \\approx -0{,}333\\).\n\nÉtape 1 : variance \\(f(\\mathbf{w}) = \\mathbf{w}^\\top\\boldsymbol{\\Sigma}\\mathbf{w}\\), avec \\(\\boldsymbol{\\Sigma}\\) de coefficients \\(\\sigma_1^2 = 0{,}01\\), \\(\\sigma_2^2 = 0{,}04\\) et \\(\\rho\\sigma_1\\sigma_2 = 0{,}016\\) ; \\(\\boldsymbol{\\Sigma}\\) est définie positive car \\(\\lvert \\rho \\rvert < 1\\), donc \\(f\\) est strictement convexe (leçon, partie 7, C3).\n\nÉtape 2, Lagrange : \\(2\\boldsymbol{\\Sigma}\\mathbf{w} = \\lambda\\,\\mathbf{1}\\), donc \\(\\mathbf{w}\\) est proportionnel à \\(\\boldsymbol{\\Sigma}^{-1}\\mathbf{1}\\), et la contrainte normalise : à deux actifs, \\(w_2 = \\dfrac{\\sigma_1^2 - \\rho\\sigma_1\\sigma_2}{\\sigma_1^2 + \\sigma_2^2 - 2\\rho\\sigma_1\\sigma_2}\\).\n\nÉtape 3 : numérateur \\(0{,}01 - 0{,}016 = -0{,}006\\), dénominateur \\(0{,}05 - 0{,}032 = 0{,}018\\), d'où \\(w_2 = \\tfrac{-1}{3}\\) et \\(w_1 = \\tfrac{4}{3}\\).\n\nLecture : avec une forte corrélation, vendre à découvert l'actif le plus volatil couvre une partie du risque du premier ; la volatilité minimale vaut \\(0{,}0894\\), sous celle du premier actif. Contrôle (script) : recherche sur une grille fine de \\(w_2\\).", "type": "qcm", "multiple": false, "reponse": "-0,333", "fiche": null, "verif": {"script": "verif/seance_quant_1.py", "cles": ["Q08_2cov", "Q08_cov", "Q08_d_invvar", "Q08_d_invvol", "Q08_den", "Q08_exact", "Q08_exact_den", "Q08_exact_num", "Q08_num", "Q08_ratio", "Q08_s1c", "Q08_s2c", "Q08_somme", "Q08_var", "Q08_var_invvar", "Q08_vol", "Q08_w1_den", "Q08_w1_num"]}}]}]}</script>
+<script>
+'use strict';
+const D = JSON.parse(document.getElementById('donnees').textContent);
+const ITEMS = D.sections.flatMap(s => s.questions.map(q => Object.assign({ nomSection: s.nom }, q)));
+const CLE = 'atelier-quant:' + D.id;
+const SERVEUR = location.protocol.startsWith('http');
+// La session survit à un rechargement de l'onglet : on se reconnecte alors au même noyau, variables comprises.
+const SESSION = (() => { const neuve = Math.random().toString(36).slice(2) + Date.now().toString(36); try { const s = sessionStorage.getItem('atelier-quant:session') || neuve; sessionStorage.setItem('atelier-quant:session', s); return s; } catch (e) { return neuve; } })();
+const page = document.getElementById('page');
+const noyauxDemarres = {};
+let E = etatNeuf('accueil');
+
+function etatNeuf(phase) { return { phase, courant: 0, debut: null, fin: null, reponses: {}, temps: {}, ordre: {}, cellules: {}, code: {}, controles: {}, ordreControles: {}, vus: {}, partie: {}, enregistrement: null, pauseDepuis: null, pauseTotale: 0 }; }
+// Options par défaut : la pause et « Je ne sais pas » sont permis, sauf si l'examen les interdit (examens blancs).
+const PAUSE_PERMISE = D.options.pause !== false;
+const NSP_PERMIS = D.options.je_ne_sais_pas !== false;
+function dureeEcoulee(fin) { return (fin - E.debut - (E.pauseTotale || 0) - (E.pauseDepuis ? fin - E.pauseDepuis : 0)) / 1000; }
+const NOTEES = ITEMS.filter(q => q.type !== 'lecon');
+function sauver() { try { localStorage.setItem(CLE, JSON.stringify(E)); } catch (e) {} }
+function charger() { try { const s = localStorage.getItem(CLE); if (s) E = Object.assign(etatNeuf('accueil'), JSON.parse(s)); } catch (e) {} }
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function enLigne(t) { return esc(t).replace(/`([^`]+)`/g, '<code class="sans-math">$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); }
+
+// Markdown réduit : titres #, tableaux |, listes - et 1., paragraphes, `code`, **gras**, blocs entre triples accents graves.
+function rendre(t) {
+  let h = '';
+  String(t).split('```').forEach((bloc, i) => {
+    if (i % 2) {
+      const info = (bloc.match(/^(\w*)\n/) || [])[1];
+      h += '<pre class="sans-math' + (info === 'sortie' ? ' sortie-lecon' : '') + '"><code>' + esc(bloc.replace(/^\w*\n/, '')) + '</code></pre>';
+      return;
+    }
+    const lignes = bloc.split('\n');
+    let k = 0;
+    while (k < lignes.length) {
+      const l = lignes[k];
+      if (!l.trim()) { k++; continue; }
+      const titre = l.match(/^(#{1,4})\s+(.*)$/);
+      if (titre) { const n = Math.min(4, titre[1].length + 1); h += '<h' + n + '>' + enLigne(titre[2]) + '</h' + n + '>'; k++; continue; }
+      if (l.trim().startsWith('|')) {
+        const rangs = [];
+        while (k < lignes.length && lignes[k].trim().startsWith('|')) { rangs.push(lignes[k].trim()); k++; }
+        const cellules = r => r.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+        h += '<div class="defile"><table><tr>' + cellules(rangs[0]).map(c => '<th>' + enLigne(c) + '</th>').join('') + '</tr>';
+        rangs.slice(1).filter(r => !/^\|[\s|:-]+\|$/.test(r)).forEach(r => { h += '<tr>' + cellules(r).map(c => '<td>' + enLigne(c) + '</td>').join('') + '</tr>'; });
+        h += '</table></div>'; continue;
+      }
+      const puce = /^\s*[-*]\s+/, numero = /^\s*\d+\.\s+/;
+      if (puce.test(l) || numero.test(l)) {
+        const motif = puce.test(l) ? puce : numero, balise = motif === puce ? 'ul' : 'ol';
+        h += '<' + balise + '>';
+        while (k < lignes.length && motif.test(lignes[k])) { h += '<li>' + enLigne(lignes[k].replace(motif, '')) + '</li>'; k++; }
+        h += '</' + balise + '>'; continue;
+      }
+      const par = [];
+      while (k < lignes.length && lignes[k].trim() && !/^(#{1,4}\s|\s*\||\s*[-*]\s|\s*\d+\.\s)/.test(lignes[k])) { par.push(lignes[k]); k++; }
+      const texte = par.join('\n').trim();
+      // Un paragraphe réduit à une seule formule est centré ; une formule au milieu d'une phrase reste dans la ligne.
+      const seule = texte.startsWith('\\(') && texte.endsWith('\\)') && texte.indexOf('\\(', 2) < 0;
+      h += (seule ? '<p class="formule">' : '<p>') + enLigne(par.join('\n')) + '</p>';
+    }
+  });
+  return h;
+}
+function composer(el) { if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([el || page]).catch(() => {}); }
+function mmss(s) { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+function melanger(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+async function api(chemin, corps) {
+  const r = await fetch(chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  return r.json();
+}
+
+let dernierTic = null;
+function tic() {
+  const ch = document.getElementById('chrono');
+  const bouton = document.getElementById('pause');
+  bouton.hidden = !(PAUSE_PERMISE && E.phase === 'epreuve');
+  document.getElementById('recommencerHaut').hidden = E.phase !== 'epreuve';
+  document.getElementById('voile').hidden = !(E.phase === 'epreuve' && E.pauseDepuis);
+  if (E.phase !== 'epreuve' || E.pauseDepuis) { dernierTic = null; return; }
+  const maintenant = Date.now();
+  if (dernierTic !== null) { const q = ITEMS[E.courant]; E.temps[q.id] = (E.temps[q.id] || 0) + (maintenant - dernierTic) / 1000; }
+  dernierTic = maintenant;
+  const reste = D.duree_minutes * 60 - dureeEcoulee(maintenant);
+  ch.textContent = (reste < 0 ? '+' : '') + mmss(Math.abs(reste));
+  ch.classList.toggle('depasse', reste < 0);
+}
+setInterval(() => { tic(); if (E.phase === 'epreuve') sauver(); }, 500);
+if (SERVEUR) document.getElementById('lienAccueil').hidden = false;
+document.getElementById('lienAccueil').onclick = () => {
+  if (E.phase === 'epreuve' && PAUSE_PERMISE && !E.pauseDepuis) { tic(); E.pauseDepuis = Date.now(); sauver(); }
+};
+document.getElementById('recommencerHaut').onclick = () => {
+  if (!confirm('Effacer ce passage (réponses, code, chronomètre) et revenir au début de la séance ?')) return;
+  try { localStorage.removeItem(CLE); } catch (e) {}
+  E = etatNeuf('accueil'); dernierTic = null; afficher();
+};
+document.getElementById('pause').onclick = () => { tic(); E.pauseDepuis = Date.now(); sauver(); tic(); };
+document.getElementById('reprendre').onclick = () => {
+  if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+  dernierTic = null; sauver(); tic();
+};
+
+// ------------------------------------------------------------------ accueil
+function accueil() {
+  page.className = '';
+  document.getElementById('position').textContent = '';
+  document.getElementById('chrono').textContent = mmss(D.duree_minutes * 60);
+  let h = '<div class="carte presentation"><h2>' + esc(D.titre) + '</h2><p class="meta">' + D.duree_minutes + ' min · ' + NOTEES.length + ' question' + (NOTEES.length > 1 ? 's' : '') + (D.options.pause === false ? ' · sans pause' : '') + '</p>' + rendre(D.presentation);
+  h += '<div class="sections-liste">';
+  D.sections.forEach(s => { const n = s.questions.filter(q => q.type !== 'lecon').length; h += '<div><span>' + esc(s.nom) + '</span><span class="meta">' + (n ? n + ' question' + (n > 1 ? 's' : '') : 'leçon') + ' · ' + s.budget_min + ' min</span></div>'; });
+  h += '</div>';
+  D.avertissements.forEach(a => { h += '<div class="note">' + rendre(a) + '</div>'; });
+  if (!SERVEUR && ITEMS.some(q => q.type === 'code')) h += '<div class="note"><p><strong>Le notebook ne peut pas s\'exécuter :</strong> cette page est ouverte comme un fichier. Lance <code class="sans-math">python lancer.py</code> dans le dossier du projet, puis ouvre l\'examen depuis la page qui s\'affiche.</p></div>';
+  h += '<p class="meta">' + esc(D.conventions) + '</p>';
+  h += '<div class="barre"><button class="principal" id="demarrer">Commencer</button></div></div>';
+  page.innerHTML = h;
+  document.getElementById('demarrer').onclick = () => {
+    E = etatNeuf('epreuve');
+    E.debut = Date.now();
+    ITEMS.forEach(q => {
+      if (q.type === 'qcm') E.ordre[q.id] = melanger(q.options.map(o => o.id));
+      if (q.cellules_initiales) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+      if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => { E.ordreControles[q.id + ':' + cid] = melanger(c.options.map(o => o.id)); });
+    });
+    sauver(); afficher();
+  };
+  composer();
+}
+
+// ------------------------------------------------------------------ épreuve
+function pastilles() {
+  const faite = it => it.type === 'lecon' ? !!E.vus[it.id] : it.type === 'code' ? (E.code[it.id] || {}).soumissions > 0 : E.reponses[it.id] !== undefined;
+  const barre = document.querySelector('#progression > span');
+  if (barre) barre.style.width = (100 * ITEMS.filter(faite).length / ITEMS.length) + '%';
+  let h = '<div class="cadre"><aside class="plan"><div id="pastilles">', section = null, n = 0;
+  ITEMS.forEach((it, i) => {
+    if (it.nomSection !== section) { section = it.nomSection; h += '<div class="groupe">' + esc(section) + '</div>'; }
+    const libelle = it.type === 'lecon' ? 'Leçon' : 'Question ' + (++n);
+    h += '<button class="pastille' + (faite(it) ? ' faite' : '') + (i === E.courant ? ' courante' : '') + '" data-i="' + i + '" title="' + esc(it.theme) + '"' + (D.options.retour_arriere || i === E.courant ? '' : ' disabled') + '><span class="etat"></span><span class="libelle">' + libelle + '</span></button>';
+  });
+  return h + '</div></aside><div class="contenu">';
+}
+const FIN_CADRE = '</div></div>';
+function navigation() {
+  let h = '<div class="barre navigation">';
+  if (D.options.retour_arriere) h += '<button id="prec"' + (E.courant === 0 ? ' disabled' : '') + '>Précédente</button>';
+  if (E.courant < ITEMS.length - 1) h += '<button class="principal" id="suiv">Suivante</button>';
+  return h + '<button id="finir">Terminer et corriger</button></div>';
+}
+function brancherNavigation() {
+  const aller = i => { tic(); E.courant = i; sauver(); afficher(); };
+  page.querySelectorAll('.pastille').forEach(b => b.onclick = () => aller(Number(b.dataset.i)));
+  const p = document.getElementById('prec'); if (p) p.onclick = () => aller(E.courant - 1);
+  const s = document.getElementById('suiv'); if (s) s.onclick = () => aller(E.courant + 1);
+  document.getElementById('finir').onclick = () => {
+    const manquantes = NOTEES.filter(it => it.type === 'code' ? !((E.code[it.id] || {}).soumissions > 0) : E.reponses[it.id] === undefined).length;
+    if (manquantes && !confirm(manquantes + ' question(s) sans réponse ou jamais soumise(s). Terminer quand même ?')) return;
+    tic();
+    if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+    E.phase = 'bilan'; E.fin = Date.now(); sauver(); afficher();
+  };
+}
+
+function epreuve() {
+  tic();
+  const q = ITEMS[E.courant];
+  document.getElementById('position').textContent = q.nomSection + (q.type === 'lecon' ? ' · étape ' : ' · question ') + (E.courant + 1) + ' sur ' + ITEMS.length;
+  if (q.type === 'lecon') E.vus[q.id] = true;
+  if (q.cellules_initiales) return epreuveCode(q);
+  if (q.type === 'lecon') return epreuveLecon(q);
+  page.className = '';
+  const rang = NOTEES.indexOf(q) + 1;
+  let h = pastilles() + '<div class="carte question"><div class="surtitre"><span class="rang">Question ' + rang + ' sur ' + NOTEES.length + '</span><span class="chip">' + esc(q.theme) + '</span><span>temps visé ' + mmss(q.temps_cible_s) + '</span></div>' + rendre(q.enonce);
+  h += '<p class="consigne">' + (q.multiple ? 'Une ou plusieurs réponses : coche toutes les affirmations justes, et seulement elles (notation tout ou rien).' : 'Une seule réponse.') + '</p>';
+  E.ordre[q.id].forEach((oid, k) => {
+    const o = q.options.find(x => x.id === oid);
+    h += '<div class="option' + (choisies(q).includes(oid) ? ' choisie' : '') + '" data-o="' + oid + '"><span class="lettre' + (q.multiple ? ' carre' : '') + '">' + 'ABCDE'[k] + '</span><div>' + rendre(o.texte) + '</div></div>';
+  });
+  if (NSP_PERMIS) h += '<div class="option' + (E.reponses[q.id] === 'nsp' ? ' choisie' : '') + '" data-o="nsp"><span class="lettre">?</span><div><p>Je ne sais pas (compte comme faux, mais évite qu\'un hasard heureux masque une lacune)</p></div></div>';
+  page.innerHTML = h + navigation() + '</div>' + FIN_CADRE;
+  page.querySelectorAll('.option').forEach(el => el.onclick = () => {
+    const o = el.dataset.o;
+    if (q.multiple && o !== 'nsp') {
+      const s = choisies(q), k = s.indexOf(o);
+      if (k >= 0) s.splice(k, 1); else s.push(o);
+      if (s.length) E.reponses[q.id] = s.sort(); else delete E.reponses[q.id];
+    } else if (E.reponses[q.id] === o) delete E.reponses[q.id]; else E.reponses[q.id] = o;
+    sauver(); afficher();
+  });
+  brancherNavigation();
+  composer();
+}
+
+// ------------------------------------------------------------------ notebook
+function epreuveLecon(q) {
+  page.className = 'lecture';
+  page.innerHTML = pastilles() + '<div class="carte enonce"><div class="surtitre"><span class="rang">Leçon</span><span class="chip">' + esc(q.theme) + '</span><span>environ ' + Math.round(q.temps_cible_s / 60) + ' min</span></div>' + rendreLecon(q) + navigation() + '</div>' + FIN_CADRE;
+  brancherControles(q);
+  brancherNavigation();
+  composer();
+}
+
+// Points de contrôle : question corrigée dès le clic, non notée.
+function rendreLecon(q) {
+  const brut = rendre(q.contenu).replace(/<p>\[\[controle:([\w-]+)\]\]<\/p>/g, (_, cid) => '<div class="controle" data-c="' + cid + '"></div>');
+  // Une partie par titre de niveau 2 ; dans chaque partie, un bloc par rubrique (problème, énoncé, preuve, exemple...).
+  const source = document.createElement('div');
+  source.innerHTML = brut;
+  const parties = [];
+  Array.from(source.childNodes).forEach(n => {
+    if (n.nodeName === 'H3' || !parties.length) parties.push({ titre: n.nodeName === 'H3' ? n.textContent : 'Introduction', noeuds: [] });
+    parties[parties.length - 1].noeuds.push(n);
+  });
+  const genre = t => /preuve/i.test(t) ? 'preuve' : /pi[èe]ge/i.test(t) ? 'pieges' : /exemple|exp[ée]rience/i.test(t) ? 'exemple'
+    : /[ée]nonc[ée]/i.test(t) ? 'enonce-bloc' : /intuition/i.test(t) ? 'intuition' : /probl[èe]me/i.test(t) ? 'probleme'
+    : /cas limites/i.test(t) ? 'limites' : /d[ée]finition|notation|cadre|mod[èe]le/i.test(t) ? 'definitions' : '';
+  const courante = Math.min((E.partie || {})[q.id] || 0, parties.length - 1);
+  let h = '<div class="lecon-corps" data-lecon="' + q.id + '"><nav class="sommaire">';
+  parties.forEach((p, k) => { h += '<button data-partie="' + k + '"' + (k === courante ? ' class="active"' : '') + '>' + (k + 1) + '. ' + esc(p.titre.replace(/^(Leçon|Partie \d+|Outil \d+|\d+\.)\s*:?\s*/i, '').slice(0, 42) || p.titre) + '</button>'; });
+  h += '</nav>';
+  parties.forEach((p, k) => {
+    h += '<section class="partie" data-partie="' + k + '"' + (k === courante ? '' : ' hidden') + '>';
+    let bloc = null;
+    const fermer = () => { if (bloc) { h += bloc.genre === 'question' ? ficheDebrief(bloc.titre, bloc.noeuds) : bloc.genre === 'preuve' ? '</details>' : '</div>'; bloc = null; } };
+    p.noeuds.forEach(n => {
+      if (bloc && bloc.genre === 'question' && n.nodeName !== 'H4' && n.nodeName !== 'H3') { bloc.noeuds.push(n); return; }
+      if (n.nodeName === 'H4' && /^Question \d+/.test(n.textContent)) {
+        fermer();
+        bloc = { genre: 'question', titre: n.textContent, noeuds: [] };
+      } else if (n.nodeName === 'H4') {
+        fermer();
+        const g = genre(n.textContent);
+        bloc = { genre: g };
+        if (g === 'preuve') h += '<details class="bloc preuve"><summary>' + esc(n.textContent) + '<span class="meta">déplier pour la lire</span></summary>';
+        else h += '<div class="bloc ' + g + '"><h4>' + esc(n.textContent) + '</h4>';
+      } else if (n.nodeName === 'H3') { fermer(); h += n.outerHTML; }
+      else h += n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    });
+    fermer();
+    h += '<div class="pied-partie"><button data-aller="' + (k - 1) + '"' + (k === 0 ? ' disabled' : '') + '>Partie précédente</button>'
+      + '<span class="meta">Partie ' + (k + 1) + ' sur ' + parties.length + '</span>'
+      + (k < parties.length - 1 ? '<button class="principal" data-aller="' + (k + 1) + '">Partie suivante</button>' : '<span class="meta">Fin de la leçon : passe à la suite avec « Suivante ».</span>') + '</div></section>';
+  });
+  return h + '</div>';
+}
+// Une question du débrief : en-tête (numéro, titre, verdict), énoncé, réponses côte à côte, rubriques, à retenir.
+function ficheDebrief(titre, noeuds) {
+  const m = titre.match(/^(Question \d+)\s*:?\s*(.*)$/);
+  const gras = n => n.nodeName === 'P' && n.firstChild && n.firstChild.nodeName === 'STRONG' ? n.firstChild.textContent.trim() : '';
+  const reste = n => { const c = n.cloneNode(true); c.removeChild(c.firstChild); return c.innerHTML.trim(); };
+  let enonce = '', ta = null, attendue = null, verdict = '', corps = '', retenir = '', revoir = '', etat = 'enonce';
+  noeuds.forEach(n => {
+    const g = gras(n), html = n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    if (/^Ta réponse/.test(g)) { ta = reste(n); etat = 'corps'; }
+    else if (/^Réponse attendue/.test(g)) { attendue = reste(n); etat = 'corps'; }
+    else if (/^Verdict/.test(g)) { verdict = reste(n); etat = 'corps'; }
+    else if (/^À retenir/.test(g)) { retenir = '<h5>À retenir</h5><p>' + reste(n) + '</p>'; etat = 'retenir'; }
+    else if (/^Leçon à revoir/.test(g)) { revoir = reste(n); etat = 'fin'; }
+    else if (g && n.textContent.trim() === g) { corps += '<h5>' + esc(g.replace(/[.:]\s*$/, '')) + '</h5>'; etat = 'corps'; }
+    else if (etat === 'enonce') enonce += n.nodeName === 'P' && /^Type :/.test(n.textContent) ? '<p class="meta">' + n.innerHTML + '</p>' : n.nodeName === 'UL' ? '<ul class="choix">' + n.innerHTML + '</ul>' : html;
+    else if (etat === 'retenir') retenir += html;
+    else corps += html;
+  });
+  const brut = verdict.replace(/<[^>]+>/g, '').trim();
+  const v = /^juste/i.test(brut) ? ['v-juste', 'Juste'] : /^fausse/i.test(brut) ? ['v-fausse', 'Fausse'] : /^incompl/i.test(brut) ? ['v-incomplete', 'Incomplète']
+    : /^non visible/i.test(brut) ? ['', 'Réponse non visible'] : ['', ''];
+  const suite = brut.replace(/^[^.]*\.\s*/, '');
+  let h = '<article class="fiche ' + v[0] + '"><header class="fiche-tete"><span class="num">' + esc(m[1]) + '</span><span class="titre">' + esc(m[2]) + '</span>'
+    + (v[1] ? '<span class="verdict">' + v[1] + '</span>' : '') + '</header><div class="fiche-corps">';
+  if (ta === null && attendue === null) return h + enonce + corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '') + '</div></article>';
+  h += '<h5>Énoncé</h5>' + enonce;
+  h += '<div class="fiche-reponses"><div><span class="lab">Ta réponse</span>' + (ta || 'non visible') + '</div><div><span class="lab">Réponse attendue</span>' + (attendue || '') + '</div></div>';
+  if (suite) h += '<p class="meta">' + verdict.replace(/^[^.]*\.\s*/, '') + '</p>';
+  h += corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '');
+  return h + '</div></article>';
+}
+function brancherLecon(q) {
+  const corps = page.querySelector('.lecon-corps');
+  if (!corps) return;
+  const aller = k => {
+    if (!E.partie) E.partie = {};
+    E.partie[q.id] = k; sauver();
+    corps.querySelectorAll('.partie').forEach(sec => { sec.hidden = Number(sec.dataset.partie) !== k; });
+    corps.querySelectorAll('.sommaire button').forEach(b => b.classList.toggle('active', Number(b.dataset.partie) === k));
+    const cadre = corps.closest('.enonce');
+    if (cadre) cadre.scrollTop = 0;
+    window.scrollTo(0, 0);
+  };
+  corps.querySelectorAll('.sommaire button').forEach(b => b.onclick = () => aller(Number(b.dataset.partie)));
+  corps.querySelectorAll('[data-aller]').forEach(b => b.onclick = () => aller(Number(b.dataset.aller)));
+}
+function dessinerControle(q, el) {
+  const cid = el.dataset.c, c = q.controles[cid], cle = q.id + ':' + cid, choix = E.controles[cle];
+  const ordre = E.ordreControles[cle] || c.options.map(o => o.id);
+  let h = '<p class="titre-controle">Point de contrôle' + (choix ? (c.options.find(o => o.id === choix).correcte ? ' · juste' : ' · à revoir') : '') + '</p>' + rendre(c.question);
+  ordre.forEach((oid, k) => {
+    const o = c.options.find(x => x.id === oid);
+    const classe = choix ? (o.correcte ? ' juste' : (oid === choix ? ' fausse' : '')) + (oid === choix ? ' choisie' : '') : '';
+    const montrer = choix && (oid === choix || o.correcte);
+    h += '<div class="option' + classe + '" data-co="' + oid + '"><span class="lettre">' + 'ABCD'[k] + '</span><div>' + rendre(o.texte)
+      + (montrer ? '<div class="explication">' + rendre(o.explication) + '</div>' : '') + '</div></div>';
+  });
+  el.innerHTML = h;
+  if (!choix) el.querySelectorAll('.option').forEach(op => op.onclick = () => { E.controles[cle] = op.dataset.co; sauver(); dessinerControle(q, el); composer(el); });
+}
+function brancherControles(q) { page.querySelectorAll('.controle').forEach(el => dessinerControle(q, el)); brancherLecon(q); }
+
+function epreuveCode(q) {
+  page.className = 'large';
+  const lecon = q.type === 'lecon';
+  let h = pastilles() + '<div class="deux' + (lecon ? ' lecon' : '') + '"><div class="carte enonce"><div class="meta">' + esc(q.theme) + (lecon ? ' · durée visée ' : ' · temps cible ') + mmss(q.temps_cible_s) + '</div>' + (lecon ? rendreLecon(q) : rendre(q.enonce)) + '</div>';
+  h += '<div class="carte"><div class="notebook-barre"><button id="toutExecuter">Tout exécuter</button><button id="redemarrer">Redémarrer le noyau</button><button id="ajouter">Ajouter une cellule</button><span class="meta" id="versions">' + (SERVEUR ? 'noyau : démarrage...' : 'noyau indisponible : lance python lancer.py') + '</span><span class="meta" id="modeEditeur"></span></div>';
+  h += '<div id="cellules"></div>';
+  if (!lecon) h += '<div class="barre"><button id="testsVisibles">Tests visibles</button><button class="principal" id="soumettre">Soumettre</button><span class="meta" id="etatSoumission"></span></div>';
+  h += '<div class="resultats-tests" id="resultatsTests"></div>' + navigation() + '</div></div>' + FIN_CADRE;
+  page.innerHTML = h;
+  dessinerCellules(q);
+  if (lecon) brancherControles(q); else afficherEtatSoumission(q);
+  brancherNavigation();
+  document.getElementById('toutExecuter').onclick = async () => { for (let i = 0; i < E.cellules[q.id].length; i++) { if (!(await executerCellule(q, i))) break; } };
+  document.getElementById('redemarrer').onclick = () => demarrerNoyau(q, true);
+  document.getElementById('ajouter').onclick = () => { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(E.cellules[q.id].length - 1); };
+  if (!lecon) {
+    document.getElementById('testsVisibles').onclick = () => lancerTests(q, 'visibles');
+    document.getElementById('soumettre').onclick = () => lancerTests(q, 'caches');
+  }
+  if (!SERVEUR) page.querySelectorAll('.notebook-barre button, #testsVisibles, #soumettre').forEach(b => b.disabled = true);
+  else if (!noyauxDemarres[q.id]) demarrerNoyau(q, false, true);
+  else document.getElementById('versions').textContent = noyauxDemarres[q.id];
+  composer(page.querySelector('.enonce'));
+}
+
+async function demarrerNoyau(q, confirmer, reconnexion) {
+  if (confirmer && !confirm('Redémarrer le noyau ? Toutes les variables seront perdues.')) return;
+  const zone = document.getElementById('versions');
+  zone.textContent = 'noyau : démarrage...';
+  let v;
+  try { v = await api(reconnexion ? '/api/connecter' : '/api/redemarrer', { session: SESSION, dossier: q.dossier }); }
+  catch (e) { v = null; }
+  if (!v) noyauxDemarres[q.id] = 'noyau injoignable : le serveur lancer.py est-il démarré ?';
+  else {
+    const etat = v.neuf ? 'noyau neuf' : 'noyau reconnecté, variables conservées';
+    noyauxDemarres[q.id] = v.erreur ? 'noyau : ' + v.erreur : etat + ' · Python ' + v.python + ' · pandas ' + v.pandas + ' · numpy ' + v.numpy;
+    if (v.neuf) (E.cellules[q.id] || []).forEach(c => c.numero = null);
+    sauver(); majNumeros(q);
+  }
+  const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id];
+}
+
+function rendreSortie(c) { return c.sortie || ''; }
+
+// ------------------------------------------------------------------ éditeur
+// Monaco (l'éditeur de VS Code) depuis cdnjs ; les suggestions, signatures et aides viennent de jedi
+// dans le noyau, qui connaît les variables déjà exécutées. Sans connexion, repli sur une zone de texte simple.
+const MONACO_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min';
+let MONACO = null, promesseMonaco = null;
+const EDITEURS = [];
+window.EDITEURS = EDITEURS;
+// Monaco annule ses tâches en cours quand on ferme un éditeur ; cette annulation n'est pas une erreur.
+window.addEventListener('unhandledrejection', ev => { if (ev.reason && ev.reason.name === 'Canceled') ev.preventDefault(); });
+function sombre() { return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches; }
+function questionCode() { const q = ITEMS[E.courant]; return E.phase === 'epreuve' && q && q.cellules_initiales ? q : null; }
+function chargerMonaco() {
+  if (promesseMonaco) return promesseMonaco;
+  promesseMonaco = new Promise(resolve => {
+    const abandon = setTimeout(() => fini(null), 20000);
+    function fini(m) { clearTimeout(abandon); if (window.MODE_EDITEUR === undefined) { MONACO = m; window.MODE_EDITEUR = m ? 'monaco' : 'simple'; } resolve(MONACO); }
+    const s = document.createElement('script');
+    s.src = MONACO_BASE + '/vs/loader.js';
+    s.onerror = () => fini(null);
+    s.onload = () => {
+      window.MonacoEnvironment = { getWorkerUrl: () => 'data:text/javascript;charset=utf-8,' + encodeURIComponent("self.MonacoEnvironment={baseUrl:'" + MONACO_BASE + "/'};importScripts('" + MONACO_BASE + "/vs/base/worker/workerMain.js');") };
+      window.require.config({ paths: { vs: MONACO_BASE + '/vs' } });
+      window.require(['vs/editor/editor.main'], () => { try { configurerMonaco(window.monaco); fini(window.monaco); } catch (e) { fini(null); } }, () => fini(null));
+    };
+    document.head.appendChild(s);
+  });
+  return promesseMonaco;
+}
+async function aide(type, model, position) {
+  const q = questionCode();
+  if (!q || !SERVEUR) return null;
+  try { return await api('/api/' + type, { session: SESSION, dossier: q.dossier, code: model.getValue(), ligne: position.lineNumber, colonne: position.column - 1 }); }
+  catch (e) { return null; }
+}
+function configurerMonaco(m) {
+  const K = m.languages.CompletionItemKind;
+  const genres = { module: K.Module, class: K.Class, instance: K.Variable, function: K.Function, param: K.Variable, path: K.File, keyword: K.Keyword, property: K.Property, statement: K.Variable };
+  m.languages.registerCompletionItemProvider('python', {
+    triggerCharacters: ['.'],
+    provideCompletionItems: async (model, position) => {
+      const r = await aide('completer', model, position);
+      if (!r || !r.completions) return { suggestions: [] };
+      const mot = model.getWordUntilPosition(position);
+      const plage = new m.Range(position.lineNumber, mot.startColumn, position.lineNumber, mot.endColumn);
+      return { suggestions: r.completions.map((c, k) => ({ label: c.nom, kind: genres[c.type] ?? K.Variable, insertText: c.nom, detail: c.description, range: plage, sortText: String(k).padStart(4, '0') })) };
+    }
+  });
+  m.languages.registerSignatureHelpProvider('python', {
+    signatureHelpTriggerCharacters: ['(', ','],
+    provideSignatureHelp: async (model, position) => {
+      const r = await aide('signatures', model, position);
+      if (!r || !r.signatures || !r.signatures.length) return null;
+      return { value: { signatures: r.signatures.map(x => ({ label: x.texte, documentation: x.doc, parameters: x.parametres.map(p => ({ label: p })) })), activeSignature: 0, activeParameter: r.signatures[0].index ?? 0 }, dispose() {} };
+    }
+  });
+  m.languages.registerHoverProvider('python', {
+    provideHover: async (model, position) => {
+      const r = await aide('aide', model, position);
+      if (!r || !r.aide || !r.aide.length) return null;
+      return { contents: r.aide.map(a => ({ value: '```text\n' + a.doc + '\n```' })) };
+    }
+  });
+}
+function creerEditeur(conteneur, code, rappels) {
+  if (MONACO) {
+    const m = MONACO;
+    const ed = m.editor.create(conteneur, {
+      value: code, language: 'python', theme: sombre() ? 'vs-dark' : 'vs', fontSize: 14, tabSize: 4, insertSpaces: true,
+      minimap: { enabled: false }, scrollBeyondLastLine: false, automaticLayout: true, lineNumbersMinChars: 3, folding: false,
+      glyphMargin: false, renderLineHighlight: 'none', overviewRulerLanes: 0, wordBasedSuggestions: 'off', fixedOverflowWidgets: true,
+      quickSuggestions: { other: true, comments: false, strings: false }, padding: { top: 6, bottom: 6 },
+      scrollbar: { alwaysConsumeMouseWheel: false, vertical: 'hidden', horizontalScrollbarSize: 8 }
+    });
+    // Sous Windows, Monaco utilise des fins de ligne \r\n ; le code est toujours lu avec des \n, comme dans un notebook.
+    const lire = () => ed.getModel().getValue(m.editor.EndOfLinePreference.LF);
+    const hauteur = () => { conteneur.style.height = Math.max(38, ed.getContentHeight()) + 'px'; };
+    ed.onDidContentSizeChange(hauteur); hauteur();
+    ed.onDidChangeModelContent(() => rappels.modif(lire()));
+    ed.onDidFocusEditorText(rappels.focus);
+    ed.addCommand(m.KeyMod.Shift | m.KeyCode.Enter, rappels.executerSuivant, '!suggestWidgetVisible');
+    ed.addCommand(m.KeyMod.CtrlCmd | m.KeyCode.Enter, rappels.executer, '!suggestWidgetVisible');
+    return { brut: ed, getValue: lire, setValue: v => ed.setValue(v), focus: () => ed.focus(), dispose: () => ed.dispose() };
+  }
+  const zone = document.createElement('textarea');
+  zone.spellcheck = false; zone.autocomplete = 'off'; zone.className = 'sans-math';
+  zone.value = code;
+  conteneur.appendChild(zone);
+  zone.addEventListener('input', () => { rappels.modif(zone.value); ajuster(zone); });
+  zone.addEventListener('focus', rappels.focus);
+  zone.addEventListener('keydown', ev => clavier(ev, zone, rappels));
+  setTimeout(() => ajuster(zone));
+  return { brut: zone, getValue: () => zone.value, setValue: v => { zone.value = v; zone.dispatchEvent(new Event('input')); }, focus: () => zone.focus(), dispose: () => {} };
+}
+function libererEditeurs() { EDITEURS.forEach(e => e.dispose()); EDITEURS.length = 0; }
+
+function dessinerCellules(q) {
+  const conteneur = document.getElementById('cellules');
+  if (!conteneur) return;
+  if (SERVEUR && window.MODE_EDITEUR === undefined) {
+    conteneur.innerHTML = '<p class="meta">Chargement de l\'éditeur...</p>';
+    chargerMonaco().then(() => { if (questionCode() === q) dessinerCellules(q); });
+    return;
+  }
+  libererEditeurs();
+  conteneur.innerHTML = '';
+  const etat = document.getElementById('modeEditeur');
+  if (etat) etat.textContent = MONACO ? 'éditeur VS Code, autocomplétion' : 'éditeur simple' + (SERVEUR ? ' (Monaco injoignable)' : '');
+  E.cellules[q.id].forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'cellule';
+    div.innerHTML = '<div class="numero">[' + (c.numero === null ? ' ' : c.numero) + ']</div><div><div class="editeur"></div>'
+      + '<div class="actions"><button data-a="executer">Exécuter</button><button data-a="dessous">Insérer dessous</button><button data-a="supprimer">Supprimer</button></div>'
+      + '<pre class="sortie sans-math"></pre></div>';
+    div.querySelector('pre.sortie').innerHTML = rendreSortie(c);
+    conteneur.appendChild(div);
+    EDITEURS.push(creerEditeur(div.querySelector('.editeur'), c.code, {
+      modif: v => { c.code = v; sauver(); },
+      focus: () => { conteneur.querySelectorAll('.cellule').forEach(x => x.classList.remove('active')); div.classList.add('active'); },
+      executer: () => executerCellule(q, i),
+      executerSuivant: () => {
+        executerCellule(q, i);
+        if (i === E.cellules[q.id].length - 1) { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); }
+        focaliser(i + 1);
+      }
+    }));
+    div.querySelector('[data-a=executer]').onclick = () => executerCellule(q, i);
+    div.querySelector('[data-a=dessous]').onclick = () => { E.cellules[q.id].splice(i + 1, 0, { code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(i + 1); };
+    div.querySelector('[data-a=supprimer]').onclick = () => { if (E.cellules[q.id].length > 1) { E.cellules[q.id].splice(i, 1); sauver(); dessinerCellules(q); } };
+  });
+}
+function majNumeros(q) { document.querySelectorAll('#cellules .numero').forEach((n, i) => { const c = E.cellules[q.id][i]; n.textContent = '[' + (c && c.numero !== null ? c.numero : ' ') + ']'; }); }
+function ajuster(zone) { zone.style.height = 'auto'; zone.style.height = (zone.scrollHeight + 2) + 'px'; }
+function focaliser(i) { const e = EDITEURS[i]; if (e) e.focus(); }
+function inserer(zone, texte) {
+  zone.focus();
+  if (!document.execCommand('insertText', false, texte)) zone.setRangeText(texte, zone.selectionStart, zone.selectionEnd, 'end');
+  zone.dispatchEvent(new Event('input'));
+}
+function clavier(ev, zone, rappels) {
+  if (ev.key === 'Enter' && (ev.shiftKey || ev.ctrlKey)) {
+    ev.preventDefault();
+    if (ev.shiftKey) rappels.executerSuivant(); else rappels.executer();
+    return;
+  }
+  const debut = zone.selectionStart, fin = zone.selectionEnd, v = zone.value;
+  const debutLigne = v.lastIndexOf('\n', debut - 1) + 1;
+  if (ev.key === 'Tab') {
+    ev.preventDefault();
+    const multi = v.slice(debut, fin).includes('\n');
+    if (!ev.shiftKey && !multi) { inserer(zone, '    '); return; }
+    const finBloc = fin;
+    const bloc = v.slice(debutLigne, finBloc);
+    const nouveau = ev.shiftKey ? bloc.replace(/^ {1,4}/gm, '') : bloc.replace(/^/gm, '    ');
+    zone.setSelectionRange(debutLigne, finBloc);
+    inserer(zone, nouveau);
+    zone.setSelectionRange(debutLigne, debutLigne + nouveau.length);
+    return;
+  }
+  if (ev.key === 'Enter' && !ev.altKey && !ev.metaKey) {
+    ev.preventDefault();
+    const ligne = v.slice(debutLigne, debut);
+    let retrait = ligne.match(/^ */)[0];
+    if (/:\s*(#.*)?$/.test(ligne)) retrait += '    ';
+    inserer(zone, '\n' + retrait);
+  }
+}
+
+async function executerCellule(q, i) {
+  if (!SERVEUR) return false;
+  const c = E.cellules[q.id][i];
+  const div = document.querySelectorAll('#cellules .cellule')[i];
+  if (div) { div.querySelector('.numero').textContent = '[*]'; div.querySelector('pre.sortie').innerHTML = ''; }
+  let r;
+  try { r = await api('/api/executer', { session: SESSION, dossier: q.dossier, code: c.code, nom: 'cellule ' + (i + 1) }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  E.compteur = (E.compteur || 0) + 1;
+  c.numero = E.compteur;
+  let h = '';
+  if (r.sortie) h += esc(r.sortie);
+  if (r.valeur !== null && r.valeur !== undefined) h += (h && !h.endsWith('\n') ? '\n' : '') + esc(r.valeur);
+  if (r.erreur) h += (h && !h.endsWith('\n') ? '\n' : '') + '<span class="erreur">' + esc(r.erreur) + '</span>';
+  if (r.redemarre) { noyauxDemarres[q.id] = 'noyau redémarré : variables perdues'; const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id]; }
+  c.sortie = h;
+  sauver();
+  const d = document.querySelectorAll('#cellules .cellule')[i];
+  if (d) { d.querySelector('.numero').textContent = '[' + c.numero + ']'; d.querySelector('pre.sortie').innerHTML = h; }
+  return !r.erreur;
+}
+
+function codeSource(q) { return E.cellules[q.id].map((c, i) => '# %% cellule ' + (i + 1) + '\n' + c.code).join('\n\n') + '\n'; }
+function afficherEtatSoumission(q) {
+  const s = E.code[q.id] || {};
+  const z = document.getElementById('etatSoumission');
+  if (z) z.textContent = s.soumissions ? s.soumissions + ' soumission(s) · dernière : ' + s.caches_reussis + '/' + s.caches_total + ' tests cachés réussis' : 'jamais soumis';
+}
+async function lancerTests(q, mode) {
+  const zone = document.getElementById('resultatsTests');
+  zone.innerHTML = '<p class="meta">' + (mode === 'visibles' ? 'Tests visibles' : 'Tests cachés') + ' en cours...</p>';
+  let r;
+  try { r = await api('/api/tests', { session: SESSION, dossier: q.dossier, module: q.module_tests, mode }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  if (r.erreur) { zone.innerHTML = '<pre class="sans-math"><span class="erreur">' + esc(r.erreur) + '</span></pre>'; return; }
+  let h = '<p class="etiquette ' + (r.reussis === r.total ? 'bon' : 'faux') + '">' + (mode === 'visibles' ? 'Tests visibles : ' : 'Tests cachés : ') + r.reussis + '/' + r.total + ' réussis</p>';
+  if (mode === 'visibles') {
+    h += '<div class="defile"><table><tr><th>Test</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th><th class="nombre">Durée</th></tr>';
+    r.resultats.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? '') + '</code></td><td class="nombre">' + t.duree_s + ' s</td></tr>'; });
+    h += '</table></div>';
+    r.resultats.filter(t => t.erreur).forEach(t => { h += '<pre class="sans-math"><span class="erreur">' + esc(t.nom + ' :\n' + t.erreur) + '</span></pre>'; });
+    E.code[q.id] = Object.assign(E.code[q.id] || {}, { visibles_reussis: r.reussis });
+  } else {
+    h += '<div class="defile"><table><tr><th>Test caché</th><th>Résultat</th></tr>';
+    r.resultats.forEach((t, k) => { h += '<tr><td>Test ' + (k + 1) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec' + (t.erreur ? ' (exception ou temps dépassé)' : '')) + '</td></tr>'; });
+    h += '</table></div>';
+    const s = E.code[q.id] || {};
+    E.code[q.id] = Object.assign(s, { soumissions: (s.soumissions || 0) + 1, caches_reussis: r.reussis, caches_total: r.total, details: r.resultats, code_source: codeSource(q) });
+    afficherEtatSoumission(q);
+    const p = page.querySelector('.pastille.courante'); if (p) p.classList.add('faite');
+  }
+  sauver();
+  zone.innerHTML = h;
+}
+
+// ------------------------------------------------------------------ bilan
+function points(q) {
+  if (q.type === 'code') { const c = E.code[q.id]; return c && c.soumissions ? c.caches_reussis / c.caches_total : 0; }
+  const r = E.reponses[q.id];
+  if (r === undefined || r === 'nsp') return 0;
+  // Une question à plusieurs réponses est notée tout ou rien : l'ensemble coché doit être exactement l'ensemble juste.
+  const s = choisies(q), bonnes = q.options.filter(o => o.correcte).map(o => o.id);
+  return s.length === bonnes.length && bonnes.every(b => s.includes(b)) ? 1 : -D.options.penalite;
+}
+function choisies(q) { const r = E.reponses[q.id]; return r === undefined || r === 'nsp' ? [] : Array.isArray(r) ? r.slice() : [r]; }
+function texteOption(q, id) { const o = q.options.find(x => x.id === id); return o ? o.texte : null; }
+
+function resultatJSON(duree) {
+  return {
+    examen: D.id, debut: new Date(E.debut).toISOString(), duree_s: Math.round(duree), pauses_s: Math.round((E.pauseTotale || 0) / 1000), options: D.options,
+    lecons: ITEMS.filter(q => q.type === 'lecon').map(q => {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      return { id: q.id, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), controles_justes_du_premier_coup: justes, controles_total: ids.length };
+    }),
+    questions: NOTEES.map(q => {
+      const base = { id: q.id, type: q.type, section: q.section, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), temps_cible_s: q.temps_cible_s, points: Number(points(q).toFixed(4)) };
+      if (q.type === 'code') {
+        const c = E.code[q.id] || {};
+        return Object.assign(base, { soumissions: c.soumissions || 0, caches_reussis: c.caches_reussis || 0, caches_total: c.caches_total || q.tests_caches, visibles_reussis: c.visibles_reussis ?? null, code_source: c.code_source || codeSource(q) });
+      }
+      const r = E.reponses[q.id] ?? null;
+      return Object.assign(base, { reponse: r, reponse_texte: r && r !== 'nsp' ? choisies(q).map(i => texteOption(q, i)).join(' ; ') : null, bonne_reponse_texte: q.options.filter(o => o.correcte).map(o => o.texte).join(' ; ') });
+    })
+  };
+}
+
+function bilan() {
+  page.className = '';
+  document.getElementById('position').textContent = 'Bilan';
+  const duree = dureeEcoulee(E.fin);
+  document.getElementById('chrono').textContent = mmss(duree);
+  let total = 0;
+  let h = '<div class="carte"><h2>Bilan</h2>@SCORE@<div class="defile"><table><tr><th>Section</th><th class="nombre">Score</th><th class="nombre">Temps passé</th><th class="nombre">Temps indicatif</th></tr>';
+  D.sections.forEach(s => {
+    const notees = s.questions.filter(q => q.type !== 'lecon');
+    const pts = notees.reduce((a, q) => a + points(q), 0);
+    const t = s.questions.reduce((a, q) => a + (E.temps[q.id] || 0), 0);
+    total += pts;
+    h += '<tr><td>' + esc(s.nom) + '</td><td class="nombre">' + (notees.length ? pts.toFixed(2).replace('.', ',') + ' / ' + notees.length : 'non notée') + '</td><td class="nombre">' + mmss(t) + '</td><td class="nombre">' + mmss(s.budget_min * 60) + '</td></tr>';
+  });
+  h += '<tr><th>Total</th><th class="nombre">' + total.toFixed(2).replace('.', ',') + ' / ' + NOTEES.length + '</th><th class="nombre">' + mmss(duree) + '</th><th class="nombre">' + mmss(D.duree_minutes * 60) + '</th></tr></table></div>';
+  h = h.replace('@SCORE@', '<div class="score-total"><strong>' + total.toFixed(2).replace('.', ',').replace(/,00$/, '') + ' / ' + NOTEES.length + '</strong><span class="meta">en ' + mmss(duree) + '</span></div>');
+  const barreFin = document.querySelector('#progression > span'); if (barreFin) barreFin.style.width = '100%';
+  h += '<p id="enregistrement" class="meta"></p>';
+  h += '<details><summary>Résultat brut (JSON)</summary><textarea readonly class="json sans-math" id="json"></textarea><div class="barre"><button id="telecharger">Enregistrer le fichier</button></div></details>';
+  h += '<div class="barre">' + (SERVEUR ? '<button class="principal" id="retourAccueil">Retour à l\'accueil (séance suivante)</button>' : '')
+    + '<button id="recommencer">Effacer et recommencer</button></div></div>';
+  ITEMS.forEach((q, i) => {
+    const temps = mmss(E.temps[q.id] || 0) + ' sur ' + mmss(q.temps_cible_s) + ' visés';
+    const tete = (classe, verdict) => '<article class="fiche ' + classe + '"><header class="fiche-tete"><span class="num">' + (q.type === 'lecon' ? 'Leçon' : 'Question ' + (i + 1)) + '</span><span class="titre">' + esc(q.theme)
+      + '</span><span class="temps">' + esc(q.nomSection) + ' · ' + temps + '</span>' + (verdict ? '<span class="verdict">' + verdict + '</span>' : '') + '</header><div class="fiche-corps">';
+    if (q.type === 'lecon') {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      h += tete('', '') + '<p>Points de contrôle justes du premier coup : ' + justes + ' sur ' + ids.length + '. La leçon reste consultable depuis la séance.</p></div></article>';
+      return;
+    }
+    if (q.type === 'qcm') {
+      const r = E.reponses[q.id], juste = points(q) === 1;
+      const s = choisies(q), incomplete = !juste && q.multiple && s.length > 0 && s.every(id => q.options.find(o => o.id === id).correcte);
+      h += tete(juste ? 'v-juste' : incomplete ? 'v-incomplete' : r === undefined || r === 'nsp' ? '' : 'v-fausse',
+        juste ? 'Juste' : r === undefined ? 'Sans réponse' : r === 'nsp' ? 'Je ne sais pas' : incomplete ? 'Incomplète' : 'Fausse');
+      h += '<h5>Énoncé</h5>' + rendre(q.enonce) + '<h5>' + (q.multiple ? 'Options (plusieurs réponses, tout ou rien)' : 'Options') + '</h5>';
+      E.ordre[q.id].forEach((oid, k) => {
+        const o = q.options.find(x => x.id === oid), choisie = s.includes(oid);
+        const puces = (o.correcte ? '<span class="puce bon">' + (q.multiple ? 'Juste' : 'Bonne réponse') + '</span>' : '') + (choisie ? '<span class="puce' + (o.correcte ? ' bon' : ' faux') + '">Ta réponse</span>' : '');
+        h += '<div class="option ' + (o.correcte ? 'juste' : 'fausse') + (choisie ? ' choisie' : '') + '"><span class="lettre">' + 'ABCDE'[k] + '</span><div>' + puces + rendre(o.texte)
+          + '<div class="explication">' + (o.correcte && !q.multiple ? '' : rendre(o.explication)) + '</div></div></div>';
+      });
+      h += '<h5>Correction</h5>' + rendre(q.solution);
+    } else {
+      const c = E.code[q.id] || {};
+      const tout = c.soumissions && c.caches_reussis === c.caches_total;
+      h += tete(tout ? 'v-juste' : c.soumissions ? 'v-incomplete' : '', c.soumissions ? c.caches_reussis + ' / ' + c.caches_total + ' tests cachés' : 'Jamais soumis');
+      h += '<details><summary>Énoncé</summary>' + rendre(q.enonce) + '</details>';
+      if (c.details) {
+        h += '<h5>Tests cachés</h5><div class="defile"><table><tr><th>Test caché</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th></tr>';
+        c.details.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? (t.erreur ? 'exception' : '')) + '</code></td></tr>'; });
+        h += '</table></div>';
+        c.details.filter(t => t.erreur).forEach(t => { h += '<details><summary>Erreur : ' + esc(t.nom) + '</summary><pre class="sans-math">' + esc(t.erreur) + '</pre></details>'; });
+      }
+      h += '<details><summary>Ton code soumis</summary><pre class="sans-math"><code>' + esc(c.code_source || codeSource(q)) + '</code></pre></details>';
+      h += '<details><summary>Correction</summary>' + rendre(q.solution) + '</details>';
+    }
+    h += '<p class="revoir">Vérification des nombres : <code class="sans-math">' + esc(q.verif.script) + '</code></p></div></article>';
+  });
+  page.innerHTML = h;
+  const resultat = resultatJSON(duree);
+  const zone = document.getElementById('json');
+  zone.value = JSON.stringify(resultat, null, 1);
+  document.getElementById('telecharger').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([zone.value], { type: 'application/json' }));
+    a.download = D.id + '_resultat.json'; a.click();
+  };
+  const retour = document.getElementById('retourAccueil'); if (retour) retour.onclick = () => { location.href = '/'; };
+  document.getElementById('recommencer').onclick = () => { if (confirm('Effacer ce passage ?')) { try { localStorage.removeItem(CLE); } catch (e) {} E = etatNeuf('accueil'); afficher(); } };
+  const info = document.getElementById('enregistrement');
+  if (E.enregistrement) info.textContent = E.enregistrement;
+  else if (!SERVEUR) info.textContent = 'Page ouverte comme un fichier : le résultat n\'est pas enregistré automatiquement. Copie le JSON ci-dessous dans la conversation.';
+  else {
+    info.textContent = 'Enregistrement du résultat...';
+    api('/api/resultat', resultat).then(r => {
+      E.enregistrement = r.erreur ? null : 'Résultat enregistré dans ' + r.fichier + ' ; ' + r.erreurs_ajoutees + ' erreur(s) ajoutée(s) au journal suivi/erreurs.md.';
+      info.textContent = E.enregistrement || 'Échec de l\'enregistrement : ' + r.erreur;
+      sauver();
+    }).catch(() => { info.textContent = 'Serveur injoignable : le résultat n\'est pas enregistré. Copie le JSON ci-dessous dans la conversation.'; });
+  }
+  composer();
+}
+
+function afficher() {
+  libererEditeurs();
+  document.getElementById('titre').textContent = D.titre;
+  document.title = D.titre;
+  if (E.phase === 'epreuve') epreuve(); else if (E.phase === 'bilan') bilan(); else accueil();
+  window.scrollTo(0, 0);
+}
+function completerEtat() {
+  ['reponses', 'temps', 'ordre', 'cellules', 'code', 'controles', 'ordreControles', 'vus', 'partie'].forEach(k => { if (!E[k] || typeof E[k] !== 'object') E[k] = {}; });
+  if (typeof E.courant !== 'number' || E.courant < 0 || E.courant >= ITEMS.length) E.courant = 0;
+  ITEMS.forEach(q => {
+    if (q.cellules_initiales && !Array.isArray(E.cellules[q.id])) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+    if (q.type === 'qcm') {
+      const ids = q.options.map(o => o.id);
+      const o = E.ordre[q.id];
+      if (!Array.isArray(o) || o.length !== ids.length || !ids.every(i => o.includes(i))) E.ordre[q.id] = melanger(ids);
+      const rep = E.reponses[q.id];
+      if (rep !== undefined && rep !== 'nsp' && (Array.isArray(rep) !== !!q.multiple || !choisies(q).length || !choisies(q).every(i => ids.includes(i)))) delete E.reponses[q.id];
+    }
+    if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => {
+      const cle = q.id + ':' + cid;
+      if (!Array.isArray(E.ordreControles[cle])) E.ordreControles[cle] = melanger(c.options.map(o => o.id));
+    });
+  });
+}
+charger();
+completerEtat();
+if (SERVEUR && ITEMS.some(q => q.cellules_initiales)) chargerMonaco();
+afficher();
+</script>
+</body>
+</html>

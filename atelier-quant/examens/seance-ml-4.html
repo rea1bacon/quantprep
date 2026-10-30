@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier quant</title>
+<style>
+:root { --fond:#f5f6f8; --carte:#ffffff; --texte:#1f2328; --doux:#646b75; --trait:#e3e6ea; --trait-fort:#cdd2d8; --accent:#2f5bd3; --accent-doux:#eef2fc; --bon:#1f7a4d; --bon-doux:#eaf6ef; --faux:#c0392b; --faux-doux:#fcecea; --alerte:#9a5a08; --alerte-doux:#fdf3e4; --code:#f6f8fa; --ombre:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06); }
+@media (prefers-color-scheme: dark) { :root { --fond:#0f1115; --carte:#171a20; --texte:#e6e8eb; --doux:#9aa1ab; --trait:#262b33; --trait-fort:#363c46; --accent:#86a8ff; --accent-doux:#1a2135; --bon:#5cc98f; --bon-doux:#13251c; --faux:#f08479; --faux-doux:#2b1716; --alerte:#e2a54f; --alerte-doux:#2a2013; --code:#12151a; --ombre:none; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--fond); color:var(--texte); font:15.5px/1.6 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:var(--accent); }
+
+/* Barre supérieure */
+header { position:sticky; top:0; z-index:10; background:var(--carte); border-bottom:1px solid var(--trait); height:56px; padding:0 20px; display:flex; gap:14px; align-items:center; }
+#lienAccueil { display:flex; align-items:center; gap:8px; color:var(--texte); font-weight:650; font-size:15px; text-decoration:none; white-space:nowrap; padding-right:14px; border-right:1px solid var(--trait); }
+#lienAccueil::before { content:""; width:22px; height:22px; border-radius:6px; background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #7b4bd6)); }
+#lienAccueil[hidden] { display:none; }
+header h1 { font-size:14.5px; font-weight:600; margin:0; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#position { font-size:13px; color:var(--doux); white-space:nowrap; }
+#progression { position:absolute; left:0; right:0; bottom:-1px; height:2px; background:transparent; }
+#progression > span { display:block; height:100%; width:0; background:var(--accent); transition:width .3s; }
+#chrono { font:600 15px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric:tabular-nums; background:var(--fond); border:1px solid var(--trait); border-radius:999px; padding:7px 12px; }
+#chrono.depasse { color:var(--faux); border-color:var(--faux); }
+@media (max-width:720px) { #position { display:none; } header { padding:0 12px; gap:8px; } }
+
+/* Mise en page */
+main { padding:28px 24px 96px; }
+main > .carte, main > .fiche, main > .tableau-bord { max-width:880px; margin-left:auto; margin-right:auto; }
+.cadre { display:grid; grid-template-columns:250px minmax(0, 1fr); gap:32px; max-width:1180px; margin:0 auto; align-items:start; }
+main.large .cadre { max-width:none; }
+.contenu { min-width:0; max-width:820px; }
+main.lecture .contenu { max-width:880px; }
+main.large .contenu { max-width:none; }
+@media (max-width:1000px) { .cadre { grid-template-columns:1fr; gap:16px; } }
+
+/* Plan de la séance (colonne gauche) */
+.plan { scrollbar-width:thin; scrollbar-color:var(--trait-fort) transparent; position:sticky; top:84px; max-height:calc(100vh - 104px); overflow-y:auto; font-size:13.5px; }
+.plan .groupe { font-size:11.5px; font-weight:650; letter-spacing:.06em; text-transform:uppercase; color:var(--doux); margin:16px 0 6px 10px; }
+.plan .groupe:first-child { margin-top:0; }
+#pastilles { display:flex; flex-direction:column; gap:2px; }
+.pastille { display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:none; border-radius:8px; padding:6px 10px; font-size:13.5px; color:var(--texte); }
+.pastille:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 9%, transparent); }
+.pastille .etat { flex:none; width:18px; height:18px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:10px; color:#fff; }
+.pastille.faite .etat { background:var(--accent); border-color:var(--accent); }
+.pastille.faite .etat::after { content:"✓"; }
+.pastille .libelle { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pastille.courante { background:var(--accent-doux); color:var(--accent); font-weight:600; }
+.pastille.courante .etat { border-color:var(--accent); }
+@media (max-width:1000px) { .plan { position:static; max-height:none; } #pastilles { flex-direction:row; flex-wrap:wrap; } .pastille { width:auto; } .pastille .libelle { display:none; } .plan .groupe { display:none; } }
+
+/* Cartes */
+.carte { background:var(--carte); border:1px solid var(--trait); border-radius:12px; padding:22px 26px; margin-bottom:18px; box-shadow:var(--ombre); }
+h2 { font-size:21px; font-weight:650; letter-spacing:-.01em; margin:0 0 10px; }
+h3 { font-size:17px; font-weight:650; margin:20px 0 6px; }
+h4 { font-size:15px; font-weight:650; margin:16px 0 4px; }
+.meta { color:var(--doux); font-size:13.5px; }
+.surtitre { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:14px; font-size:13px; color:var(--doux); }
+.surtitre .rang { font-weight:650; color:var(--texte); }
+.chip { display:inline-block; max-width:420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; font-size:12px; font-weight:550; padding:2px 10px; border-radius:999px; background:var(--accent-doux); color:var(--accent); }
+.note { background:var(--alerte-doux); border-radius:10px; padding:10px 14px; color:var(--texte); font-size:14px; margin:12px 0; }
+.note p { margin:4px 0; }
+.consigne { font-size:13px; color:var(--doux); margin:18px 0 8px; }
+
+/* Boutons */
+button { font:inherit; font-size:14px; font-weight:550; padding:8px 14px; border-radius:8px; border:1px solid var(--trait-fort); background:var(--carte); color:var(--texte); cursor:pointer; transition:background .15s, border-color .15s; }
+button:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 8%, var(--carte)); }
+button.principal { background:var(--accent); border-color:var(--accent); color:#fff; }
+button.principal:hover:not(:disabled) { background:color-mix(in srgb, var(--accent) 88%, #000); }
+@media (prefers-color-scheme: dark) { button.principal { color:#0d1220; } }
+button:disabled { opacity:.45; cursor:default; }
+header button { padding:6px 12px; font-size:13px; }
+.barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:16px; }
+.navigation { border-top:1px solid var(--trait); margin-top:26px; padding-top:18px; }
+.navigation #prec { margin-right:auto; }
+.navigation #finir { order:1; }
+.navigation #suiv { order:2; }
+
+/* Options d'une question */
+.option { display:flex; gap:14px; align-items:flex-start; border:1px solid var(--trait-fort); border-radius:10px; padding:13px 16px; margin:10px 0; cursor:pointer; background:var(--carte); transition:border-color .12s, background .12s; }
+.option:hover { border-color:var(--accent); }
+.option .lettre { flex:none; width:26px; height:26px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:12.5px; font-weight:650; color:var(--doux); margin-top:-1px; }
+.option .lettre.carre { border-radius:6px; }
+.option p { margin:0; }
+.option.choisie { border-color:var(--accent); background:var(--accent-doux); }
+.option.choisie .lettre { background:var(--accent); border-color:var(--accent); color:#fff; }
+.option.juste { border-color:var(--bon); }
+.option.fausse { border-color:var(--trait); }
+.explication { font-size:14px; color:var(--doux); margin-top:6px; }
+.etiquette { font-size:13px; font-weight:600; }
+.bon { color:var(--bon); } .faux { color:var(--faux); }
+
+/* Code, tableaux */
+pre { background:var(--code); border:1px solid var(--trait); border-radius:8px; padding:12px 14px; overflow-x:auto; font:13px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+code { font:13px ui-monospace, "Cascadia Mono", Consolas, monospace; background:var(--code); border:1px solid var(--trait); padding:0 4px; border-radius:4px; }
+pre code { background:none; border:0; padding:0; }
+.defile { overflow-x:auto; }
+table { border-collapse:collapse; width:100%; font-size:14px; margin:10px 0; }
+th { font-size:12px; font-weight:650; letter-spacing:.04em; text-transform:uppercase; color:var(--doux); }
+th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--trait); vertical-align:top; }
+td.nombre, th.nombre { text-align:right; font-variant-numeric:tabular-nums; }
+textarea.json { width:100%; min-height:140px; font:12.5px ui-monospace, Consolas, monospace; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px; }
+details { margin-top:10px; } summary { cursor:pointer; color:var(--accent); font-weight:550; }
+
+/* Question de code : énoncé à gauche, notebook à droite */
+.deux { display:grid; grid-template-columns:minmax(300px, 38%) 1fr; gap:18px; align-items:start; }
+.deux > .carte { margin:0; }
+.deux .enonce { position:sticky; top:76px; max-height:calc(100vh - 96px); overflow-y:auto; }
+@media (max-width:1100px) { .deux { grid-template-columns:1fr; } .deux .enonce { position:static; max-height:none; } }
+.notebook-barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--trait); padding-bottom:12px; margin-bottom:12px; }
+.notebook-barre button { font-size:13px; padding:6px 11px; }
+.notebook-barre #versions { margin-left:auto; }
+.notebook-barre .meta { font-size:12.5px; }
+.cellule { display:grid; grid-template-columns:48px 1fr; gap:6px; margin:12px 0; }
+.cellule .numero { font:12px ui-monospace, Consolas, monospace; color:var(--doux); text-align:right; padding-top:9px; }
+.cellule .editeur { border:1px solid var(--trait); border-radius:8px; overflow:hidden; background:var(--code); }
+.cellule.active .editeur { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-doux); }
+.cellule .editeur textarea { border:none; border-radius:0; }
+.cellule textarea { width:100%; resize:none; overflow:hidden; min-height:44px; font:13.5px/1.5 ui-monospace, Consolas, monospace; tab-size:4; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px 10px; white-space:pre; overflow-x:auto; }
+.cellule .actions { display:flex; gap:6px; margin-top:4px; }
+.cellule .actions button { font-size:12px; padding:2px 8px; font-weight:500; }
+.cellule pre.sortie { margin:4px 0 0; max-height:420px; overflow:auto; }
+.cellule pre.sortie:empty { display:none; }
+pre .erreur { color:var(--faux); }
+.resultats-tests { margin-top:12px; }
+#voile { position:fixed; inset:0; z-index:20; background:color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:16px; }
+#voile[hidden] { display:none; }
+#voile .carte { max-width:480px; text-align:center; }
+#voile .barre { justify-content:center; }
+.deux.lecon { grid-template-columns:minmax(320px, 56%) 1fr; }
+.deux.lecon .enonce { max-height:calc(100vh - 96px); }
+pre.sortie-lecon { margin-top:-6px; border-style:dashed; color:var(--doux); }
+
+/* Leçons : colonne de lecture, une partie à la fois, onglets */
+main.lecture .carte.enonce { padding:26px 40px 30px; }
+.lecon-corps { font-size:16px; line-height:1.72; max-width:74ch; margin:0 auto; }
+.lecon-corps p { margin:0.75em 0; }
+.lecon-corps li { margin:0.4em 0; padding-left:2px; }
+.lecon-corps ol, .lecon-corps ul { padding-left:1.4em; }
+.lecon-corps ol > li::marker { font-weight:650; color:var(--doux); }
+.lecon-corps h3 { font-size:23px; font-weight:700; letter-spacing:-.015em; line-height:1.3; margin:8px 0 16px; }
+.lecon-corps table { font-size:14.5px; line-height:1.55; }
+.lecon-corps mjx-container { font-size:102% !important; }
+.lecon-corps mjx-container[display="true"], .lecon-corps p.formule > mjx-container { display:block; text-align:center; margin:0.7em 0; overflow-x:auto; overflow-y:hidden; }
+.sommaire { display:flex; flex-wrap:wrap; gap:0 2px; margin:0 0 24px; border-bottom:1px solid var(--trait); }
+.sommaire button { flex:none; font-size:13px; font-weight:550; padding:10px 12px; border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--doux); margin-bottom:-1px; }
+.sommaire button:hover:not(:disabled) { background:none; color:var(--texte); }
+.sommaire button.active { color:var(--accent); border-bottom-color:var(--accent); }
+.partie[hidden] { display:none; }
+.pied-partie { display:flex; gap:10px; align-items:center; justify-content:space-between; margin:28px 0 4px; padding-top:18px; border-top:1px solid var(--trait); }
+.pied-partie .meta { flex:1; text-align:center; }
+.bloc { --teinte:var(--doux); border:1px solid var(--trait); border-radius:10px; padding:6px 20px 10px; margin:18px 0; background:var(--carte); }
+.bloc > h4, .bloc > summary { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--teinte); margin:10px 0 2px; }
+.bloc.enonce-bloc { --teinte:var(--accent); background:var(--accent-doux); border-color:transparent; }
+.bloc.exemple { --teinte:var(--bon); } .bloc.pieges { --teinte:var(--faux); } .bloc.limites { --teinte:var(--alerte); }
+.bloc.preuve { background:var(--fond); }
+details.bloc > summary { cursor:pointer; list-style:revert; padding:6px 0; }
+details.bloc > summary .meta { text-transform:none; letter-spacing:0; font-weight:400; margin-left:6px; }
+details.bloc[open] > summary { margin-bottom:6px; }
+.controle { border:1px solid var(--trait-fort); border-radius:12px; padding:14px 18px; margin:22px 0; background:var(--fond); }
+.controle .titre-controle { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accent); margin:0 0 6px; }
+.controle .option { background:var(--carte); }
+
+/* Fiche de question : débrief et bilan */
+.fiche { background:var(--carte); border:1px solid var(--trait); border-radius:12px; margin:0 0 20px; overflow:hidden; font-size:15px; line-height:1.65; box-shadow:var(--ombre); }
+.lecon-corps .fiche { margin:24px 0; }
+.fiche-tete { display:flex; align-items:center; flex-wrap:wrap; gap:6px 14px; padding:14px 22px; border-bottom:1px solid var(--trait); }
+.fiche-tete .num { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); white-space:nowrap; }
+.fiche-tete .titre { flex:1; min-width:200px; font-weight:650; font-size:16px; }
+.fiche-tete .temps { font-size:12.5px; color:var(--doux); white-space:nowrap; }
+.verdict { font-size:12px; font-weight:650; padding:3px 10px; border-radius:999px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.v-juste .verdict { color:var(--bon); background:var(--bon-doux); } .v-fausse .verdict { color:var(--faux); background:var(--faux-doux); } .v-incomplete .verdict { color:var(--alerte); background:var(--alerte-doux); }
+.fiche-corps { padding:4px 22px 20px; }
+.fiche h5 { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin:22px 0 8px; }
+.fiche-corps > h5:first-child { margin-top:16px; }
+.fiche p { margin:0.6em 0; }
+.fiche li { margin:0.35em 0; }
+.fiche-reponses { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:18px 0 6px; }
+.fiche-reponses > div { background:var(--fond); border-radius:10px; padding:10px 14px; }
+.fiche-reponses .lab { display:block; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin-bottom:2px; }
+.fiche ul.choix { list-style:none; padding:0; margin:8px 0; }
+.fiche ul.choix > li { border:1px solid var(--trait); border-radius:10px; padding:9px 14px; margin:8px 0; }
+.fiche ul.choix > li > strong:first-child { display:inline-block; min-width:1.8em; color:var(--doux); }
+.fiche .retenir { border-radius:10px; padding:12px 16px; margin-top:20px; background:var(--accent-doux); }
+.fiche .retenir h5 { margin:0 0 2px; color:var(--accent); }
+.fiche .retenir p { margin:0.3em 0 0; }
+.fiche .revoir { font-size:13.5px; color:var(--doux); margin:14px 0 0; }
+.fiche .option { cursor:default; }
+.fiche .option:hover { border-color:var(--trait); }
+.fiche .option p { margin:0; }
+.fiche .option .explication p { margin:3px 0 0; }
+.fiche .option.juste { border-color:color-mix(in srgb, var(--bon) 45%, var(--trait)); background:var(--bon-doux); }
+.fiche .option.choisie:not(.juste) { border-color:color-mix(in srgb, var(--faux) 45%, var(--trait)); background:var(--faux-doux); }
+.fiche .option.choisie .lettre { background:none; color:var(--doux); border-color:var(--trait-fort); }
+.fiche .option > div { flex:1; }
+.puce { float:right; font-size:11px; font-weight:650; padding:2px 9px; border-radius:999px; margin-left:8px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.puce.bon { color:var(--bon); background:var(--carte); } .puce.faux { color:var(--faux); background:var(--carte); }
+.fiche details { margin-top:16px; border-top:1px solid var(--trait); padding-top:12px; }
+.fiche details > summary { cursor:pointer; font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); }
+
+/* Présentation d'une séance et bilan */
+.presentation h2 { font-size:26px; letter-spacing:-.02em; }
+.sections-liste { display:grid; gap:8px; margin:18px 0; }
+.sections-liste > div { display:flex; justify-content:space-between; gap:12px; background:var(--fond); border-radius:10px; padding:10px 14px; font-size:14px; }
+.score-total { display:flex; align-items:baseline; gap:10px; margin:4px 0 14px; }
+.score-total strong { font-size:34px; font-weight:700; letter-spacing:-.02em; }
+</style>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  options: { ignoreHtmlClass: 'sans-math', skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+};
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+</head>
+<body>
+<header>
+  <a id="lienAccueil" href="/" hidden>Atelier quant</a>
+  <h1 id="titre"></h1>
+  <span class="meta" id="position"></span>
+  <button id="recommencerHaut" hidden>Recommencer</button>
+  <button id="pause" hidden>Pause</button>
+  <span id="chrono">00:00</span>
+  <div id="progression"><span></span></div>
+</header>
+<div id="voile" hidden><div class="carte"><h2>En pause</h2><p>Le chronomètre est arrêté et le contenu masqué : le temps de pause n'est compté ni dans la durée de la séance, ni dans le temps par question.</p><div class="barre"><button class="principal" id="reprendre">Reprendre</button></div></div></div>
+<main id="page"></main>
+<script type="application/json" id="donnees">{"id": "seance-ml-4", "titre": "Séance de ML 4 : optimisation, réseaux de neurones, noyaux et EM", "duree_minutes": 51, "options": {"pause": true, "je_ne_sais_pas": true, "retour_arriere": true, "penalite": 0}, "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.", "presentation": "D'abord une leçon d'environ 35 minutes (15 en ne lisant que les énoncés, exemples et réflexes) : descente de gradient et conditionnement, momentum, gradient stochastique et calendriers de pas, rappel d'Adam, rétropropagation matricielle, initialisation, disparition du gradient, normalisations, dropout, connexions résiduelles, convolutions causales dilatées, RNN et LSTM, attention, SVM, astuce du noyau, ridge à noyau, processus gaussiens et EM, avec cinq points de contrôle corrigés immédiatement et des expériences dont la sortie est réelle. Adam, la rétropropagation et les convolutions, déjà traités dans le test de positionnement, ne sont que rappelés. Ensuite 8 questions à choix multiple, dont 5 de difficulté 4 ou 5.\n\nObjectif de vitesse : chaque question se résout dans son temps cible avec les résultats de la leçon (tableau « Réflexes en 30 secondes »). Au-delà du double du temps cible affiché, choisis « Je ne sais pas » et passe à la suivante : c'est la règle d'abandon à suivre dans un test chronométré.", "avertissements": ["Les questions de ML sont présentées ici en choix multiple à une seule bonne réponse. Cherche la réponse avant de lire les options, pour t'entraîner aussi au format à réponse numérique.", "Ici le retour en arrière est permis et il n'y a pas de pénalité : ce sont les règles de cette plateforme, pas celles de tout test en ligne."], "sections": [{"id": "lecon", "nom": "Leçon", "budget_min": 35, "questions": [{"id": "L-ML-4", "type": "lecon", "section": "lecon", "theme": "Leçon express : optimisation, réseaux, architectures, noyaux et EM", "difficulte": 4, "temps_cible_s": 2100, "dossier": "coding/lecons", "contenu": "## Leçon express : optimisation, réseaux, architectures, noyaux et EM\n\nDurée visée : 35 minutes (la leçon couvre toute la section ML avancé hors arbres ; environ 15 minutes si tu ne lis que les énoncés, les exemples et les réflexes, à compléter plus tard par les preuves). Adam (DIAG-A4), la rétropropagation (DIAG-A3) et les convolutions (DIAG-A2), déjà traités dans le test de positionnement, ne sont que rappelés. Chaque résultat a son énoncé, une preuve courte mais complète, un exemple calculé et ses pièges. Expériences exécutées avec numpy 1.21.6 (environnement des notebooks de la plateforme, sans PyTorch) ; autres nombres : script `verif/seance_ml_4.py`, qui les contrôle aussi par simulation.\n\n**Conventions de notation**, valables pour toute la leçon :\n\n- une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice ; une matrice est toujours en majuscule grasse, et le texte dit quand elle est aléatoire (poids tirés à l'initialisation) ;\n- exceptions assumées, parce que ce sont les notations universelles : \\(L\\) (plus grande valeur propre, constante de régularité du gradient), \\(C\\) (coefficient du SVM), \\(T\\) (longueur d'une séquence), \\(B\\) (taille d'un lot) et \\(M\\) (nombre de couches) sont des nombres fixes ;\n- \\(\\lambda_k\\), avec un indice, est une valeur propre ; \\(\\lambda\\), sans indice, un coefficient de régularisation ;\n- \\(\\odot\\) est le produit coordonnée par coordonnée ; \\(\\lVert \\mathbf{v} \\rVert\\) la norme euclidienne ; pour une matrice, \\(\\lVert \\mathbf{M} \\rVert = \\max_{\\mathbf{v} \\ne \\mathbf{0}} \\lVert \\mathbf{M}\\mathbf{v} \\rVert / \\lVert \\mathbf{v} \\rVert\\) (norme d'opérateur) ;\n- \\(\\mathrm{sig}(z) = 1/(1 + e^{-z})\\) est la sigmoïde, \\(\\mathrm{ReLU}(z) = \\max(0, z)\\), et \\(\\mathcal{N}(x; m, s^2)\\) la densité gaussienne de moyenne \\(m\\) et de variance \\(s^2\\) au point \\(x\\).\n\n## Partie 1 : optimisation\n\n### 1.1 Descente de gradient sur une quadratique : conditionnement et pas maximal\n\n**Le problème.** Pourquoi la descente de gradient est-elle lente sur certains problèmes, et quel pas peut-on prendre sans diverger ? Une quadratique répond exactement, et décrit tout problème lisse près de son minimum (développement de Taylor à l'ordre 2).\n\n**Le cadre.** \\(\\mathbf{A}\\) est une matrice symétrique définie positive \\(p \\times p\\), de valeurs propres \\(L = \\lambda_1 \\ge \\dots \\ge \\lambda_p = \\lambda_{\\min} > 0\\) et de vecteurs propres orthonormés \\(\\mathbf{u}_1, \\dots, \\mathbf{u}_p\\) (théorème spectral, leçon d'algèbre, section 1). \\(\\mathbf{b} \\in \\mathbb{R}^p\\) est fixe et \\(f(\\boldsymbol{\\theta}) = \\tfrac12 \\boldsymbol{\\theta}^\\top \\mathbf{A}\\,\\boldsymbol{\\theta} - \\mathbf{b}^\\top \\boldsymbol{\\theta}\\). Son gradient \\(\\nabla f(\\boldsymbol{\\theta}) = \\mathbf{A}\\boldsymbol{\\theta} - \\mathbf{b}\\) s'annule en l'unique minimum \\(\\boldsymbol{\\theta}^* = \\mathbf{A}^{-1}\\mathbf{b}\\). Le gradient est \\(L\\)-lipschitzien : \\(\\lVert \\nabla f(\\boldsymbol{\\theta}) - \\nabla f(\\boldsymbol{\\theta}') \\rVert = \\lVert \\mathbf{A}(\\boldsymbol{\\theta} - \\boldsymbol{\\theta}') \\rVert \\le L\\,\\lVert \\boldsymbol{\\theta} - \\boldsymbol{\\theta}' \\rVert\\) : c'est le \\(L\\) de la règle « pas inférieur à \\(2/L\\) ». Le **conditionnement** est \\(\\kappa = L/\\lambda_{\\min} \\ge 1\\). La descente à pas fixe \\(\\eta > 0\\) part de \\(\\boldsymbol{\\theta}_0\\) et itère \\(\\boldsymbol{\\theta}_t = \\boldsymbol{\\theta}_{t-1} - \\eta\\,\\nabla f(\\boldsymbol{\\theta}_{t-1})\\). On note \\(q(\\eta) = \\max_k \\lvert 1 - \\eta\\lambda_k \\rvert\\), le **facteur de contraction**.\n\n**L'intuition.** Dans la direction propre \\(\\mathbf{u}_k\\), la fonction est une parabole de courbure \\(\\lambda_k\\), et un pas multiplie l'erreur par \\(1 - \\eta\\lambda_k\\). Un même pas doit convenir aux directions très courbées (qui imposent \\(\\eta\\) petit) et aux directions plates (qui avancent alors lentement).\n\n**L'énoncé.**\n\n1. (O1) Pour tout \\(t\\) : \\(\\lVert \\boldsymbol{\\theta}_t - \\boldsymbol{\\theta}^* \\rVert \\le q(\\eta)^t\\,\\lVert \\boldsymbol{\\theta}_0 - \\boldsymbol{\\theta}^* \\rVert\\), avec égalité si \\(\\boldsymbol{\\theta}_0 - \\boldsymbol{\\theta}^*\\) est un vecteur propre \\(\\mathbf{u}_k\\) qui réalise le maximum.\n2. (O2) La suite converge vers \\(\\boldsymbol{\\theta}^*\\) pour tout point de départ si et seulement si \\(0 < \\eta < 2/L\\).\n3. (O3) \\(q(\\eta) = \\max(\\lvert 1 - \\eta\\lambda_{\\min} \\rvert, \\lvert 1 - \\eta L \\rvert)\\) est minimal pour \\(\\eta^* = 2/(\\lambda_{\\min} + L)\\), où il vaut \\(q^* = (\\kappa - 1)/(\\kappa + 1)\\). Avec le pas \\(1/L\\), il vaut \\(1 - 1/\\kappa\\).\n\n**La preuve.**\n\n1. L'erreur \\(\\mathbf{e}_t = \\boldsymbol{\\theta}_t - \\boldsymbol{\\theta}^*\\) vérifie \\(\\mathbf{e}_t = \\mathbf{e}_{t-1} - \\eta\\,\\mathbf{A}\\,\\mathbf{e}_{t-1} = (\\mathbf{I} - \\eta\\mathbf{A})\\,\\mathbf{e}_{t-1}\\), car \\(\\nabla f(\\boldsymbol{\\theta}) = \\mathbf{A}(\\boldsymbol{\\theta} - \\boldsymbol{\\theta}^*)\\).\n2. On décompose \\(\\mathbf{e}_0 = \\sum_k c_k \\mathbf{u}_k\\). Comme \\((\\mathbf{I} - \\eta\\mathbf{A})\\mathbf{u}_k = (1 - \\eta\\lambda_k)\\mathbf{u}_k\\), \\(\\mathbf{e}_t = \\sum_k c_k (1 - \\eta\\lambda_k)^t \\mathbf{u}_k\\), et par orthonormalité \\(\\lVert \\mathbf{e}_t \\rVert^2 = \\sum_k c_k^2 (1 - \\eta\\lambda_k)^{2t} \\le q(\\eta)^{2t} \\sum_k c_k^2 = q(\\eta)^{2t}\\lVert \\mathbf{e}_0 \\rVert^2\\) : c'est (O1), et l'égalité pour \\(\\mathbf{e}_0 = \\mathbf{u}_k\\) se lit sur la même ligne.\n3. (O2) Si \\(q(\\eta) < 1\\), (O1) donne la convergence. Si \\(q(\\eta) \\ge 1\\), le départ \\(\\mathbf{e}_0 = \\mathbf{u}_k\\) qui réalise le maximum garde une erreur de norme \\(q(\\eta)^t \\ge 1\\). Enfin \\(q(\\eta) < 1\\) équivaut à \\(-1 < 1 - \\eta\\lambda_k < 1\\) pour tout \\(k\\), soit \\(0 < \\eta < 2/\\lambda_k\\) pour tout \\(k\\), soit \\(0 < \\eta < 2/L\\).\n4. (O3) \\(\\lambda \\mapsto \\lvert 1 - \\eta\\lambda \\rvert\\) est convexe, donc son maximum sur \\([\\lambda_{\\min}, L]\\) est atteint en une extrémité. En \\(\\eta^*\\) : \\(1 - \\eta^*\\lambda_{\\min} = (L - \\lambda_{\\min})/(L + \\lambda_{\\min})\\) et \\(\\eta^* L - 1\\) vaut la même chose, donc \\(q(\\eta^*) = (\\kappa - 1)/(\\kappa + 1)\\). Pour \\(\\eta < \\eta^*\\), \\(q(\\eta) \\ge 1 - \\eta\\lambda_{\\min} > 1 - \\eta^*\\lambda_{\\min} = q^*\\) ; pour \\(\\eta > \\eta^*\\), \\(q(\\eta) \\ge \\eta L - 1 > \\eta^* L - 1 = q^*\\). Avec \\(\\eta = 1/L\\) : \\(q = \\max(1 - 1/\\kappa, 0) = 1 - 1/\\kappa\\).\n\n**Exemple.** Valeurs propres 1 et 10, donc \\(\\kappa = 10\\). Pas maximal \\(2/L = 0{,}2\\). Pas optimal \\(\\eta^* = \\tfrac{2}{11}\\), facteur \\(q^* = \\tfrac{9}{11}\\) ; avec \\(\\eta = 1/L\\), \\(q = 0{,}9\\) ; avec \\(\\eta = 0{,}21\\), au-delà de \\(2/L\\), \\(q = 1{,}1 > 1\\) et la suite diverge le long de \\(\\mathbf{u}_1\\). Pour diviser l'erreur par \\(10^6\\), il faut 69 pas au pas optimal. Avec \\(\\kappa = 100\\), \\(q^* = \\tfrac{99}{101}\\) et il en faut 691 : à pas optimal, le nombre de pas est de l'ordre de \\(\\tfrac{\\kappa}{2}\\ln(1/\\text{précision})\\), puisque \\(-\\ln q^* \\approx 2/\\kappa\\) pour \\(\\kappa\\) grand.\n\n**Pièges.** Le pas maximal est fixé par la **plus grande** courbure (\\(2/L\\), pas \\(2/\\lambda_{\\min}\\)). Seul le rapport \\(\\kappa\\) compte : multiplier \\(f\\) par 10 change le pas, pas la vitesse. Hors des quadratiques, des résultats du même type valent quand la hessienne a ses valeurs propres dans \\([\\lambda_{\\min}, L]\\) en tout point (admis ici).\n\n[[controle:pas]]\n\n### 1.2 Momentum\n\n**La définition** (momentum de la boule pesante). Avec \\(0 \\le \\beta < 1\\) et \\(\\mathbf{m}_0 = \\mathbf{0}\\) : \\(\\mathbf{m}_t = \\beta\\,\\mathbf{m}_{t-1} + \\nabla f(\\boldsymbol{\\theta}_{t-1})\\), puis \\(\\boldsymbol{\\theta}_t = \\boldsymbol{\\theta}_{t-1} - \\eta\\,\\mathbf{m}_t\\). \\(\\mathbf{m}_t\\) est une somme pondérée des gradients passés, l'analogue du \\(m_t\\) d'Adam. L'intuition : elle cumule les gradients récents ; les composantes qui changent de signe d'un pas à l'autre (oscillations dans les directions courbées) se compensent, celles qui gardent leur signe (direction plate) s'accumulent.\n\n**L'énoncé** (O4). Sur la quadratique, avec \\(\\beta = \\big((\\sqrt{\\kappa} - 1)/(\\sqrt{\\kappa} + 1)\\big)^2\\) et \\(\\eta = 4/(\\sqrt{L} + \\sqrt{\\lambda_{\\min}})^2\\), l'erreur décroît dans chaque direction propre au taux asymptotique \\(\\sqrt{\\beta} = (\\sqrt{\\kappa} - 1)/(\\sqrt{\\kappa} + 1)\\) : \\(\\kappa\\) est remplacé par \\(\\sqrt{\\kappa}\\).\n\n**La preuve.**\n\n1. Comme \\(\\boldsymbol{\\theta}_t - \\boldsymbol{\\theta}_{t-1} = -\\eta\\,\\mathbf{m}_t = \\beta(\\boldsymbol{\\theta}_{t-1} - \\boldsymbol{\\theta}_{t-2}) - \\eta\\,\\nabla f(\\boldsymbol{\\theta}_{t-1})\\), la coordonnée \\(e_t\\) de l'erreur sur \\(\\mathbf{u}_k\\) vérifie \\(e_t = (1 + \\beta - \\eta\\lambda_k)\\,e_{t-1} - \\beta\\,e_{t-2}\\).\n2. Cette récurrence linéaire d'ordre 2 a pour polynôme caractéristique \\(z^2 - (1 + \\beta - \\eta\\lambda_k)\\,z + \\beta\\). Le produit de ses racines vaut \\(\\beta\\) ; si elles sont complexes conjuguées (ou double), elles ont donc le même module \\(\\sqrt{\\beta}\\), et \\(e_t\\) est de l'ordre de \\(\\sqrt{\\beta}^{\\,t}\\) (fois \\(t\\) en cas de racine double).\n3. Les racines sont complexes ou double si et seulement si le discriminant est négatif ou nul : \\(\\lvert 1 + \\beta - \\eta\\lambda_k \\rvert \\le 2\\sqrt{\\beta}\\), soit \\((1 - \\sqrt{\\beta})^2 \\le \\eta\\lambda_k \\le (1 + \\sqrt{\\beta})^2\\).\n4. Avec les réglages de l'énoncé, \\(1 - \\sqrt{\\beta} = 2\\sqrt{\\lambda_{\\min}}/(\\sqrt{L} + \\sqrt{\\lambda_{\\min}})\\), donc \\((1 - \\sqrt{\\beta})^2 = \\eta\\lambda_{\\min}\\), et de même \\((1 + \\sqrt{\\beta})^2 = \\eta L\\). Toute valeur propre de \\([\\lambda_{\\min}, L]\\) vérifie donc la condition 3 : toutes les directions ont le taux \\(\\sqrt{\\beta}\\).\n\n**Exemple.** \\(\\kappa = 100\\) : taux \\(\\tfrac{9}{11}\\) au lieu de \\(\\tfrac{99}{101}\\), soit 69 pas au lieu de 691 pour gagner un facteur \\(10^6\\) (calcul sur les taux asymptotiques). Expérience sur \\(\\mathbf{A} = \\mathrm{diag}(1, 100)\\), départ \\((1, 1)\\) :\n\n```python\nimport numpy as np\nnp.set_printoptions(precision=4, suppress=True)\nlam = np.array([1.0, 100.0])          # A = diag(1, 100), minimum en 0, gradient A theta\n\ndef nb_pas(eta, beta, tol=1e-6):\n    theta, m = np.ones(2), np.zeros(2)\n    for t in range(1, 100001):\n        m = beta * m + lam * theta\n        theta = theta - eta * m\n        if np.linalg.norm(theta) <= tol * np.sqrt(2):\n            return t\n\nL, lmin = lam.max(), lam.min()\nr = (np.sqrt(L / lmin) - 1) / (np.sqrt(L / lmin) + 1)\nprint(\"gradient, pas 2/(lmin + L) :\", nb_pas(2 / (lmin + L), 0.0), \"pas\")\nprint(\"momentum, réglages de (O4) :\", nb_pas(4 / (np.sqrt(L) + np.sqrt(lmin)) ** 2, r ** 2), \"pas\")\n```\n\n```sortie\ngradient, pas 2/(lmin + L) : 691 pas\nmomentum, réglages de (O4) : 93 pas\n```\n\nLe momentum demande plus de pas que le compte asymptotique, à cause du facteur \\(t\\) des racines doubles aux deux extrémités du spectre, mais reste bien plus rapide.\n\n**Pièges.** (O4) est un résultat sur les quadratiques, avec \\(\\lambda_{\\min}\\) et \\(L\\) connus ; sur un réseau de neurones, \\(\\beta = 0{,}9\\) est un réglage empirique, sans garantie de ce type.\n\n### 1.3 Gradient stochastique et calendriers de pas\n\n**Le problème.** Le gradient d'une perte moyenne sur \\(n\\) observations coûte \\(n\\) calculs. Le gradient stochastique (SGD) utilise le gradient d'une observation, ou d'un lot de \\(B\\) observations, tirées au hasard : une estimation sans biais du gradient, mais bruitée.\n\n**Le modèle.** En dimension 1, \\(f(\\theta) = \\tfrac{a}{2}\\theta^2\\) avec \\(a > 0\\), minimum en 0. Au pas \\(t\\), le gradient estimé est \\(G_t = a\\,\\Theta_{t-1} + Z_t\\), où les \\(Z_t\\) sont indépendantes, de moyenne 0 et de variance \\(\\sigma^2\\), et indépendantes de \\(\\Theta_0, \\dots, \\Theta_{t-1}\\) ; \\(\\Theta_t = \\Theta_{t-1} - \\eta\\,G_t\\), avec \\(\\Theta_0 = \\theta_0\\) fixé.\n\n**L'énoncé** (O5). Si \\(0 < \\eta a < 2\\) : \\(\\mathbb{E}[\\Theta_t] = (1 - \\eta a)^t\\theta_0 \\to 0\\), et \\(\\mathrm{Var}(\\Theta_t) \\to \\dfrac{\\eta^2\\sigma^2}{1 - (1 - \\eta a)^2} = \\dfrac{\\eta\\,\\sigma^2}{a\\,(2 - \\eta a)}\\). À pas constant, le SGD ne converge pas vers le minimum : il fluctue autour, avec une variance proportionnelle à \\(\\eta\\) quand \\(\\eta\\) est petit (équivalent \\(\\eta\\sigma^2/(2a)\\)).\n\n**La preuve.**\n\n1. \\(\\Theta_t = (1 - \\eta a)\\,\\Theta_{t-1} - \\eta Z_t\\). En espérance, \\(\\mathbb{E}[Z_t] = 0\\) donne \\(\\mathbb{E}[\\Theta_t] = (1 - \\eta a)\\,\\mathbb{E}[\\Theta_{t-1}]\\).\n2. \\(Z_t\\) est indépendante de \\(\\Theta_{t-1}\\), donc les variances s'ajoutent : \\(v_t = (1 - \\eta a)^2 v_{t-1} + \\eta^2\\sigma^2\\), où \\(v_t = \\mathrm{Var}(\\Theta_t)\\) et \\(v_0 = 0\\).\n3. Le point fixe est \\(v_\\infty = \\eta^2\\sigma^2/(1 - (1 - \\eta a)^2)\\), et \\(v_t - v_\\infty = (1 - \\eta a)^2 (v_{t-1} - v_\\infty)\\) tend vers 0 car \\((1 - \\eta a)^2 < 1\\). Enfin \\(1 - (1 - \\eta a)^2 = \\eta a\\,(2 - \\eta a)\\).\n\n**Exemple.** \\(a = 1\\), \\(\\sigma^2 = 1\\), \\(\\eta = 0{,}1\\) : \\(v_\\infty = \\tfrac{1}{19} \\approx 0{,}0526\\) (simulation de 40000 chaînes : 0,0527), proche de l'équivalent \\(\\eta\\sigma^2/(2a) = 0{,}05\\). Un lot de \\(B = 10\\) observations indépendantes divise \\(\\sigma^2\\) par 10, donc \\(v_\\infty\\) aussi : \\(\\tfrac{1}{190}\\).\n\n**Calendriers de pas.** D'où l'idée de faire décroître \\(\\eta_t\\). Les conditions de Robbins et Monro, \\(\\sum_t \\eta_t = \\infty\\) et \\(\\sum_t \\eta_t^2 < \\infty\\) (par exemple \\(\\eta_t = \\eta_0/(1 + t/t_0)\\)), assurent la convergence du SGD sous des hypothèses de convexité et de bruit borné (théorème admis). La première est nécessaire dès que les gradients sont bornés : (O6) si chaque gradient utilisé \\(\\mathbf{g}_s\\) (exact ou estimé) est de norme au plus \\(g_{\\max}\\), alors \\(\\lVert \\boldsymbol{\\theta}_t - \\boldsymbol{\\theta}_0 \\rVert = \\lVert \\sum_{s \\le t} \\eta_s\\mathbf{g}_s \\rVert \\le g_{\\max}\\sum_s \\eta_s\\) (inégalité triangulaire sur la somme des pas) ; avec \\(\\eta_t = 0{,}1 \\times 0{,}9^t\\) pour \\(t \\ge 0\\), la somme vaut 1 et l'on ne s'éloigne jamais de plus de \\(g_{\\max}\\) du départ, même si le minimum est plus loin. Calendriers usuels en réseaux de neurones : paliers (pas divisé par une constante à des époques fixées) ; cosinus, \\(\\eta_t = \\eta_{\\min} + \\tfrac12(\\eta_{\\max} - \\eta_{\\min})\\big(1 + \\cos(\\pi t/T)\\big)\\) pour \\(t\\) de 0 au nombre total de pas \\(T\\) ; échauffement (warmup), montée linéaire de 0 à \\(\\eta_{\\max}\\) sur les premiers pas, pratique empirique dont la justification théorique reste discutée.\n\n### 1.4 Adam, rappel\n\nNotations du test de positionnement : \\(m_t = \\beta_1 m_{t-1} + (1 - \\beta_1)g_t\\), \\(v_t = \\beta_2 v_{t-1} + (1 - \\beta_2)g_t^2\\), \\(\\hat m_t = m_t/(1 - \\beta_1^t)\\), \\(\\hat v_t = v_t/(1 - \\beta_2^t)\\), \\(\\theta_t = \\theta_{t-1} - \\eta\\,\\hat m_t/(\\sqrt{\\hat v_t} + \\epsilon)\\), coordonnée par coordonnée. Trois faits, chacun en une ligne :\n\n1. Au premier pas, \\(\\hat m_1 = g_1\\) et \\(\\hat v_1 = g_1^2\\) : le pas vaut \\(-\\eta\\,g_1/(\\lvert g_1 \\rvert + \\epsilon)\\), environ \\(\\eta\\) en valeur absolue (DIAG-A4).\n2. Multiplier tous les gradients d'une coordonnée par \\(c > 0\\) multiplie \\(m\\) par \\(c\\) et \\(v\\) par \\(c^2\\) : le pas ne change pas (au \\(\\epsilon\\) près). Adam est insensible à l'échelle de chaque coordonnée, ce qui compense en partie un mauvais conditionnement diagonal.\n3. Une pénalité \\(\\tfrac{\\lambda}{2}\\theta^2\\) ajoutée à la perte ajoute \\(\\lambda\\theta\\) au gradient, qui est ensuite divisé par \\(\\sqrt{\\hat v_t}\\) : les coordonnées à grands gradients sont moins régularisées. La décroissance des poids découplée (AdamW : Loshchilov et Hutter, « Decoupled Weight Decay Regularization », ICLR 2019) retranche \\(\\eta\\lambda\\theta\\) directement, hors de la division.\n\n## Partie 2 : réseaux de neurones\n\n### 2.1 Rétropropagation matricielle, une couche cachée\n\n**Le réseau.** Entrée \\(\\mathbf{x} \\in \\mathbb{R}^{n_0}\\) ; couche cachée de \\(n_1\\) neurones : \\(\\mathbf{a} = \\mathbf{W}_1\\mathbf{x} + \\mathbf{b}_1\\) (pré-activations, \\(\\mathbf{W}_1\\) de taille \\(n_1 \\times n_0\\)), \\(\\mathbf{h} = \\phi(\\mathbf{a})\\) avec \\(\\phi\\) une fonction dérivable appliquée coordonnée par coordonnée ; sortie \\(\\hat{\\mathbf{y}} = \\mathbf{W}_2\\mathbf{h} + \\mathbf{b}_2 \\in \\mathbb{R}^{n_2}\\) ; perte \\(\\ell = \\tfrac12 \\lVert \\hat{\\mathbf{y}} - \\mathbf{y} \\rVert^2\\) pour une cible \\(\\mathbf{y}\\).\n\n**L'énoncé** (B1). Avec \\(\\boldsymbol{\\delta}_2 = \\hat{\\mathbf{y}} - \\mathbf{y}\\) et \\(\\boldsymbol{\\delta}_1 = (\\mathbf{W}_2^\\top \\boldsymbol{\\delta}_2) \\odot \\phi'(\\mathbf{a})\\) : \\(\\partial\\ell/\\partial\\mathbf{W}_2 = \\boldsymbol{\\delta}_2\\mathbf{h}^\\top\\), \\(\\partial\\ell/\\partial\\mathbf{b}_2 = \\boldsymbol{\\delta}_2\\), \\(\\partial\\ell/\\partial\\mathbf{W}_1 = \\boldsymbol{\\delta}_1\\mathbf{x}^\\top\\), \\(\\partial\\ell/\\partial\\mathbf{b}_1 = \\boldsymbol{\\delta}_1\\) (chaque gradient a la taille du paramètre). Pour la perte moyenne d'un lot de \\(B\\) exemples rangés en lignes dans \\(\\mathbf{X}\\) (\\(B \\times n_0\\)), avec \\(\\boldsymbol{\\Delta}_1\\) la matrice \\(B \\times n_1\\) dont la ligne \\(i\\) est \\(\\boldsymbol{\\delta}_1^\\top\\) de l'exemple \\(i\\) : \\(\\partial\\ell/\\partial\\mathbf{W}_1 = \\boldsymbol{\\Delta}_1^\\top \\mathbf{X}/B\\).\n\n**La preuve**, coordonnée par coordonnée (règle de la chaîne) :\n\n1. \\(\\hat y_i = \\sum_j (\\mathbf{W}_2)_{ij} h_j + (\\mathbf{b}_2)_i\\), donc \\(\\partial\\ell/\\partial(\\mathbf{W}_2)_{ij} = (\\hat y_i - y_i)\\,h_j\\), le coefficient \\((i, j)\\) de \\(\\boldsymbol{\\delta}_2\\mathbf{h}^\\top\\).\n2. \\(h_j\\) intervient dans toutes les sorties : \\(\\partial\\ell/\\partial h_j = \\sum_i (\\hat y_i - y_i)(\\mathbf{W}_2)_{ij} = (\\mathbf{W}_2^\\top \\boldsymbol{\\delta}_2)_j\\) ; puis \\(\\partial\\ell/\\partial a_j = (\\mathbf{W}_2^\\top \\boldsymbol{\\delta}_2)_j\\,\\phi'(a_j) = (\\boldsymbol{\\delta}_1)_j\\), car \\(h_j\\) ne dépend que de \\(a_j\\).\n3. \\(a_j = \\sum_k (\\mathbf{W}_1)_{jk} x_k + (\\mathbf{b}_1)_j\\), donc \\(\\partial\\ell/\\partial(\\mathbf{W}_1)_{jk} = (\\boldsymbol{\\delta}_1)_j\\,x_k\\). Pour un lot, la perte moyenne se dérive en moyennant les gradients, et \\(\\sum_i \\boldsymbol{\\delta}_1^{(i)}\\mathbf{x}^{(i)\\top} = \\boldsymbol{\\Delta}_1^\\top \\mathbf{X}\\).\n\n**Contrôle** par différences finies, avec \\(\\phi = \\tanh\\) et \\(\\tanh' = 1 - \\tanh^2\\) :\n\n```python\nrng = np.random.default_rng(0)\nn0, n1, n2 = 3, 4, 2\nW1, b1, W2, b2 = rng.normal(size=(n1, n0)), rng.normal(size=n1), rng.normal(size=(n2, n1)), rng.normal(size=n2)\nx, y = rng.normal(size=n0), rng.normal(size=n2)\n\ndef perte(W1):\n    return 0.5 * np.sum((W2.dot(np.tanh(W1.dot(x) + b1)) + b2 - y) ** 2)\n\nh = np.tanh(W1.dot(x) + b1)\nd2 = W2.dot(h) + b2 - y\nd1 = W2.T.dot(d2) * (1 - h ** 2)\ngW1 = np.outer(d1, x)                      # formule (B1)\nnum = np.zeros_like(W1)\nfor j in range(n1):\n    for k in range(n0):\n        E = np.zeros_like(W1)\n        E[j, k] = 1e-6\n        num[j, k] = (perte(W1 + E) - perte(W1 - E)) / 2e-6\nprint(\"écart maximal entre (B1) et les différences finies :\", np.abs(num - gW1).max())\n```\n\n```sortie\nécart maximal entre (B1) et les différences finies : 4.874214365457874e-10\n```\n\n**Pièges.** \\(\\phi'\\) s'évalue en la pré-activation \\(\\mathbf{a}\\), pas en \\(\\mathbf{h}\\) (sauf quand on écrit \\(\\tanh'\\) avec \\(\\mathbf{h}\\), comme ci-dessus) ; c'est \\(\\mathbf{W}_2^\\top\\), pas \\(\\mathbf{W}_2\\), qui renvoie l'erreur vers l'arrière ; un gradient de poids est un produit extérieur « erreur en sortie de la couche » fois « entrée de la couche ».\n\n### 2.2 Initialisation : pourquoi une variance 1/n ou 2/n\n\n**Le cadre.** Couche \\(l \\ge 1\\) : \\(\\mathbf{a}^{(l)} = \\mathbf{W}^{(l)}\\mathbf{h}^{(l-1)}\\), \\(\\mathbf{h}^{(l)} = \\phi(\\mathbf{a}^{(l)})\\), \\(\\mathbf{h}^{(0)}\\) l'entrée, biais nuls à l'initialisation. La matrice \\(\\mathbf{W}^{(l)}\\) est **aléatoire**, de taille \\(n_l \\times n_{l-1}\\) : ses coefficients sont indépendants, de même loi symétrique (par exemple gaussienne) de moyenne 0 et de variance \\(s_l^2\\), et indépendants des autres couches et de l'entrée. \\(n_{l-1}\\) est le nombre d'entrées de la couche (fan-in).\n\n**L'énoncé.**\n\n1. (I1) Pour tout neurone \\(i\\) de la couche \\(l\\) : \\(\\mathbb{E}\\big[(a^{(l)}_i)^2\\big] = s_l^2 \\sum_{j=1}^{n_{l-1}} \\mathbb{E}\\big[(h^{(l-1)}_j)^2\\big]\\), et pour \\(l \\ge 2\\), \\(a^{(l)}_i\\) a une loi symétrique (même loi que \\(-a^{(l)}_i\\)).\n2. (I2) Si \\(A\\) a une loi symétrique et un moment d'ordre 2 fini, \\(\\mathbb{E}[\\mathrm{ReLU}(A)^2] = \\tfrac12\\mathbb{E}[A^2]\\).\n3. Conséquences, si les \\(n_{l-1}\\) coordonnées de \\(\\mathbf{h}^{(l-1)}\\) ont le même moment d'ordre 2 : avec ReLU, \\(\\mathbb{E}[(a^{(l)}_i)^2] = \\tfrac12\\,n_{l-1}s_l^2\\,\\mathbb{E}[(a^{(l-1)}_j)^2]\\), conservé si \\(s_l^2 = 2/n_{l-1}\\) (initialisation de He : He, Zhang, Ren et Sun, « Delving Deep into Rectifiers », ICCV 2015) ; avec une activation linéaire, ou \\(\\tanh\\) près de 0 où \\(\\tanh(z) \\approx z\\), conservé si \\(s_l^2 = 1/n_{l-1}\\) (LeCun). Glorot et Bengio (« Understanding the difficulty of training deep feedforward neural networks », AISTATS 2010) proposent \\(2/(n_{l-1} + n_l)\\), compromis entre la condition de l'aller \\(n_{l-1}s^2 = 1\\) et celle du retour \\(n_l s^2 = 1\\) (même calcul sur \\(\\boldsymbol{\\delta}^{(l-1)} = (\\mathbf{W}^{(l)\\top}\\boldsymbol{\\delta}^{(l)}) \\odot \\phi'(\\mathbf{a}^{(l-1)})\\), en supposant de plus \\(\\boldsymbol{\\delta}^{(l)}\\) indépendant de \\(\\mathbf{W}^{(l)}\\), ce qui n'est qu'une approximation).\n\n**La preuve.**\n\n1. \\(a_i = \\sum_j W_{ij}h_j\\) (indice \\(l\\) omis). En développant le carré : \\(\\mathbb{E}[a_i^2] = \\sum_j \\mathbb{E}[W_{ij}^2]\\,\\mathbb{E}[h_j^2] + \\sum_{j \\ne j'} \\mathbb{E}[W_{ij}]\\,\\mathbb{E}[W_{ij'}]\\,\\mathbb{E}[h_j h_{j'}]\\), car \\(\\mathbf{h}^{(l-1)}\\) ne dépend que des couches précédentes, donc est indépendant de \\(\\mathbf{W}^{(l)}\\), et les \\(W_{ij}\\) sont indépendants entre eux. Les termes croisés sont nuls (\\(\\mathbb{E}[W_{ij}] = 0\\)), d'où (I1).\n2. Symétrie : sachant \\(\\mathbf{h}^{(l-1)}\\), changer \\(\\mathbf{W}^{(l)}\\) en \\(-\\mathbf{W}^{(l)}\\) ne change pas la loi de \\(\\mathbf{W}^{(l)}\\) (coefficients de loi symétrique), et change \\(a_i\\) en \\(-a_i\\).\n3. (I2) \\(\\mathrm{ReLU}(A)^2 = A^2\\,I_{\\{A > 0\\}}\\). Par symétrie, \\(\\mathbb{E}[A^2 I_{\\{A > 0\\}}] = \\mathbb{E}[A^2 I_{\\{A < 0\\}}]\\), et la somme des deux vaut \\(\\mathbb{E}[A^2]\\) (le terme \\(A = 0\\) ne contribue pas, \\(A^2\\) y étant nul) : chacun vaut la moitié.\n\n**Exemple.** Avec ReLU et \\(s^2 = 1/n\\), le moment d'ordre 2 est divisé par 2 à chaque couche : après 50 couches, facteur \\(2^{-50} \\approx 8{,}9 \\times 10^{-16}\\) ; avec \\(s^2 = 3/n\\), facteur \\(1{,}5^{50} \\approx 6{,}4 \\times 10^{8}\\). Expérience, largeur 256, entrée de variance 1 : logarithme en base 2 du moment d'ordre 2 des pré-activations aux couches 10, 20, ..., 50, observé (moyenne sur 8 réseaux tirés au hasard), puis prédit par (I1) et (I2), soit \\(\\log_2 c + (l - 1)\\log_2(c/2)\\) pour \\(s^2 = c/n\\) :\n\n```python\nrng = np.random.default_rng(1)\nn, M, R = 256, 50, 8\nfor c in [1, 2, 3]:\n    moments = np.zeros((R, M // 10))\n    for r in range(R):\n        a = rng.normal(size=(n, 50))            # 50 entrées de variance 1, en colonnes\n        for l in range(1, M + 1):\n            W = rng.normal(scale=np.sqrt(c / n), size=(n, n))\n            a = W.dot(a if l == 1 else np.maximum(a, 0))\n            if l % 10 == 0:\n                moments[r, l // 10 - 1] = np.mean(a ** 2)\n    pred = [np.log2(c) + (l - 1) * np.log2(c / 2) for l in range(10, M + 1, 10)]\n    print(\"s2 =\", c, \"/ n ; observé :\", np.round(np.log2(moments.mean(axis=0)), 1), \"; prédit :\", np.round(pred, 1))\n```\n\n```sortie\ns2 = 1 / n ; observé : [ -8.8 -18.7 -28.9 -39.2 -48.8] ; prédit : [ -9. -19. -29. -39. -49.]\ns2 = 2 / n ; observé : [0.9 0.9 0.7 0.4 0.4] ; prédit : [1. 1. 1. 1. 1.]\ns2 = 3 / n ; observé : [ 6.9 12.7 18.6 24.4 30.4] ; prédit : [ 6.8 12.7 18.5 24.4 30.2]\n```\n\nChaque réseau fluctue autour de la prédiction, qui porte sur l'espérance ; la pente, elle, est celle annoncée.\n\n**Pièges.** (I2) porte sur le moment d'ordre 2, pas sur la variance : pour \\(A\\) gaussienne centrée réduite, \\(\\mathrm{Var}(\\mathrm{ReLU}(A)) = \\tfrac12 - \\tfrac{1}{2\\pi} \\approx 0{,}3408\\) (intégrale calculée par sympy, simulation 0,3410), et c'est \\(\\mathbb{E}[h^2]\\), non \\(\\mathrm{Var}(h)\\), qui entre dans (I1). L'argument ne vaut qu'à l'initialisation : l'entraînement crée des dépendances entre poids et activations.\n\n### 2.3 Disparition et explosion du gradient\n\n**L'énoncé** (G1). En rétropropagation, \\(\\boldsymbol{\\delta}^{(l-1)} = \\mathbf{D}_{l-1}\\mathbf{W}^{(l)\\top}\\boldsymbol{\\delta}^{(l)}\\), où \\(\\mathbf{D}_{l-1}\\) est diagonale de coefficients \\(\\phi'(a^{(l-1)}_j)\\) ; donc \\(\\lVert \\boldsymbol{\\delta}^{(0)} \\rVert \\le \\prod_{l=1}^{M}\\big(\\sup\\lvert \\phi' \\rvert\\,\\lVert \\mathbf{W}^{(l)} \\rVert\\big)\\,\\lVert \\boldsymbol{\\delta}^{(M)} \\rVert\\).\n\n**La preuve.** Par (B1) appliqué couche par couche. Une matrice diagonale vérifie \\(\\lVert \\mathbf{D}\\mathbf{v} \\rVert \\le \\max_j \\lvert d_j \\rvert\\,\\lVert \\mathbf{v} \\rVert\\) ; et \\(\\lVert \\mathbf{W}^\\top \\mathbf{v} \\rVert \\le \\lVert \\mathbf{W} \\rVert\\,\\lVert \\mathbf{v} \\rVert\\), car \\(\\lVert \\mathbf{W}^\\top \\mathbf{v} \\rVert = \\max_{\\lVert \\mathbf{z} \\rVert = 1} \\mathbf{z}^\\top \\mathbf{W}^\\top \\mathbf{v} = \\max_{\\lVert \\mathbf{z} \\rVert = 1} (\\mathbf{W}\\mathbf{z})^\\top \\mathbf{v} \\le \\lVert \\mathbf{W} \\rVert\\,\\lVert \\mathbf{v} \\rVert\\) (Cauchy-Schwarz). On enchaîne les \\(M\\) couches.\n\n**Exemple.** La sigmoïde a pour dérivée \\(\\mathrm{sig}(1 - \\mathrm{sig})\\), maximale en 0 où elle vaut \\(\\tfrac{1}{4}\\). Avec 10 couches sigmoïdes et \\(\\lVert \\mathbf{W}^{(l)} \\rVert \\le 2\\), le gradient de la première couche est au plus \\((2/4)^{10} = \\tfrac{1}{1024}\\) fois celui de la dernière. La borne est une majoration : elle prouve la **disparition** quand le produit est petit. L'**explosion** se voit sur un réseau linéaire avec \\(\\mathbf{W}^{(l)} = c\\,\\mathbf{O}_l\\), \\(\\mathbf{O}_l\\) orthogonale : le gradient est multiplié exactement par \\(c^M\\). Remèdes : initialisation (2.2), normalisation (2.4), connexions résiduelles (2.6), LSTM (3.3) ; contre l'explosion, l'écrêtage du gradient \\(\\mathbf{g} \\leftarrow \\mathbf{g}\\,\\min(1, \\tau/\\lVert \\mathbf{g} \\rVert)\\) pour un seuil \\(\\tau > 0\\), qui garde la direction et borne la norme.\n\n### 2.4 Normalisation par lot et par couche\n\n**Les définitions.** Les pré-activations d'un lot forment une matrice \\(\\mathbf{H}\\) de taille \\(B \\times n\\) : une ligne par exemple, une colonne par neurone. On note \\(\\epsilon > 0\\) une petite constante de stabilité.\n\n- **Par lot** (BatchNorm) : pour chaque **colonne** \\(j\\), moyenne \\(m_j\\) et variance \\(v_j\\) calculées sur les \\(B\\) exemples (axe 0, celui du lot), puis \\(\\hat H_{ij} = (H_{ij} - m_j)/\\sqrt{v_j + \\epsilon}\\) et sortie \\(\\gamma_j\\hat H_{ij} + \\nu_j\\), avec une échelle \\(\\gamma_j\\) et un décalage \\(\\nu_j\\) appris par neurone. En évaluation, \\(m_j\\) et \\(v_j\\) sont remplacées par des moyennes mobiles estimées pendant l'entraînement.\n- **Par couche** (LayerNorm) : pour chaque **ligne** \\(i\\), moyenne et variance sur les \\(n\\) neurones de l'exemple \\(i\\) (axe 1), la même formule ensuite, et le même calcul en entraînement et en évaluation.\n\n**L'énoncé.**\n\n1. (N1) En entraînement, la sortie BatchNorm d'un exemple dépend des autres exemples du lot ; avec \\(B = 1\\), \\(v_j = 0\\) et \\(\\hat H_{1j} = 0\\) : la sortie vaut \\(\\nu_j\\) quelle que soit l'entrée.\n2. (N2) Pour \\(\\epsilon = 0\\) : BatchNorm est inchangée si l'on remplace une colonne \\(\\mathbf{H}_{\\cdot j}\\) par \\(c\\,\\mathbf{H}_{\\cdot j} + d\\) (\\(c > 0\\)) ; LayerNorm est inchangée si l'on remplace une ligne par \\(c\\) fois cette ligne plus \\(d\\). En particulier, multiplier les poids d'un neurone par \\(c > 0\\) ne change pas la sortie BatchNorm, et multiplier toute la matrice de poids de la couche par \\(c\\) ne change pas la sortie LayerNorm.\n\n**La preuve.** (N1) : avec un seul exemple, la moyenne est cet exemple. (N2) : la moyenne devient \\(c\\,m + d\\), l'écart-type \\(c\\,\\sqrt{v}\\), et \\((cH + d - cm - d)/(c\\sqrt{v}) = (H - m)/\\sqrt{v}\\).\n\n```python\nH = np.array([[1.0, 10.0, 100.0], [2.0, 20.0, 300.0], [3.0, 60.0, 200.0], [6.0, 30.0, 400.0]])  # B = 4, n = 3\neps = 1e-5\nbn = (H - H.mean(axis=0)) / np.sqrt(H.var(axis=0) + eps)\nln = (H - H.mean(axis=1, keepdims=True)) / np.sqrt(H.var(axis=1, keepdims=True) + eps)\nprint(\"BatchNorm, moyennes et variances par colonne :\", bn.mean(axis=0).round(6) + 0.0, bn.var(axis=0).round(4))\nprint(\"LayerNorm, moyennes et variances par ligne :\", ln.mean(axis=1).round(6) + 0.0, ln.var(axis=1).round(4))\nH1 = H[:1]\nprint(\"BatchNorm sur un lot d'un exemple :\", (H1 - H1.mean(axis=0)) / np.sqrt(H1.var(axis=0) + eps))\n```\n\n```sortie\nBatchNorm, moyennes et variances par colonne : [0. 0. 0.] [1. 1. 1.]\nLayerNorm, moyennes et variances par ligne : [0. 0. 0. 0.] [1. 1. 1. 1.]\nBatchNorm sur un lot d'un exemple : [[0. 0. 0.]]\n```\n\n**Pièges.** BatchNorm normalise chaque neurone sur le lot, pas chaque exemple ; LayerNorm est préférée pour les séquences et les Transformers, car elle ne dépend ni du lot ni des autres positions ; oublier de passer en mode évaluation fait dépendre la prédiction d'un exemple des autres exemples du lot.\n\n[[controle:norme]]\n\n### 2.5 Dropout et sa remise à l'échelle\n\n**La définition.** En entraînement, chaque activation \\(h_j\\) est multipliée par \\(D_j/(1 - p)\\), où les \\(D_j\\) sont indépendantes, de loi de Bernoulli : \\(D_j = 0\\) avec probabilité \\(p\\) (neurone éteint), 1 sinon. En évaluation, rien n'est fait. C'est le comportement de `nn.Dropout(p)` de PyTorch, contrôlé par le script de vérification quand PyTorch est installé.\n\n**L'énoncé** (D1). Sachant \\(h_j\\), la sortie \\(\\tilde H_j = D_j h_j/(1 - p)\\) vérifie \\(\\mathbb{E}[\\tilde H_j] = h_j\\) et \\(\\mathrm{Var}(\\tilde H_j) = h_j^2\\,p/(1 - p)\\).\n\n**La preuve.** \\(\\mathbb{E}[D_j] = 1 - p\\), donc \\(\\mathbb{E}[\\tilde H_j] = h_j\\). \\(D_j^2 = D_j\\), donc \\(\\mathbb{E}[\\tilde H_j^2] = h_j^2/(1 - p)\\) et \\(\\mathrm{Var}(\\tilde H_j) = h_j^2\\big(1/(1 - p) - 1\\big) = h_j^2\\,p/(1 - p)\\).\n\n**Exemple.** \\(p = 1/2\\), \\(h = 3\\) : la sortie vaut 0 ou 6 (facteur \\(1/(1 - p) = 2\\)), d'espérance 3 (simulation 3,000) et de variance 9. La remise à l'échelle en entraînement fait que l'espérance vue par la couche suivante est la même en entraînement et en évaluation. La version d'origine, sans division en entraînement, multiplie par \\(1 - p\\) en évaluation : même espérance, autre implémentation.\n\n**Pièges.** \\(p\\) est la probabilité d'**éteindre** dans PyTorch ; le dropout conserve l'espérance mais ajoute de la variance ; il doit être désactivé en évaluation.\n\n### 2.6 Connexions résiduelles\n\n**La définition.** Un bloc résiduel calcule \\(\\mathbf{h}^{(l)} = \\mathbf{h}^{(l-1)} + F_l(\\mathbf{h}^{(l-1)})\\), où \\(F_l\\) est un petit sous-réseau ; \\(\\mathbf{J}_l\\) est la jacobienne de \\(F_l\\) au point considéré.\n\n**L'énoncé** (Res). La jacobienne de \\(\\mathbf{h}^{(M)}\\) par rapport à \\(\\mathbf{h}^{(0)}\\) est le produit des \\(\\mathbf{I} + \\mathbf{J}_l\\), et le gradient rétropropagé est \\(\\boldsymbol{\\delta}^{(0)} = (\\mathbf{I} + \\mathbf{J}_1)^\\top \\cdots (\\mathbf{I} + \\mathbf{J}_M)^\\top \\boldsymbol{\\delta}^{(M)}\\). Si \\(\\lVert \\mathbf{J}_l \\rVert \\le \\varepsilon < 1\\) pour tout \\(l\\) : \\(\\lVert \\boldsymbol{\\delta}^{(0)} \\rVert \\ge (1 - \\varepsilon)^M\\,\\lVert \\boldsymbol{\\delta}^{(M)} \\rVert \\ge (1 - M\\varepsilon)\\,\\lVert \\boldsymbol{\\delta}^{(M)} \\rVert\\). Sans connexion résiduelle, la jacobienne est le produit des \\(\\mathbf{J}_l\\), de norme au plus \\(\\varepsilon^M\\).\n\n**La preuve.** Règle de la chaîne pour la jacobienne d'une composée. Pour tout \\(\\mathbf{v}\\) : \\(\\lVert (\\mathbf{I} + \\mathbf{J})^\\top \\mathbf{v} \\rVert \\ge \\lVert \\mathbf{v} \\rVert - \\lVert \\mathbf{J}^\\top \\mathbf{v} \\rVert \\ge (1 - \\varepsilon)\\lVert \\mathbf{v} \\rVert\\), par l'inégalité triangulaire et \\(\\lVert \\mathbf{J}^\\top \\rVert \\le \\lVert \\mathbf{J} \\rVert\\) (démontré en 2.3). On itère \\(M\\) fois. Enfin \\((1 - \\varepsilon)^M \\ge 1 - M\\varepsilon\\) est l'inégalité de Bernoulli (démontrée dans la leçon de probabilités, outil 4, cas limites).\n\n**Exemple.** \\(M = 50\\), \\(\\varepsilon = 0{,}01\\) : le gradient garde au moins \\(0{,}99^{50} \\approx 0{,}605\\) de sa norme (Bernoulli donne \\(0{,}5\\)), alors que le produit des seules \\(\\mathbf{J}_l\\) est au plus \\(1 \\times 10^{-100}\\). L'identité offre au gradient un chemin direct, que les blocs ne peuvent qu'ajuster.\n\n**Piège.** Le résultat demande \\(\\lVert \\mathbf{J}_l \\rVert < 1\\) ; il ne dit rien de blocs qui amplifient. Pour s'en approcher à l'initialisation, on peut initialiser la dernière couche de chaque bloc près de zéro (alors \\(\\mathbf{J}_l \\approx \\mathbf{0}\\)), ou normaliser dans le bloc.\n\n## Partie 3 : architectures\n\n### 3.1 Convolution causale et champ réceptif dilaté\n\n**La définition.** Une couche de noyau de taille \\(k\\), de dilatation \\(d\\) et de pas 1 calcule \\(y_t = \\sum_{i=0}^{k-1} w_i\\,x_{t - d i}\\) (plus un biais), avec \\(x_s = 0\\) avant le début de la série : on ajoute \\(d(k-1)\\) zéros **à gauche seulement**. Elle est **causale** : \\(y_t\\) ne dépend que de \\(x_s\\) pour \\(s \\le t\\). On empile \\(M\\) couches de tailles \\(k_l\\) et dilatations \\(d_l\\). Le **champ réceptif** \\(R\\) est la longueur de la fenêtre des entrées dont dépend une sortie : de \\(x_{t-R+1}\\) à \\(x_t\\).\n\n**L'énoncé.**\n\n1. (C1) L'ensemble des retards \\(s\\) tels que \\(x_{t-s}\\) intervient dans la sortie est \\(S = \\{\\sum_l d_l i_l : 0 \\le i_l \\le k_l - 1\\}\\), donc \\(R = 1 + \\sum_{l=1}^{M} d_l(k_l - 1)\\).\n2. (C2) Avec \\(R_0 = 1\\) et \\(R_l = R_{l-1} + d_l(k_l - 1)\\) : si \\(d_l \\le R_{l-1}\\) pour tout \\(l\\), \\(S\\) contient tous les retards de 0 à \\(R - 1\\) (aucun trou).\n\n**La preuve.** Par récurrence sur les couches : la couche \\(l\\) lit les sorties de la couche \\(l-1\\) aux retards \\(0, d_l, \\dots, d_l(k_l - 1)\\), donc \\(S_l = \\{s + d_l i : s \\in S_{l-1}, 0 \\le i \\le k_l - 1\\}\\), avec \\(S_0 = \\{0\\}\\). Le plus grand retard augmente de \\(d_l(k_l - 1)\\) : c'est (C1). Pour (C2), si \\(S_{l-1} = \\{0, \\dots, R_{l-1} - 1\\}\\), les translatés de cet intervalle par \\(0, d_l, 2d_l, \\dots\\) se chevauchent ou se touchent dès que \\(d_l \\le R_{l-1}\\) : leur réunion est l'intervalle \\(\\{0, \\dots, R_{l-1} - 1 + d_l(k_l - 1)\\}\\).\n\n**Exemple.** Noyau 3, dilatations 1, 2, 4, 8 : \\(R = 1 + 2(1 + 2 + 4 + 8) = 31\\), sans trou. Noyau 2, dilatations \\(1, 2, \\dots, 512\\) (10 couches, type WaveNet) : \\(R = 1024\\) : le champ double à chaque couche, donc croît exponentiellement avec la profondeur, pour un coût linéaire. Contre-exemple de (C2) : noyau 2, dilatations 1 puis 4 : \\(R = 6\\) mais \\(S\\) ne contient que les retards (0 ; 1 ; 4 ; 5), soit 4 entrées.\n\n**Pièges.** Avec un pas (stride) supérieur à 1, la formule change (les dilatations effectives se multiplient par les pas des couches précédentes). Une convolution centrée (zéros des deux côtés) fait dépendre \\(y_t\\) d'entrées futures : c'est une fuite d'information si \\(y_t\\) sert à prédire au temps \\(t\\), ou si l'on convolue toute la série avant de la découper en échantillons d'entraînement et de test ; ce n'est pas un problème pour une séquence entièrement observée avant la prédiction.\n\n### 3.2 RNN\n\n\\(\\mathbf{h}_t = \\tanh(\\mathbf{W}\\mathbf{h}_{t-1} + \\mathbf{U}\\mathbf{x}_t + \\mathbf{b})\\). La jacobienne d'un pas est \\(\\partial\\mathbf{h}_t/\\partial\\mathbf{h}_{t-1} = \\mathrm{diag}(1 - \\mathbf{h}_t \\odot \\mathbf{h}_t)\\,\\mathbf{W}\\), et celle de \\(T - t\\) pas en est le produit. Comme \\(0 < \\tanh' \\le 1\\), (G1) donne \\(\\lVert \\partial\\mathbf{h}_T/\\partial\\mathbf{h}_t \\rVert \\le \\lVert \\mathbf{W} \\rVert^{T-t}\\) : décroissance exponentielle avec la distance si \\(\\lVert \\mathbf{W} \\rVert < 1\\). Si chaque jacobienne d'un pas a une norme 0,5, 100 pas donnent \\(0{,}5^{100} \\approx 7{,}9 \\times 10^{-31}\\) : le RNN n'apprend pas les dépendances lointaines.\n\n### 3.3 LSTM, équation par équation\n\nEntrée \\(\\mathbf{x}_t \\in \\mathbb{R}^{n_x}\\), état caché \\(\\mathbf{h}_t \\in \\mathbb{R}^{n_h}\\), cellule \\(\\mathbf{c}_t \\in \\mathbb{R}^{n_h}\\), et \\(\\mathbf{z}_t = (\\mathbf{h}_{t-1}, \\mathbf{x}_t)\\) leur concaténation, de dimension \\(n_h + n_x\\). Chaque matrice \\(\\mathbf{W}_\\bullet\\) est de taille \\(n_h \\times (n_h + n_x)\\).\n\n1. Porte d'oubli \\(\\mathbf{f}_t = \\mathrm{sig}(\\mathbf{W}_f\\mathbf{z}_t + \\mathbf{b}_f)\\) : quelle part de l'ancienne cellule garder (coordonnées entre 0 et 1).\n2. Porte d'entrée \\(\\mathbf{i}_t = \\mathrm{sig}(\\mathbf{W}_i\\mathbf{z}_t + \\mathbf{b}_i)\\) : quelle part du candidat écrire.\n3. Candidat \\(\\tilde{\\mathbf{c}}_t = \\tanh(\\mathbf{W}_c\\mathbf{z}_t + \\mathbf{b}_c)\\) : la nouvelle information, entre −1 et 1.\n4. Cellule \\(\\mathbf{c}_t = \\mathbf{f}_t \\odot \\mathbf{c}_{t-1} + \\mathbf{i}_t \\odot \\tilde{\\mathbf{c}}_t\\) : mémoire mise à jour **additivement**.\n5. Porte de sortie \\(\\mathbf{o}_t = \\mathrm{sig}(\\mathbf{W}_o\\mathbf{z}_t + \\mathbf{b}_o)\\) et état \\(\\mathbf{h}_t = \\mathbf{o}_t \\odot \\tanh(\\mathbf{c}_t)\\) : quelle part de la mémoire montrer.\n\n**L'énoncé** (L1). Le long du chemin direct de cellule en cellule (portes considérées comme fixées), \\(\\partial\\mathbf{c}_t/\\partial\\mathbf{c}_{t-1} = \\mathrm{diag}(\\mathbf{f}_t)\\), donc \\(\\partial\\mathbf{c}_T/\\partial\\mathbf{c}_t = \\mathrm{diag}(\\mathbf{f}_T \\odot \\dots \\odot \\mathbf{f}_{t+1})\\) : ni \\(\\mathbf{W}\\), ni dérivée de \\(\\tanh\\). Preuve : l'équation 4 est linéaire en \\(\\mathbf{c}_{t-1}\\), de coefficient \\(\\mathbf{f}_t\\). Le gradient total contient aussi les chemins qui passent par \\(\\mathbf{h}_{t-1}\\) et les portes ; (L1) dit seulement qu'il existe un chemin que le réseau peut garder ouvert. Avec des portes d'oubli à 0,99, 100 pas conservent \\(0{,}99^{100} \\approx 0{,}366\\), contre \\(7{,}9 \\times 10^{-31}\\) pour le RNN ci-dessus.\n\n**Nombre de paramètres** : 4 blocs (trois portes et le candidat), chacun de \\(n_h(n_h + n_x)\\) poids et \\(n_h\\) biais, soit \\(4\\big(n_h(n_h + n_x) + n_h\\big)\\) ; pour \\(n_x = 10\\), \\(n_h = 20\\) : 2480. Piège : `nn.LSTM` de PyTorch a deux vecteurs de biais par bloc, d'où \\(4n_h\\) paramètres de plus (contrôlé par le script quand PyTorch est installé).\n\n### 3.4 Attention par produit scalaire mis à l'échelle\n\n**La définition.** Pour une séquence de \\(T\\) positions, chaque position \\(i\\) a une requête \\(\\mathbf{q}_i \\in \\mathbb{R}^d\\), une clé \\(\\mathbf{k}_i \\in \\mathbb{R}^d\\) et une valeur \\(\\mathbf{v}_i\\) (projections linéaires apprises de son entrée). Les scores sont \\(s_{ij} = \\mathbf{q}_i^\\top \\mathbf{k}_j/\\sqrt{d}\\), les poids \\(p_{ij} = e^{s_{ij}}/\\sum_{j'} e^{s_{ij'}}\\) (softmax sur les clés \\(j\\), ligne par ligne), et la sortie \\(\\mathbf{o}_i = \\sum_j p_{ij}\\mathbf{v}_j\\). Masque causal : \\(s_{ij} = -\\infty\\) pour \\(j > i\\), d'où \\(p_{ij} = 0\\).\n\n**L'énoncé.**\n\n1. (A1) On regarde une requête et une clé comme aléatoires (à l'initialisation) : leurs coordonnées \\(Q_1, \\dots, Q_d\\) et \\(K_1, \\dots, K_d\\) sont \\(2d\\) variables indépendantes, de moyenne 0 et de variance 1. Alors le produit scalaire \\(P = \\sum_{m=1}^d Q_m K_m\\) vérifie \\(\\mathbb{E}[P] = 0\\) et \\(\\mathrm{Var}(P) = d\\) : sans division, l'écart-type des scores est \\(\\sqrt{d}\\) ; divisé par \\(\\sqrt{d}\\), il vaut 1.\n2. (A2) \\(\\partial p_{ij}/\\partial s_{ij'} = p_{ij}\\,(I_{\\{j = j'\\}} - p_{ij'})\\) : si un poids est proche de 1 et les autres de 0, toutes ces dérivées sont proches de 0 (softmax saturé, gradient presque nul).\n3. (A3) Le calcul des \\(T^2\\) scores coûte de l'ordre de \\(T^2 d\\) opérations et \\(T^2\\) cases mémoire par tête : doubler \\(T\\) multiplie ce coût par 4.\n4. (A4) Sans information de position, permuter les positions de l'entrée permute de la même façon les sorties : l'ordre est perdu, d'où les encodages de position.\n\n**La preuve.**\n\n1. (A1) Par indépendance, \\(\\mathbb{E}[Q_mK_m] = \\mathbb{E}[Q_m]\\,\\mathbb{E}[K_m] = 0\\) pour chaque \\(m\\), et \\(\\mathbb{E}[Q_m^2K_m^2] = \\mathbb{E}[Q_m^2]\\,\\mathbb{E}[K_m^2] = 1\\). Pour \\(m \\ne m'\\), \\(\\mathbb{E}[Q_mK_mQ_{m'}K_{m'}]\\) se factorise en quatre espérances nulles. Donc \\(\\mathrm{Var}(P) = \\mathbb{E}[P^2] = d\\).\n2. (A2) Dérivée du quotient \\(e^{s_{ij}}/S\\) avec \\(S = \\sum_{j'} e^{s_{ij'}}\\) : \\(\\big(I_{\\{j = j'\\}}e^{s_{ij}}S - e^{s_{ij}}e^{s_{ij'}}\\big)/S^2 = p_{ij}(I_{\\{j = j'\\}} - p_{ij'})\\). Si \\(p_{ij}\\) est proche de 0 ou de 1, \\(p_{ij}(1 - p_{ij})\\) et les produits \\(p_{ij}p_{ij'}\\) sont petits.\n3. (A3) Un produit scalaire de dimension \\(d\\) par couple \\((i, j)\\). (A4) : les scores, les poids et les sorties de chaque position ne dépendent que des contenus, pas des indices.\n\n**Exemple.** \\(d = 64\\) : écart-type des scores bruts \\(8\\) (simulation de la variance : 63,88 pour 64). Des scores d'écart-type 8 donnent des \\(e^{s}\\) qui diffèrent de plusieurs ordres de grandeur, et le softmax devient presque un maximum.\n\n**Pièges.** Diviser par \\(d\\) au lieu de \\(\\sqrt{d}\\) ; (A1) suppose des coordonnées de variance 1, ce qui vaut à l'initialisation, pas forcément après entraînement ; le softmax se prend sur les clés, pour chaque requête.\n\n[[controle:attention]]\n\n## Partie 4 : noyaux\n\n### 4.1 SVM à marge souple\n\n**Le cadre.** Observations \\((\\mathbf{x}_i, y_i)\\), \\(i = 1, \\dots, n\\), avec \\(y_i \\in \\{-1, +1\\}\\) ; classifieur \\(\\mathrm{signe}(f(\\mathbf{x}))\\) avec \\(f(\\mathbf{x}) = \\mathbf{w}^\\top\\mathbf{x} + b\\). Formulation primale, pour \\(C > 0\\) fixé : minimiser \\(\\tfrac12\\lVert \\mathbf{w} \\rVert^2 + C\\sum_i \\xi_i\\) en \\((\\mathbf{w}, b, \\boldsymbol{\\xi})\\) sous les contraintes \\(y_i f(\\mathbf{x}_i) \\ge 1 - \\xi_i\\) et \\(\\xi_i \\ge 0\\). \\(\\xi_i\\) mesure de combien l'observation \\(i\\) viole la marge.\n\n**L'énoncé.**\n\n1. (S1) Le problème équivaut à minimiser \\(\\tfrac12\\lVert \\mathbf{w} \\rVert^2 + C\\sum_i \\max\\big(0, 1 - y_i f(\\mathbf{x}_i)\\big)\\) (perte charnière, hinge loss).\n2. (S2) La distance entre les hyperplans \\(f = 1\\) et \\(f = -1\\), la largeur de la marge, vaut \\(2/\\lVert \\mathbf{w} \\rVert\\).\n3. (S3) En divisant le critère par \\(Cn\\) : perte charnière moyenne plus \\(\\tfrac{1}{2Cn}\\lVert \\mathbf{w} \\rVert^2\\). \\(C\\) joue le rôle de l'inverse d'un coefficient de régularisation : \\(C\\) grand, marge étroite et peu de violations (faible biais, forte variance) ; \\(C\\) petit, marge large et violations tolérées. Si les données sont séparables, \\(C \\to \\infty\\) donne la marge dure.\n4. (S4) Dual (dualité de Lagrange de l'optimisation convexe, admise) : la solution s'écrit \\(\\mathbf{w} = \\sum_i \\alpha_i y_i \\mathbf{x}_i\\) avec \\(0 \\le \\alpha_i \\le C\\), et les \\(\\alpha_i\\) maximisent \\(\\sum_i \\alpha_i - \\tfrac12\\sum_{i,j}\\alpha_i\\alpha_j y_i y_j\\,\\mathbf{x}_i^\\top\\mathbf{x}_j\\) sous \\(\\sum_i \\alpha_i y_i = 0\\). Les observations telles que \\(\\alpha_i > 0\\) sont les vecteurs de support ; une observation strictement au-delà de la marge a \\(\\alpha_i = 0\\). Les données n'interviennent que par les produits scalaires \\(\\mathbf{x}_i^\\top\\mathbf{x}_j\\).\n\n**La preuve.** (S1) : pour \\((\\mathbf{w}, b)\\) fixés, les contraintes imposent \\(\\xi_i \\ge \\max(0, 1 - y_i f(\\mathbf{x}_i))\\), et le critère croît avec chaque \\(\\xi_i\\) : l'optimum prend l'égalité. (S2) : deux points \\(\\mathbf{x}_+\\) et \\(\\mathbf{x}_-\\) des deux hyperplans vérifient \\(\\mathbf{w}^\\top(\\mathbf{x}_+ - \\mathbf{x}_-) = 2\\) ; la distance entre les hyperplans parallèles est la projection de \\(\\mathbf{x}_+ - \\mathbf{x}_-\\) sur la normale unitaire \\(\\mathbf{w}/\\lVert \\mathbf{w} \\rVert\\), soit \\(2/\\lVert \\mathbf{w} \\rVert\\). (S4), la formule de \\(\\mathbf{w}\\) : le lagrangien \\(\\tfrac12\\lVert \\mathbf{w} \\rVert^2 + C\\sum\\xi_i - \\sum\\alpha_i(y_i f(\\mathbf{x}_i) - 1 + \\xi_i) - \\sum\\mu_i\\xi_i\\) a pour gradient en \\(\\mathbf{w}\\) le vecteur \\(\\mathbf{w} - \\sum_i\\alpha_i y_i\\mathbf{x}_i\\), nul à l'optimum ; la dérivée en \\(\\xi_i\\), \\(C - \\alpha_i - \\mu_i = 0\\) avec \\(\\mu_i \\ge 0\\), donne \\(\\alpha_i \\le C\\).\n\n**Exemple.** Une variable, cinq observations \\((x, y)\\) : \\((-2, -1)\\), \\((-1, -1)\\), \\((0{,}5, -1)\\), \\((1, +1)\\), \\((2, +1)\\). Elles sont séparables, avec une marge dure étroite entre 0,5 et 1. Optimum calculé par le script (le \\(w\\) optimal est unique, car le critère est strictement convexe en \\(w\\)) : \\(C = 0{,}1\\), \\(w = 0{,}35\\), largeur \\(5{,}71\\), somme des charnières \\(2{,}775\\) ; \\(C = 1\\), \\(w = 0{,}667\\), largeur \\(3{,}0\\), somme \\(1{,}667\\) ; \\(C = 100\\), \\(w = 4\\), largeur \\(0{,}5\\), aucune violation : c'est la marge dure.\n\n**Pièges.** \\(C\\) varie en sens inverse de \\(\\lambda\\) ; le SVM n'est pas invariant par changement d'échelle des variables (standardiser) ; il ne donne pas de probabilité.\n\n[[controle:svm]]\n\n### 4.2 L'astuce du noyau\n\n**Le principe.** Un algorithme qui n'utilise les données qu'à travers des produits scalaires peut travailler dans un espace de caractéristiques \\(\\boldsymbol{\\psi}(\\mathbf{x})\\) sans jamais le calculer, si l'on sait évaluer le noyau \\(k(\\mathbf{x}, \\mathbf{x}') = \\boldsymbol{\\psi}(\\mathbf{x})^\\top\\boldsymbol{\\psi}(\\mathbf{x}')\\). La matrice de Gram \\(\\mathbf{K}\\), \\(n \\times n\\), a pour coefficients \\(K_{ij} = k(\\mathbf{x}_i, \\mathbf{x}_j)\\).\n\n**L'énoncé.**\n\n1. (K0) Si \\(k\\) s'écrit \\(\\boldsymbol{\\psi}(\\mathbf{x})^\\top\\boldsymbol{\\psi}(\\mathbf{x}')\\), toute matrice de Gram est semi-définie positive. Réciproquement, une fonction symétrique dont toutes les matrices de Gram sont semi-définies positives s'écrit ainsi, avec un espace de caractéristiques éventuellement de dimension infinie (théorème de Moore-Aronszajn, admis).\n2. Exemple : dans \\(\\mathbb{R}^2\\), \\((\\mathbf{x}^\\top\\mathbf{x}' + 1)^2 = \\boldsymbol{\\psi}(\\mathbf{x})^\\top\\boldsymbol{\\psi}(\\mathbf{x}')\\) avec \\(\\boldsymbol{\\psi}(\\mathbf{x}) = (1, \\sqrt2 x_1, \\sqrt2 x_2, x_1^2, x_2^2, \\sqrt2 x_1x_2)\\), 6 caractéristiques (identité vérifiée par le script). Le noyau gaussien \\(k(\\mathbf{x}, \\mathbf{x}') = \\exp(-\\lVert \\mathbf{x} - \\mathbf{x}' \\rVert^2/(2\\ell^2))\\), de longueur d'échelle \\(\\ell > 0\\), correspond à un espace de dimension infinie.\n\n**La preuve** de (K0), sens direct : avec \\(\\boldsymbol{\\Psi}\\) la matrice \\(n \\times D\\) des \\(\\boldsymbol{\\psi}(\\mathbf{x}_i)^\\top\\) en lignes, \\(\\mathbf{K} = \\boldsymbol{\\Psi}\\boldsymbol{\\Psi}^\\top\\) et \\(\\mathbf{v}^\\top\\mathbf{K}\\mathbf{v} = \\lVert \\boldsymbol{\\Psi}^\\top\\mathbf{v} \\rVert^2 \\ge 0\\). L'exemple : développer \\((x_1x_1' + x_2x_2' + 1)^2\\) donne les six produits.\n\n### 4.3 Ridge à noyau, forme fermée\n\n**L'énoncé** (K1). Critère ridge sur les caractéristiques, avec les notations de la leçon de régression (partie 4) : \\(r_\\lambda(\\mathbf{b}) = \\tfrac12\\lVert \\mathbf{y} - \\boldsymbol{\\Psi}\\mathbf{b} \\rVert^2 + \\tfrac{\\lambda}{2}\\lVert \\mathbf{b} \\rVert^2\\), \\(\\lambda > 0\\). Sa prédiction en \\(\\mathbf{x}\\) vaut \\(\\boldsymbol{\\psi}(\\mathbf{x})^\\top\\hat{\\boldsymbol{\\beta}}_\\lambda = \\mathbf{s}(\\mathbf{x})^\\top(\\mathbf{K} + \\lambda\\mathbf{I}_n)^{-1}\\mathbf{y}\\), où \\(\\mathbf{s}(\\mathbf{x}) \\in \\mathbb{R}^n\\) a pour coordonnées \\(s_i(\\mathbf{x}) = k(\\mathbf{x}_i, \\mathbf{x})\\). Autrement dit \\(f(\\mathbf{x}) = \\sum_i \\alpha_i\\,k(\\mathbf{x}_i, \\mathbf{x})\\) avec \\(\\boldsymbol{\\alpha} = (\\mathbf{K} + \\lambda\\mathbf{I}_n)^{-1}\\mathbf{y}\\) : seul le noyau intervient.\n\n**La preuve.**\n\n1. Forme fermée de la ridge (leçon de régression, partie 4, énoncé 1) : \\(\\hat{\\boldsymbol{\\beta}}_\\lambda = (\\boldsymbol{\\Psi}^\\top\\boldsymbol{\\Psi} + \\lambda\\mathbf{I}_D)^{-1}\\boldsymbol{\\Psi}^\\top\\mathbf{y}\\).\n2. Identité de poussée : \\(\\boldsymbol{\\Psi}^\\top(\\boldsymbol{\\Psi}\\boldsymbol{\\Psi}^\\top + \\lambda\\mathbf{I}_n) = \\boldsymbol{\\Psi}^\\top\\boldsymbol{\\Psi}\\boldsymbol{\\Psi}^\\top + \\lambda\\boldsymbol{\\Psi}^\\top = (\\boldsymbol{\\Psi}^\\top\\boldsymbol{\\Psi} + \\lambda\\mathbf{I}_D)\\boldsymbol{\\Psi}^\\top\\). Les deux matrices entre parenthèses sont semi-définies positives plus \\(\\lambda\\) fois l'identité, donc définies positives et inversibles ; en multipliant à gauche par \\((\\boldsymbol{\\Psi}^\\top\\boldsymbol{\\Psi} + \\lambda\\mathbf{I}_D)^{-1}\\) et à droite par \\((\\mathbf{K} + \\lambda\\mathbf{I}_n)^{-1}\\) : \\((\\boldsymbol{\\Psi}^\\top\\boldsymbol{\\Psi} + \\lambda\\mathbf{I}_D)^{-1}\\boldsymbol{\\Psi}^\\top = \\boldsymbol{\\Psi}^\\top(\\mathbf{K} + \\lambda\\mathbf{I}_n)^{-1}\\).\n3. Donc \\(\\boldsymbol{\\psi}(\\mathbf{x})^\\top\\hat{\\boldsymbol{\\beta}}_\\lambda = \\boldsymbol{\\psi}(\\mathbf{x})^\\top\\boldsymbol{\\Psi}^\\top(\\mathbf{K} + \\lambda\\mathbf{I}_n)^{-1}\\mathbf{y}\\), et \\(\\boldsymbol{\\Psi}\\boldsymbol{\\psi}(\\mathbf{x}) = \\mathbf{s}(\\mathbf{x})\\).\n\nLa preuve suppose \\(D\\) fini ; pour un espace de dimension infinie (noyau gaussien), la même formule découle du théorème du représentant (admis). Le script vérifie (K1) sur 50 cas avec le noyau polynomial et ses 6 caractéristiques explicites. Coût : résoudre un système \\(n \\times n\\), de l'ordre de \\(n^3\\) opérations, contre \\(D^3\\) pour la ridge directe. Pièges : \\(\\lambda\\) s'ajoute à la diagonale seulement ; quand \\(\\lambda \\to 0\\) et \\(\\mathbf{K}\\) est inversible, la prédiction interpole les données d'entraînement.\n\n### 4.4 Processus gaussiens\n\n**La définition.** \\(F\\) est une fonction aléatoire telle que, pour tous points \\(\\mathbf{x}_1, \\dots, \\mathbf{x}_m\\), le vecteur \\((F(\\mathbf{x}_1), \\dots, F(\\mathbf{x}_m))\\) est gaussien centré de covariance \\(\\big(k(\\mathbf{x}_i, \\mathbf{x}_j)\\big)_{i,j}\\). On observe \\(Y_i = F(\\mathbf{x}_i) + E_i\\), où les \\(E_i\\) sont indépendantes de loi \\(\\mathcal{N}(0, \\sigma^2)\\), indépendantes de \\(F\\).\n\n**L'énoncé** (P1). Sachant \\(\\mathbf{Y} = \\mathbf{y}\\), \\(F(\\mathbf{x})\\) suit une loi normale de moyenne \\(\\mathbf{s}(\\mathbf{x})^\\top(\\mathbf{K} + \\sigma^2\\mathbf{I})^{-1}\\mathbf{y}\\), **la prédiction de la ridge à noyau avec \\(\\lambda = \\sigma^2\\)**, et de variance \\(k(\\mathbf{x}, \\mathbf{x}) - \\mathbf{s}(\\mathbf{x})^\\top(\\mathbf{K} + \\sigma^2\\mathbf{I})^{-1}\\mathbf{s}(\\mathbf{x})\\).\n\n**La preuve.**\n\n1. \\((F(\\mathbf{x}), \\mathbf{Y})\\) est un vecteur gaussien (transformation linéaire du vecteur gaussien \\((F(\\mathbf{x}), F(\\mathbf{x}_1), \\dots, E_1, \\dots)\\)), avec \\(\\mathrm{Cov}(\\mathbf{Y}) = \\mathbf{K} + \\sigma^2\\mathbf{I}\\) et \\(\\mathrm{Cov}(\\mathbf{Y}, F(\\mathbf{x})) = \\mathbf{s}(\\mathbf{x})\\).\n2. Soit \\(\\mathbf{c} = (\\mathbf{K} + \\sigma^2\\mathbf{I})^{-1}\\mathbf{s}(\\mathbf{x})\\) et \\(R = F(\\mathbf{x}) - \\mathbf{c}^\\top\\mathbf{Y}\\). Alors \\(\\mathrm{Cov}(\\mathbf{Y}, R) = \\mathbf{s}(\\mathbf{x}) - (\\mathbf{K} + \\sigma^2\\mathbf{I})\\mathbf{c} = \\mathbf{0}\\).\n3. Dans un vecteur gaussien, des composantes non corrélées sont indépendantes (résultat général sur les vecteurs gaussiens, admis) : \\(R\\) est indépendant de \\(\\mathbf{Y}\\). Donc, sachant \\(\\mathbf{Y} = \\mathbf{y}\\), \\(F(\\mathbf{x}) = \\mathbf{c}^\\top\\mathbf{y} + R\\) suit la loi normale de moyenne \\(\\mathbf{c}^\\top\\mathbf{y}\\) et de variance \\(\\mathrm{Var}(R)\\).\n4. \\(\\mathrm{Var}(R) = k(\\mathbf{x}, \\mathbf{x}) - 2\\mathbf{c}^\\top\\mathbf{s}(\\mathbf{x}) + \\mathbf{c}^\\top(\\mathbf{K} + \\sigma^2\\mathbf{I})\\mathbf{c} = k(\\mathbf{x}, \\mathbf{x}) - \\mathbf{s}(\\mathbf{x})^\\top(\\mathbf{K} + \\sigma^2\\mathbf{I})^{-1}\\mathbf{s}(\\mathbf{x})\\).\n\nC'est la version « fonction » de l'interprétation bayésienne de la ridge (leçon de régression, partie 4, énoncé 4).\n\n**Exemple.** Noyau gaussien de longueur d'échelle 1, points \\(-1, 0, 1\\), observations \\(0, 1, 0\\), \\(\\sigma^2 = 0{,}1\\), prédiction en 0,5 : moyenne \\(0{,}575\\), variance \\(0{,}0824\\) (simulation du modèle : 0,0824).\n\n**Pièges.** \\(\\lambda = \\sigma^2\\), la variance du bruit, pas l'écart-type ; la variance a posteriori ne dépend pas des observations \\(\\mathbf{y}\\), seulement des positions.\n\n## Partie 5 : EM pour un mélange de deux gaussiennes\n\n**Le modèle.** Pour \\(i = 1, \\dots, n\\), indépendamment : une étiquette cachée \\(Z_i \\in \\{1, 2\\}\\), avec \\(\\mathbb{P}(Z_i = c) = \\omega_c\\) (\\(\\omega_1 + \\omega_2 = 1\\)), puis \\(X_i\\) de loi \\(\\mathcal{N}(\\mu_c, \\sigma_c^2)\\) sachant \\(Z_i = c\\). On observe \\(x_1, \\dots, x_n\\), pas les \\(Z_i\\). Paramètre \\(\\boldsymbol{\\vartheta} = (\\omega_1, \\omega_2, \\mu_1, \\mu_2, \\sigma_1^2, \\sigma_2^2)\\). Log-vraisemblance : \\(\\ell(\\boldsymbol{\\vartheta}) = \\sum_i \\ln\\big(\\omega_1\\mathcal{N}(x_i; \\mu_1, \\sigma_1^2) + \\omega_2\\mathcal{N}(x_i; \\mu_2, \\sigma_2^2)\\big)\\). Le logarithme d'une somme empêche toute forme fermée du maximum. Si l'on connaissait les \\(Z_i\\), on estimerait chaque gaussienne séparément : EM remplace les \\(Z_i\\) inconnues par leurs probabilités.\n\n**L'algorithme**, à partir de \\(\\boldsymbol{\\vartheta}\\) courant :\n\n1. Étape E : \\(r_{ic} = \\dfrac{\\omega_c\\mathcal{N}(x_i; \\mu_c, \\sigma_c^2)}{\\omega_1\\mathcal{N}(x_i; \\mu_1, \\sigma_1^2) + \\omega_2\\mathcal{N}(x_i; \\mu_2, \\sigma_2^2)}\\), qui est \\(\\mathbb{P}(Z_i = c \\mid X_i = x_i)\\) sous \\(\\boldsymbol{\\vartheta}\\) (formule de Bayes).\n2. Étape M : \\(n_c = \\sum_i r_{ic}\\), puis \\(\\omega_c = n_c/n\\), \\(\\mu_c = \\sum_i r_{ic}x_i/n_c\\), \\(\\sigma_c^2 = \\sum_i r_{ic}(x_i - \\mu_c)^2/n_c\\) avec le nouveau \\(\\mu_c\\) : moyenne et variance pondérées par les responsabilités.\n\n**L'énoncé.**\n\n1. (E1) L'étape M maximise \\(Q(\\boldsymbol{\\vartheta}') = \\sum_i\\sum_c r_{ic}\\big[\\ln\\omega_c' + \\ln\\mathcal{N}(x_i; \\mu_c', \\sigma_c'^2)\\big]\\), les \\(r_{ic}\\) étant fixés.\n2. (E2) Monotonie : la nouvelle valeur \\(\\boldsymbol{\\vartheta}'\\) vérifie \\(\\ell(\\boldsymbol{\\vartheta}') \\ge \\ell(\\boldsymbol{\\vartheta})\\).\n\n**La preuve.**\n\n1. (E1) \\(Q\\) se sépare. Les poids : \\(n_1\\ln\\omega_1' + n_2\\ln(1 - \\omega_1')\\), concave, de dérivée nulle en \\(\\omega_1' = n_1/n\\). Les moyennes : \\(-\\sum_i r_{ic}(x_i - \\mu_c')^2/(2\\sigma_c'^2)\\), quadratique concave en \\(\\mu_c'\\), maximale en la moyenne pondérée. Les variances : avec \\(u = \\sigma_c'^2\\) et \\(S = \\sum_i r_{ic}(x_i - \\mu_c')^2\\), \\(-\\tfrac{n_c}{2}\\ln u - S/(2u)\\) a pour dérivée \\((S - n_c u)/(2u^2)\\), positive avant \\(S/n_c\\) et négative après.\n2. (E2), outil : \\(\\ln\\) est concave (dérivée seconde \\(-1/u^2 < 0\\)), donc pour \\(a, b > 0\\) et des poids \\(r, 1 - r\\) avec \\(0 \\le r \\le 1\\) : \\(\\ln(ra + (1 - r)b) \\ge r\\ln a + (1 - r)\\ln b\\). C'est l'inégalité de Jensen à deux points, qui suffit pour deux composantes.\n3. On note \\(p_c(x_i; \\boldsymbol{\\vartheta}') = \\omega_c'\\mathcal{N}(x_i; \\mu_c', \\sigma_c'^2)\\). Pour chaque \\(i\\) (cas \\(0 < r_{i1} < 1\\) ; si \\(r_{ic} = 0\\), le terme correspondant disparaît des deux côtés) : \\(\\ln\\sum_c p_c(x_i; \\boldsymbol{\\vartheta}') = \\ln\\sum_c r_{ic}\\,\\dfrac{p_c(x_i; \\boldsymbol{\\vartheta}')}{r_{ic}} \\ge \\sum_c r_{ic}\\ln\\dfrac{p_c(x_i; \\boldsymbol{\\vartheta}')}{r_{ic}}\\), par l'étape 2. On somme sur \\(i\\) : \\(\\ell(\\boldsymbol{\\vartheta}') \\ge Q(\\boldsymbol{\\vartheta}') - \\sum_{i,c} r_{ic}\\ln r_{ic}\\).\n4. En \\(\\boldsymbol{\\vartheta}' = \\boldsymbol{\\vartheta}\\), il y a égalité : \\(p_c(x_i; \\boldsymbol{\\vartheta})/r_{ic} = \\sum_{c'} p_{c'}(x_i; \\boldsymbol{\\vartheta})\\) ne dépend pas de \\(c\\), et la moyenne pondérée d'une constante est cette constante.\n5. Donc \\(\\ell(\\boldsymbol{\\vartheta}') \\ge Q(\\boldsymbol{\\vartheta}') - \\sum r\\ln r \\ge Q(\\boldsymbol{\\vartheta}) - \\sum r\\ln r = \\ell(\\boldsymbol{\\vartheta})\\), la deuxième inégalité venant de ce que \\(\\boldsymbol{\\vartheta}'\\) maximise \\(Q\\) (E1).\n\n**Exemple.** Données \\(-1, 0, 4, 5\\) ; départ \\(\\omega = (1/2, 1/2)\\), \\(\\mu = (0, 3)\\), variances 1. Responsabilités de la composante 1, arrondies : (0,9994 ; 0,989 ; 0,0006 ; 0). Après une itération : \\(\\omega_1 = 0{,}497\\), \\(\\mu_1 = -0{,}501\\), \\(\\mu_2 = 4{,}474\\), \\(\\sigma_1^2 = 0{,}256\\), \\(\\sigma_2^2 = 0{,}367\\) ; la log-vraisemblance passe de \\(-9{,}436\\) à \\(-5{,}743\\). Trente itérations :\n\n```python\nx = np.array([-1.0, 0.0, 4.0, 5.0])\n\ndef dens(x, mu, s2):\n    return np.exp(-(x - mu) ** 2 / (2 * s2)) / np.sqrt(2 * np.pi * s2)\n\nom, mu, s2 = np.array([0.5, 0.5]), np.array([0.0, 3.0]), np.array([1.0, 1.0])\nells = []\nfor it in range(30):\n    p = om * dens(x[:, None], mu, s2)            # p[i, c] = omega_c N(x_i ; mu_c, s2_c)\n    ells.append(np.log(p.sum(axis=1)).sum())\n    r = p / p.sum(axis=1, keepdims=True)         # étape E\n    nc = r.sum(axis=0)                           # étape M\n    om, mu = nc / len(x), (r * x[:, None]).sum(axis=0) / nc\n    s2 = (r * (x[:, None] - mu) ** 2).sum(axis=0) / nc\nprint(\"log-vraisemblance, 5 premières itérations :\", np.round(ells[:5], 4))\nprint(\"plus petite variation d'une itération à la suivante :\", np.diff(ells).min())\nprint(\"paramètres finaux :\", om.round(4), mu.round(4), s2.round(4))\n```\n\n```sortie\nlog-vraisemblance, 5 premières itérations : [-9.4362 -5.7429 -5.6758 -5.6758 -5.6758]\nplus petite variation d'une itération à la suivante : 0.0\nparamètres finaux : [0.5 0.5] [-0.5  4.5] [0.25 0.25]\n```\n\n**Pièges.**\n\n1. Le maximum de vraisemblance n'existe pas : avec \\(\\mu_1 = x_1\\) et \\(\\sigma_1 \\to 0\\), le terme de \\(x_1\\) tend vers \\(+\\infty\\) et les autres restent minorés par \\(\\ln(\\omega_2\\mathcal{N}(x_i; \\mu_2, \\sigma_2^2))\\). Sur l'exemple, \\(\\ell\\) vaut (-11,15 ; -6,54 ; 0,37) pour \\(\\sigma_1 = 0{,}1\\), \\(10^{-3}\\), \\(10^{-6}\\). EM peut glisser vers une telle dégénérescence : on borne les variances par en dessous.\n2. La monotonie ne garantit qu'une convergence vers un point stationnaire ou un maximum local : on relance depuis plusieurs départs.\n3. Les étiquettes des composantes sont interchangeables : échanger les composantes 1 et 2 donne la même vraisemblance.\n\n[[controle:em]]\n\n## Réflexes en 30 secondes\n\n| Indice dans l'énoncé | Premier geste |\n|---|---|\n| pas maximal, divergence de la descente | \\(\\eta < 2/L\\), \\(L\\) plus grande valeur propre de la hessienne |\n| vitesse, conditionnement \\(\\kappa\\) | facteur \\(\\max_k \\lvert 1 - \\eta\\lambda_k \\rvert\\) ; optimum \\((\\kappa - 1)/(\\kappa + 1)\\) en \\(\\eta = 2/(\\lambda_{\\min} + L)\\) ; momentum \\((\\sqrt{\\kappa} - 1)/(\\sqrt{\\kappa} + 1)\\) |\n| SGD à pas constant | variance stationnaire \\(\\eta^2\\sigma^2/(1 - (1 - \\eta a)^2)\\), de l'ordre de \\(\\eta\\) ; lot de \\(B\\) : bruit divisé par \\(B\\) |\n| variance des poids à l'initialisation | aller : \\(n_{\\text{entrée}}s^2 \\times \\mathbb{E}[h^2]\\) ; ReLU : \\(\\mathbb{E}[h^2] = \\tfrac12\\mathbb{E}[a^2]\\), d'où \\(2/n\\) ; linéaire ou tanh : \\(1/n\\) |\n| BatchNorm ou LayerNorm | BatchNorm : par neurone, sur le lot (axe 0) ; LayerNorm : par exemple, sur les neurones (axe 1) |\n| dropout de probabilité \\(p\\) | garder et diviser par \\(1 - p\\) ; espérance conservée, variance \\(h^2 p/(1 - p)\\) |\n| gradient à travers \\(M\\) couches | produit des jacobiennes ; résiduel : au moins \\((1 - \\varepsilon)^M\\) |\n| champ réceptif, convolutions causales | \\(1 + \\sum d_l(k_l - 1)\\) ; sans trou si \\(d_l \\le R_{l-1}\\) |\n| LSTM | cellule additive, \\(\\partial\\mathbf{c}_t/\\partial\\mathbf{c}_{t-1} = \\mathrm{diag}(\\mathbf{f}_t)\\) ; paramètres \\(4(n_h(n_h + n_x) + n_h)\\) |\n| attention | scores de variance \\(d\\), division par \\(\\sqrt{d}\\) ; coût en \\(T^2\\) |\n| SVM, rôle de \\(C\\) | \\(C\\) grand : peu de violations, marge étroite ; largeur \\(2/\\lVert \\mathbf{w} \\rVert\\) |\n| ridge à noyau, processus gaussien | \\(\\mathbf{s}(\\mathbf{x})^\\top(\\mathbf{K} + \\lambda\\mathbf{I})^{-1}\\mathbf{y}\\), \\(\\lambda = \\sigma^2\\) |\n| EM, mélange | E : responsabilités par Bayes ; M : moyennes et variances pondérées ; \\(\\ell\\) ne décroît jamais |\n\nContrôles de vraisemblance en 5 secondes :\n\n- un facteur de contraction est dans \\([0, 1[\\) pour un pas qui converge ; \\((\\kappa - 1)/(\\kappa + 1) < 1 - 1/\\kappa\\) dès que \\(\\kappa > 1\\) ;\n- le champ réceptif de \\(M\\) couches causales de noyau au moins 2 vaut au moins \\(M + 1\\), et il croît avec chaque dilatation ;\n- une variance a posteriori de processus gaussien est entre 0 et \\(k(\\mathbf{x}, \\mathbf{x})\\) ;\n- une responsabilité est entre 0 et 1, et les deux responsabilités d'une observation somment à 1.\n\n## À savoir refaire sans notes\n\n- (O1) à (O3) par la base propre, avec le calcul du pas optimal ; la récurrence d'ordre 2 du momentum et la condition sur le discriminant.\n- La variance stationnaire du SGD sur la quadratique de dimension 1.\n- (B1) coordonnée par coordonnée ; (I1) et (I2), d'où 1/n et 2/n.\n- (G1) et la borne résiduelle \\((1 - \\varepsilon)^M\\).\n- Les deux normalisations, avec leurs axes ; l'espérance et la variance du dropout.\n- (C1) et (C2) par récurrence ; les cinq équations du LSTM et (L1) ; (A1) et la jacobienne du softmax.\n- (S1) et (S2) ; (K1) par l'identité de poussée ; (P1) par le résidu non corrélé.\n- Les étapes E et M, et la monotonie de EM par Jensen à deux points.\n", "controles": {"pas": {"question": "La hessienne d'une quadratique a pour valeurs propres 0,5 et 4. Pour quels pas fixes \\(\\eta > 0\\) la descente de gradient converge-t-elle quel que soit le point de départ ?", "options": [{"id": "a", "texte": "Pour \\(\\eta < 0{,}5\\).", "correcte": true, "explication": "Oui : il faut \\(\\lvert 1 - \\eta\\lambda_k \\rvert < 1\\) pour chaque valeur propre, la plus contraignante étant \\(L = 4\\) : \\(\\eta < 2/L\\)."}, {"id": "b", "texte": "Pour \\(\\eta < 4\\).", "correcte": false, "explication": "C'est \\(2/\\lambda_{\\min}\\). Avec \\(\\eta = 1\\), par exemple, la direction de courbure 4 est multipliée par \\(\\lvert 1 - 4 \\rvert = 3\\) à chaque pas : divergence."}, {"id": "c", "texte": "Pour \\(\\eta \\le \\tfrac{4}{9}\\) seulement.", "correcte": false, "explication": "\\(2/(\\lambda_{\\min} + L)\\) est le pas **optimal**, celui qui minimise le facteur de contraction. Les pas un peu plus grands, jusqu'à \\(2/L\\) exclu, convergent aussi, plus lentement."}, {"id": "d", "texte": "Pour \\(\\eta \\le 0{,}25\\) seulement.", "correcte": false, "explication": "\\(1/L\\) est un pas sûr, qui converge avec le facteur \\(1 - 1/\\kappa\\), mais ce n'est pas la limite : tout \\(\\eta < 2/L\\) converge."}]}, "norme": {"question": "Les pré-activations d'un lot forment une matrice de 32 lignes (exemples) et 128 colonnes (neurones). Que calcule LayerNorm ?", "options": [{"id": "a", "texte": "32 moyennes et 32 variances, une par exemple, sur ses 128 neurones.", "correcte": true, "explication": "Oui : LayerNorm normalise chaque ligne (axe 1). Le résultat d'un exemple ne dépend pas des autres exemples."}, {"id": "b", "texte": "128 moyennes et 128 variances, une par neurone, sur les 32 exemples.", "correcte": false, "explication": "C'est BatchNorm, qui normalise chaque colonne sur le lot (axe 0)."}, {"id": "c", "texte": "Une seule moyenne et une seule variance sur les 4096 nombres.", "correcte": false, "explication": "Aucune des deux normalisations ne mélange ainsi tous les exemples et tous les neurones : la moyenne est prise ligne par ligne (LayerNorm) ou colonne par colonne (BatchNorm)."}, {"id": "d", "texte": "Des moyennes mobiles accumulées pendant l'entraînement, utilisées en évaluation.", "correcte": false, "explication": "Les moyennes mobiles sont propres à BatchNorm en évaluation. LayerNorm fait le même calcul en entraînement et en évaluation."}]}, "attention": {"question": "Une requête et une clé ont chacune \\(d = 256\\) coordonnées ; ces \\(2d\\) coordonnées sont des variables indépendantes, de moyenne 0 et de variance 1. Quel est l'écart-type de leur produit scalaire, avant division par \\(\\sqrt{d}\\) ?", "options": [{"id": "a", "texte": "16", "correcte": true, "explication": "Oui : la variance vaut \\(d = 256\\) (A1), donc l'écart-type \\(\\sqrt{d} = 16\\) ; la division par \\(\\sqrt{d}\\) le ramène à 1."}, {"id": "b", "texte": "256", "correcte": false, "explication": "C'est la **variance**, pas l'écart-type. Diviser les scores par \\(d\\) ramènerait leur écart-type à \\(1/\\sqrt{d}\\), trop petit."}, {"id": "c", "texte": "1", "correcte": false, "explication": "C'est l'écart-type **après** division par \\(\\sqrt{d}\\). Avant, chaque coordonnée apporte une variance 1 et les \\(d\\) termes s'additionnent."}, {"id": "d", "texte": "0, car les coordonnées sont centrées.", "correcte": false, "explication": "Centrées, elles donnent un produit scalaire d'**espérance** nulle, pas de dispersion nulle."}]}, "svm": {"question": "Sur des données presque séparables, on multiplie le coefficient \\(C\\) d'un SVM à marge souple par 100. Qu'attendre ?", "options": [{"id": "a", "texte": "Une marge plus étroite et moins de violations : le modèle suit davantage les données d'entraînement.", "correcte": true, "explication": "Oui : \\(C\\) pèse les violations contre \\(\\tfrac12\\lVert \\mathbf{w} \\rVert^2\\) ; le relever autorise un \\(\\lVert \\mathbf{w} \\rVert\\) plus grand, donc une largeur \\(2/\\lVert \\mathbf{w} \\rVert\\) plus petite (exemple de la leçon : de \\(3{,}0\\) à \\(0{,}5\\))."}, {"id": "b", "texte": "Une marge plus large, car le modèle est plus régularisé.", "correcte": false, "explication": "C'est l'effet inverse : \\(C\\) est l'inverse d'un coefficient de régularisation (\\(\\lambda = 1/(Cn)\\)). Plus \\(C\\) est grand, moins le modèle est régularisé."}, {"id": "c", "texte": "Aucun changement : la solution d'un SVM ne dépend que des vecteurs de support.", "correcte": false, "explication": "Les vecteurs de support eux-mêmes changent avec \\(C\\), et la borne \\(\\alpha_i \\le C\\) aussi : la solution dépend de \\(C\\)."}, {"id": "d", "texte": "Toutes les observations deviennent des vecteurs de support.", "correcte": false, "explication": "Au contraire, avec \\(C\\) grand, les observations bien classées au-delà de la marge ont \\(\\alpha_i = 0\\) ; c'est avec \\(C\\) petit et une marge très large que beaucoup d'observations se retrouvent dans la marge."}]}, "em": {"question": "Après une itération de EM sur un mélange de deux gaussiennes, la log-vraisemblance a baissé. Que faut-il en conclure ?", "options": [{"id": "a", "texte": "Il y a une erreur d'implémentation : une itération exacte ne peut pas faire baisser la log-vraisemblance.", "correcte": true, "explication": "Oui : (E2) garantit \\(\\ell(\\boldsymbol{\\vartheta}') \\ge \\ell(\\boldsymbol{\\vartheta})\\) pour une étape E et une étape M exactes. Une baisse au-delà des erreurs d'arrondi signale une faute, par exemple une variance calculée avec l'ancienne moyenne ou des responsabilités non normalisées."}, {"id": "b", "texte": "L'algorithme est passé par un maximum local, ce qui arrive normalement.", "correcte": false, "explication": "EM peut s'arrêter sur un maximum local, mais il n'y descend jamais : la suite des \\(\\ell\\) est croissante."}, {"id": "c", "texte": "La vraisemblance est non bornée, donc elle peut aussi baisser.", "correcte": false, "explication": "La non-bornitude permet à \\(\\ell\\) de tendre vers \\(+\\infty\\) (variance qui s'effondre), pas de baisser."}, {"id": "d", "texte": "C'est normal à la première itération, à cause de l'initialisation.", "correcte": false, "explication": "La monotonie vaut dès la première itération, quel que soit le départ : la preuve n'utilise aucune propriété du point courant."}]}}, "cellules_initiales": ["import numpy as np\nnp.set_printoptions(precision=4, suppress=True)\n\n# Essaie ici les exemples de la leçon, en les modifiant.\nlam = np.array([1.0, 100.0])\nfor eta in [0.01, 2 / 101, 0.0199, 0.0201]:\n    print(eta, np.abs(1 - eta * lam).max())"], "verif": {"script": "verif/seance_ml_4.py"}}]}, {"id": "mla", "nom": "Machine Learning avancé", "budget_min": 16, "questions": [{"id": "ML4-01", "section": "mla", "theme": "Descente de gradient, pas optimal et conditionnement", "difficulte": 3, "temps_cible_s": 90, "enonce": "On minimise \\(f(\\boldsymbol{\\theta}) = \\tfrac12 \\boldsymbol{\\theta}^\\top \\mathbf{A}\\,\\boldsymbol{\\theta} - \\mathbf{b}^\\top \\boldsymbol{\\theta}\\), où \\(\\mathbf{A}\\) est une matrice symétrique \\(2 \\times 2\\) de valeurs propres 2 et 18 et \\(\\mathbf{b} \\in \\mathbb{R}^2\\) est fixé, par descente de gradient à pas fixe \\(\\eta > 0\\) : \\(\\boldsymbol{\\theta}_t = \\boldsymbol{\\theta}_{t-1} - \\eta\\,\\nabla f(\\boldsymbol{\\theta}_{t-1})\\). On note \\(\\boldsymbol{\\theta}^*\\) le minimum et \\(q(\\eta)\\) le plus petit nombre tel que \\(\\lVert \\boldsymbol{\\theta}_t - \\boldsymbol{\\theta}^* \\rVert \\le q(\\eta)^t\\,\\lVert \\boldsymbol{\\theta}_0 - \\boldsymbol{\\theta}^* \\rVert\\) pour tout point de départ et tout \\(t \\ge 1\\).\n\nQuel pas \\(\\eta\\) minimise \\(q(\\eta)\\), et que vaut alors \\(q\\) ?", "options": [{"id": "a", "texte": "\\(\\eta = \\tfrac{1}{10}\\) et \\(q = \\tfrac{4}{5}\\)", "correcte": true, "explication": "Oui : \\(\\eta^* = 2/(\\lambda_{\\min} + L) = 2/20\\), et les deux directions sont contractées du même facteur \\(\\lvert 1 - 2/10 \\rvert = \\lvert 1 - 18/10 \\rvert = (\\kappa - 1)/(\\kappa + 1)\\) avec \\(\\kappa = 9\\)."}, {"id": "b", "texte": "\\(\\eta = \\tfrac{1}{18}\\) et \\(q = \\tfrac{8}{9}\\)", "correcte": false, "explication": "Le pas \\(1/L\\) converge, avec \\(q = 1 - 1/\\kappa\\), mais il n'est pas optimal : il annule l'erreur dans la direction de courbure 18 et laisse la direction plate trop lente. Augmenter \\(\\eta\\) jusqu'à \\(2/(\\lambda_{\\min} + L)\\) équilibre les deux directions."}, {"id": "c", "texte": "\\(\\eta = \\tfrac{1}{9}\\) et \\(q = \\tfrac{7}{9}\\)", "correcte": false, "explication": "C'est le pas limite \\(2/L\\), et \\(\\tfrac{7}{9}\\) n'est que le facteur de la direction plate. Dans la direction de courbure 18, \\(\\lvert 1 - 18 \\times 2/18 \\rvert = 1\\) : l'erreur ne décroît pas, donc \\(q = 1\\)."}, {"id": "d", "texte": "\\(\\eta = \\tfrac{1}{2}\\) et \\(q = 0\\)", "correcte": false, "explication": "Le pas \\(1/\\lambda_{\\min}\\) annule l'erreur de la direction plate en un pas, mais multiplie celle de la direction de courbure 18 par \\(\\lvert 1 - 9 \\rvert\\) : \\(q = 8\\), la descente diverge. Le pas doit rester sous \\(2/L\\)."}], "solution": "Réponse : \\(\\eta = \\tfrac{1}{10}\\), et \\(q = \\tfrac{4}{5}\\).\n\nÉtape 1 : l'erreur \\(\\mathbf{e}_t = \\boldsymbol{\\theta}_t - \\boldsymbol{\\theta}^*\\) vérifie \\(\\mathbf{e}_t = (\\mathbf{I} - \\eta\\mathbf{A})\\,\\mathbf{e}_{t-1}\\) ; dans la base propre, chaque coordonnée est multipliée par \\(1 - \\eta\\lambda_k\\) à chaque pas, donc \\(q(\\eta) = \\max(\\lvert 1 - 2\\eta \\rvert, \\lvert 1 - 18\\eta \\rvert)\\) (leçon, partie 1.1, O1).\n\nÉtape 2 : le maximum de deux fonctions, l'une décroissante tant que \\(\\eta < 1/2\\), l'autre croissante dès que \\(\\eta > 1/18\\), est minimal quand elles sont égales avec des signes opposés : \\(1 - 2\\eta = 18\\eta - 1\\), soit \\(\\eta = 2/20 = \\tfrac{1}{10}\\) (O3).\n\nÉtape 3 : \\(q = 1 - 2/10 = \\tfrac{4}{5}\\), soit \\((\\kappa - 1)/(\\kappa + 1)\\) avec \\(\\kappa = 18/2 = 9\\). Le script vérifie qu'aucun pas d'une grille de 999 valeurs ne fait mieux.", "type": "qcm", "multiple": false, "reponse": "\\(\\eta = \\tfrac{1}{10}\\) et \\(q = \\tfrac{4}{5}\\)", "fiche": null, "verif": {"script": "verif/seance_ml_4.py", "cles": ["Q01_d_invL_eta_den", "Q01_d_invL_eta_num", "Q01_d_invL_q_den", "Q01_d_invL_q_num", "Q01_d_lmin_eta_den", "Q01_d_lmin_eta_num", "Q01_d_lmin_q", "Q01_d_max_eta_den", "Q01_d_max_eta_num", "Q01_d_max_q", "Q01_d_max_qlent_den", "Q01_d_max_qlent_num", "Q01_eta_den", "Q01_eta_num", "Q01_kappa", "Q01_q_den", "Q01_q_num"]}}, {"id": "ML4-02", "section": "mla", "theme": "Gradient stochastique à pas constant, variance stationnaire", "difficulte": 4, "temps_cible_s": 120, "enonce": "On minimise \\(f(\\theta) = \\tfrac{a}{2}\\theta^2\\) avec \\(a = 2\\), dont le minimum est en 0, par gradient stochastique à pas constant \\(\\eta = 0{,}1\\). Au pas \\(t \\ge 1\\), le gradient estimé est \\(G_t = a\\,\\Theta_{t-1} + Z_t\\), où les \\(Z_t\\) sont des variables indépendantes, de moyenne 0 et de variance \\(\\sigma^2 = 0{,}5\\), chacune indépendante de \\(\\Theta_0, \\dots, \\Theta_{t-1}\\) ; puis \\(\\Theta_t = \\Theta_{t-1} - \\eta\\,G_t\\), avec \\(\\Theta_0 = 3\\).\n\nVers quelle valeur tend \\(\\mathrm{Var}(\\Theta_t)\\) quand \\(t \\to \\infty\\), arrondie à quatre décimales ?", "options": [{"id": "a", "texte": "0,0139", "correcte": true, "explication": "Oui : \\(\\eta^2\\sigma^2/(1 - (1 - \\eta a)^2) = 0{,}005/(1 - 0{,}64) = \\tfrac{1}{72}\\)."}, {"id": "b", "texte": "0,0125", "correcte": false, "explication": "C'est l'équivalent pour \\(\\eta\\) petit, \\(\\eta\\sigma^2/(2a)\\), qui néglige le terme \\(\\eta a\\) de \\(\\eta\\sigma^2/(a(2 - \\eta a))\\). Ici \\(\\eta a = 0{,}2\\) n'est pas négligeable devant 2 ; la question demande la valeur exacte."}, {"id": "c", "texte": "0,0250", "correcte": false, "explication": "Le facteur \\(1 - \\eta a\\) n'a pas été élevé au carré dans la récurrence des variances. Or \\(\\mathrm{Var}(c\\,\\Theta) = c^2\\,\\mathrm{Var}(\\Theta)\\) : \\(v_t = (1 - \\eta a)^2 v_{t-1} + \\eta^2\\sigma^2\\)."}, {"id": "d", "texte": "0,0050", "correcte": false, "explication": "C'est \\(\\eta^2\\sigma^2\\), la variance ajoutée par un seul pas. Le bruit s'accumule d'un pas à l'autre, amorti par le facteur \\((1 - \\eta a)^2\\) : la limite est la somme géométrique \\(\\eta^2\\sigma^2 \\sum_{j \\ge 0} (1 - \\eta a)^{2j}\\)."}], "solution": "Réponse : \\(\\tfrac{1}{72} \\approx 0{,}0139\\).\n\nÉtape 1 : \\(\\Theta_t = (1 - \\eta a)\\,\\Theta_{t-1} - \\eta Z_t\\), avec \\(1 - \\eta a = 0{,}8\\).\n\nÉtape 2 : \\(Z_t\\) est indépendante de \\(\\Theta_{t-1}\\), donc \\(v_t = \\mathrm{Var}(\\Theta_t)\\) vérifie \\(v_t = 0{,}8^2\\,v_{t-1} + \\eta^2\\sigma^2\\), avec \\(v_0 = 0\\) (\\(\\Theta_0\\) est fixe) et \\(\\eta^2\\sigma^2 = 0{,}005\\) (leçon, partie 1.3, O5).\n\nÉtape 3 : \\(v_t - v_\\infty = 0{,}64\\,(v_{t-1} - v_\\infty)\\) tend vers 0, avec \\(v_\\infty = 0{,}005/(1 - 0{,}64) = \\tfrac{1}{72}\\). Le départ \\(\\Theta_0 = 3\\) n'agit que sur l'espérance, \\(3 \\times 0{,}8^t \\to 0\\).\n\nSimulation de 40000 chaînes sur 200 pas (script) : 0,0138, erreur standard 0,0001.", "type": "qcm", "multiple": false, "reponse": "0,0139", "fiche": null, "verif": {"script": "verif/seance_ml_4.py", "cles": ["Q02_d_approx", "Q02_d_sans_carre", "Q02_d_un_pas", "Q02_exact", "Q02_exact_den", "Q02_exact_num", "Q02_facteur", "Q02_mc", "Q02_se"]}}, {"id": "ML4-03", "section": "mla", "theme": "Initialisation, propagation de la variance avec ReLU", "difficulte": 4, "temps_cible_s": 120, "enonce": "Un réseau sans biais a toutes ses couches de largeur \\(n\\). Le vecteur \\(\\mathbf{a}^{(1)} \\in \\mathbb{R}^n\\) a des coordonnées indépendantes de loi normale centrée réduite. Pour \\(l = 1, \\dots, 10\\) : \\(\\mathbf{a}^{(l+1)} = \\mathbf{W}^{(l+1)}\\,\\mathrm{ReLU}(\\mathbf{a}^{(l)})\\), où ReLU s'applique coordonnée par coordonnée et où les matrices aléatoires \\(\\mathbf{W}^{(2)}, \\dots, \\mathbf{W}^{(11)}\\), de taille \\(n \\times n\\), ont des coefficients indépendants de loi \\(\\mathcal{N}(0, 1/n)\\) (initialisation de Glorot, \\(2/(n + n)\\)), indépendants de \\(\\mathbf{a}^{(1)}\\).\n\nQue vaut \\(\\mathrm{Var}(a^{(11)}_1)\\), la variance de la première coordonnée de \\(\\mathbf{a}^{(11)}\\) ?", "options": [{"id": "a", "texte": "\\(\\tfrac{1}{1024}\\)", "correcte": true, "explication": "Oui : chaque couche multiplie le moment d'ordre 2 par \\(n \\times \\tfrac1n \\times \\tfrac12\\), et il y a 10 couches entre \\(\\mathbf{a}^{(1)}\\) et \\(\\mathbf{a}^{(11)}\\)."}, {"id": "b", "texte": "1", "correcte": false, "explication": "La règle \\(1/n\\) conserve la variance d'une couche **linéaire**. ReLU met à zéro la moitié du moment d'ordre 2 (leçon, partie 2.2, I2) : il faudrait \\(2/n\\) (He) pour le conserver."}, {"id": "c", "texte": "\\(\\tfrac{1}{2048}\\)", "correcte": false, "explication": "C'est \\(2^{-11}\\) : une couche de trop. De \\(\\mathbf{a}^{(1)}\\) à \\(\\mathbf{a}^{(11)}\\), il y a 10 multiplications par une matrice de poids, donc 10 divisions par 2."}, {"id": "d", "texte": "\\(\\big(\\tfrac12 - \\tfrac{1}{2\\pi}\\big)^{10} \\approx 0{,}0000212\\)", "correcte": false, "explication": "C'est la **variance** de \\(\\mathrm{ReLU}(A)\\) pour \\(A\\) normale centrée réduite, utilisée à la place du moment d'ordre 2. Or \\(\\mathbb{E}[a_i^2] = s^2\\sum_j \\mathbb{E}[h_j^2]\\) fait intervenir \\(\\mathbb{E}[h_j^2] = \\tfrac12\\mathbb{E}[a_j^2]\\), pas \\(\\mathrm{Var}(h_j)\\) : les \\(h_j\\) ne sont pas centrés, et c'est le moment d'ordre 2 qui compte. De plus, après la première couche, les \\(a\\) ne sont plus gaussiens."}], "solution": "Réponse : \\(2^{-10} = \\tfrac{1}{1024}\\).\n\nÉtape 1 (leçon, partie 2.2, I1) : \\(a^{(l+1)}_i = \\sum_j W_{ij}h_j\\) avec \\(\\mathbf{h} = \\mathrm{ReLU}(\\mathbf{a}^{(l)})\\) indépendant de \\(\\mathbf{W}^{(l+1)}\\) ; les termes croisés ont une espérance nulle, donc \\(\\mathbb{E}[(a^{(l+1)}_i)^2] = \\tfrac1n\\sum_{j=1}^{n}\\mathbb{E}[h_j^2]\\). Par symétrie des poids, \\(a^{(l+1)}_i\\) est centrée : son moment d'ordre 2 est sa variance.\n\nÉtape 2 (I2) : \\(\\mathbf{a}^{(1)}\\) est gaussienne centrée, et chaque \\(\\mathbf{a}^{(l)}\\) suivant a une loi symétrique ; donc \\(\\mathbb{E}[h_j^2] = \\tfrac12\\mathbb{E}[(a^{(l)}_j)^2]\\), et \\(\\mathbb{E}[(a^{(l+1)}_i)^2] = \\tfrac12\\,\\mathbb{E}[(a^{(l)}_j)^2]\\) (toutes les coordonnées d'une couche ont la même loi).\n\nÉtape 3 : 10 couches, \\(\\mathrm{Var}(a^{(11)}_1) = 2^{-10} \\times 1 = \\tfrac{1}{1024}\\). Le résultat ne dépend pas de \\(n\\).\n\nSimulation (script, réseaux de largeur 10, un réseau neuf par tirage) : 0,001042, erreur standard 0,000065.", "type": "qcm", "multiple": false, "reponse": "\\(\\tfrac{1}{1024}\\)", "fiche": null, "verif": {"script": "verif/seance_ml_4.py", "cles": ["Q03_d_onze_den", "Q03_d_onze_num", "Q03_d_var_relu", "Q03_exact_den", "Q03_exact_num", "Q03_mc", "Q03_se"]}}, {"id": "ML4-04", "section": "mla", "theme": "Dropout, remise à l'échelle et variance", "difficulte": 3, "temps_cible_s": 75, "enonce": "Pendant l'entraînement, une couche de dropout reçoit une activation de valeur \\(h = 2\\). Avec probabilité \\(p = 0{,}2\\), elle renvoie 0 ; sinon, elle renvoie \\(h/(1 - p)\\). On note \\(\\tilde H\\) la valeur renvoyée.\n\nQue vaut \\(\\mathrm{Var}(\\tilde H)\\) ?", "options": [{"id": "a", "texte": "1", "correcte": true, "explication": "Oui : \\(h^2\\,p/(1 - p) = 4 \\times 0{,}2/0{,}8\\)."}, {"id": "b", "texte": "0,64", "correcte": false, "explication": "C'est \\(h^2 p(1 - p)\\), la variance de \\(D\\,h\\) **sans** la division par \\(1 - p\\). Diviser une variable par \\(0{,}8\\) divise sa variance par \\(0{,}8^2\\)."}, {"id": "c", "texte": "5", "correcte": false, "explication": "C'est \\(\\mathbb{E}[\\tilde H^2] = h^2/(1 - p)\\), le moment d'ordre 2. Il faut retrancher le carré de l'espérance, \\(h^2 = 4\\)."}, {"id": "d", "texte": "16", "correcte": false, "explication": "C'est \\(h^2(1 - p)/p\\) : \\(p\\) a été pris pour la probabilité de **garder** l'activation. Ici \\(p = 0{,}2\\) est la probabilité de l'éteindre."}], "solution": "Réponse : 1.\n\nÉtape 1 : \\(\\tilde H\\) vaut 0 avec probabilité 0,2 et \\(2/0{,}8 = 2{,}5\\) avec probabilité 0,8.\n\nÉtape 2 : \\(\\mathbb{E}[\\tilde H] = 0{,}8 \\times 2{,}5 = 2 = h\\) : la remise à l'échelle conserve l'espérance (leçon, partie 2.5, D1).\n\nÉtape 3 : \\(\\mathbb{E}[\\tilde H^2] = 0{,}8 \\times 2{,}5^2 = 5\\), donc \\(\\mathrm{Var}(\\tilde H) = 5 - 4 = 1\\), comme \\(h^2 p/(1 - p)\\).\n\nSimulation (script, 400000 tirages) : 1,001, erreur standard 0,0024.", "type": "qcm", "multiple": false, "reponse": "1", "fiche": null, "verif": {"script": "verif/seance_ml_4.py", "cles": ["Q04_d_inverse", "Q04_d_moment2", "Q04_d_sans_echelle", "Q04_exact", "Q04_haut", "Q04_mc", "Q04_se"]}}, {"id": "ML4-05", "section": "mla", "theme": "Convolutions causales dilatées, champ réceptif", "difficulte": 4, "temps_cible_s": 120, "enonce": "On empile 5 couches de convolution causales à une dimension, de pas 1. Une couche de noyau de taille \\(k\\) et de dilatation \\(d\\) calcule \\(y_t = \\sum_{i=0}^{k-1} w_i\\,u_{t - di}\\) à partir de la suite \\(u\\) qu'elle reçoit (complétée par des zéros avant son début). Les quatre premières couches ont un noyau de taille 3 et des dilatations 1, 2, 4 et 8 ; la cinquième a un noyau de taille 2 et une dilatation 16. Les poids sont quelconques, tous non nuls.\n\nLoin du début de la série, de combien d'entrées \\(x_s\\) distinctes la sortie de la cinquième couche au temps \\(t\\) peut-elle dépendre ?", "options": [{"id": "a", "texte": "47", "correcte": true, "explication": "Oui : \\(1 + 2(1 + 2 + 4 + 8) + 1 \\times 16\\), et il n'y a aucun trou, car chaque dilatation est au plus le champ réceptif des couches précédentes."}, {"id": "b", "texte": "46", "correcte": false, "explication": "Il manque le 1 de la formule : la somme \\(\\sum_l d_l(k_l - 1)\\) est le plus grand **retard**, et les retards vont de 0 à cette valeur, ce qui fait une entrée de plus."}, {"id": "c", "texte": "77", "correcte": false, "explication": "C'est \\(\\sum_l d_l k_l\\) : chaque couche n'ajoute que \\(d_l(k_l - 1)\\) au plus grand retard, car son premier coefficient lit le retard 0."}, {"id": "d", "texte": "10", "correcte": false, "explication": "C'est le champ réceptif sans dilatation, \\(1 + \\sum_l (k_l - 1)\\). Une dilatation \\(d\\) écarte les coefficients du noyau de \\(d\\) positions."}], "solution": "Réponse : 47 entrées.\n\nÉtape 1 (leçon, partie 3.1, C1) : les retards possibles sont les sommes \\(\\sum_l d_l i_l\\) avec \\(0 \\le i_l \\le k_l - 1\\) ; le plus grand vaut \\(2 \\times 1 + 2 \\times 2 + 2 \\times 4 + 2 \\times 8 + 1 \\times 16 = 46\\), donc la fenêtre compte \\(R = 47\\) positions.\n\nÉtape 2 (C2), absence de trou : après les couches 1 à 4, le champ vaut \\(R_4 = 31\\), sans trou car \\(1 \\le 1\\), \\(2 \\le 3\\), \\(4 \\le 7\\), \\(8 \\le 15\\). La cinquième couche réunit l'intervalle des retards \\(0\\) à \\(31 - 1\\) et son translaté de 16 ; comme \\(16 \\le 31\\), les deux se chevauchent et la réunion est l'intervalle de 0 à \\(46\\).\n\nÉtape 3 : toutes les 47 entrées de la fenêtre interviennent. Le script le vérifie par énumération des retards et par convolution d'une impulsion.", "type": "qcm", "multiple": false, "reponse": "47", "fiche": null, "verif": {"script": "verif/seance_ml_4.py", "cles": ["Q05_avant", "Q05_d_k", "Q05_d_sans_dil", "Q05_d_sans_un", "Q05_exact"]}}, {"id": "ML4-06", "section": "mla", "theme": "LSTM, nombre de paramètres", "difficulte": 3, "temps_cible_s": 75, "enonce": "Une couche LSTM reçoit des entrées \\(\\mathbf{x}_t \\in \\mathbb{R}^{32}\\) et a un état caché \\(\\mathbf{h}_t \\in \\mathbb{R}^{64}\\) et une cellule \\(\\mathbf{c}_t \\in \\mathbb{R}^{64}\\). Avec \\(\\mathbf{z}_t = (\\mathbf{h}_{t-1}, \\mathbf{x}_t)\\), elle calcule \\(\\mathbf{f}_t = \\mathrm{sig}(\\mathbf{W}_f\\mathbf{z}_t + \\mathbf{b}_f)\\), \\(\\mathbf{i}_t = \\mathrm{sig}(\\mathbf{W}_i\\mathbf{z}_t + \\mathbf{b}_i)\\), \\(\\mathbf{o}_t = \\mathrm{sig}(\\mathbf{W}_o\\mathbf{z}_t + \\mathbf{b}_o)\\), \\(\\tilde{\\mathbf{c}}_t = \\tanh(\\mathbf{W}_c\\mathbf{z}_t + \\mathbf{b}_c)\\), \\(\\mathbf{c}_t = \\mathbf{f}_t \\odot \\mathbf{c}_{t-1} + \\mathbf{i}_t \\odot \\tilde{\\mathbf{c}}_t\\) et \\(\\mathbf{h}_t = \\mathbf{o}_t \\odot \\tanh(\\mathbf{c}_t)\\), où \\(\\mathrm{sig}\\) est la sigmoïde et \\(\\odot\\) le produit coordonnée par coordonnée.\n\nCombien de paramètres apprenables a cette couche (coefficients des quatre matrices et des quatre vecteurs de biais) ?", "options": [{"id": "a", "texte": "24832", "correcte": true, "explication": "Oui : \\(4 \\times (64 \\times 96 + 64)\\), chaque matrice étant de taille \\(64 \\times (64 + 32)\\)."}, {"id": "b", "texte": "24576", "correcte": false, "explication": "Il manque les 4 vecteurs de biais de 64 coefficients chacun."}, {"id": "c", "texte": "6208", "correcte": false, "explication": "C'est le nombre de paramètres d'un seul bloc, celui d'un RNN simple de même taille. Le LSTM en a quatre : trois portes et le candidat."}, {"id": "d", "texte": "18624", "correcte": false, "explication": "Trois blocs seulement : le candidat \\(\\tilde{\\mathbf{c}}_t\\) a lui aussi sa matrice et son biais. (Trois blocs, c'est le compte d'un GRU, une autre architecture.)"}], "solution": "Réponse : 24832.\n\nÉtape 1 : \\(\\mathbf{z}_t\\) a \\(64 + 32 = 96\\) coordonnées, donc chaque matrice \\(\\mathbf{W}_\\bullet\\) a \\(64 \\times 96\\) coefficients, et chaque biais 64.\n\nÉtape 2 : un bloc compte \\(64 \\times 96 + 64 = 6208\\) paramètres ; il y a 4 blocs (\\(\\mathbf{f}\\), \\(\\mathbf{i}\\), \\(\\mathbf{o}\\), \\(\\tilde{\\mathbf{c}}\\)) : 24832 (leçon, partie 3.3).\n\nPiège : `nn.LSTM` de PyTorch utilise deux vecteurs de biais par bloc ; avec cette convention, on compterait 25088 paramètres. L'énoncé précise un biais par bloc.", "type": "qcm", "multiple": false, "reponse": "24832", "fiche": null, "verif": {"script": "verif/seance_ml_4.py", "cles": ["Q06_bloc", "Q06_d_rnn", "Q06_d_sans_biais", "Q06_d_trois", "Q06_deux_biais", "Q06_exact"]}}, {"id": "ML4-07", "section": "mla", "theme": "Processus gaussien et ridge à noyau, moyenne a posteriori", "difficulte": 5, "temps_cible_s": 150, "enonce": "\\(F\\) est un processus gaussien centré sur \\(\\mathbb{R}\\) de covariance \\(k(x, x') = \\exp\\big(-(x - x')^2/2\\big)\\) : pour tous points \\(x_1, \\dots, x_m\\), le vecteur \\((F(x_1), \\dots, F(x_m))\\) est gaussien centré de covariance \\(\\big(k(x_i, x_j)\\big)_{i,j}\\). On observe \\(Y_1 = F(0) + E_1\\) et \\(Y_2 = F(1) + E_2\\), où \\(E_1\\) et \\(E_2\\) sont indépendantes, de loi normale centrée de variance 0,5, et indépendantes de \\(F\\). Les valeurs observées sont \\(y_1 = 1\\) et \\(y_2 = 0\\).\n\nQue vaut \\(\\mathbb{E}[F(0) \\mid Y_1 = 1, Y_2 = 0]\\), arrondie à trois décimales ?", "options": [{"id": "a", "texte": "0,602", "correcte": true, "explication": "Oui : \\(\\mathbf{s}^\\top(\\mathbf{K} + 0{,}5\\,\\mathbf{I})^{-1}\\mathbf{y} = (1{,}5 - e^{-1})/(2{,}25 - e^{-1})\\)."}, {"id": "b", "texte": "1", "correcte": false, "explication": "C'est l'interpolation, obtenue sans bruit (\\(\\sigma^2 = 0\\)) : la moyenne a posteriori passerait par l'observation. Avec un bruit de variance 0,5, elle est tirée vers 0, la moyenne a priori."}, {"id": "c", "texte": "0,526", "correcte": false, "explication": "C'est le calcul avec l'**écart-type** du bruit, \\(\\sqrt{0{,}5}\\), ajouté à la diagonale. C'est la variance \\(\\sigma^2 = 0{,}5\\) qui joue le rôle de \\(\\lambda\\)."}, {"id": "d", "texte": "0,667", "correcte": false, "explication": "C'est \\(1/(1 + 0{,}5)\\), le calcul qui ignore la seconde observation. \\(Y_2\\) est corrélée à \\(F(0)\\) (covariance \\(e^{-1/2}\\)) : l'observation \\(y_2 = 0\\) abaisse encore l'estimation."}], "solution": "Réponse : \\(\\dfrac{1{,}5 - e^{-1}}{2{,}25 - e^{-1}} \\approx 0{,}6015\\), soit 0,602.\n\nNotations : \\(a = k(0, 1) = e^{-1/2} \\approx 0{,}6065\\) ; \\(\\mathbf{K}\\), la matrice de Gram des points 0 et 1, a ses coefficients diagonaux égaux à 1 et ses deux coefficients hors diagonale égaux à \\(a\\) ; \\(\\mathbf{s} = (k(0, 0), k(1, 0)) = (1, a)\\) ; \\(\\mathbf{y} = (1, 0)\\).\n\nÉtape 1 (leçon, partie 4.4, P1) : la moyenne a posteriori est \\(\\mathbf{s}^\\top(\\mathbf{K} + \\sigma^2\\mathbf{I})^{-1}\\mathbf{y}\\), la prédiction de la ridge à noyau avec \\(\\lambda = \\sigma^2 = 0{,}5\\).\n\nÉtape 2 : \\(\\mathbf{K} + 0{,}5\\,\\mathbf{I}\\) a pour coefficients diagonaux 1,5 et hors diagonale \\(a\\) ; son déterminant vaut \\(2{,}25 - a^2\\), et son inverse a pour coefficients diagonaux \\(1{,}5/(2{,}25 - a^2)\\) et hors diagonale \\(-a/(2{,}25 - a^2)\\) (inverse d'une matrice \\(2 \\times 2\\) : on échange les coefficients diagonaux, on change le signe des autres, on divise par le déterminant). Donc \\((\\mathbf{K} + 0{,}5\\,\\mathbf{I})^{-1}\\mathbf{y}\\), sa première colonne, vaut \\((1{,}5, -a)/(2{,}25 - a^2)\\).\n\nÉtape 3 : produit scalaire avec \\(\\mathbf{s} = (1, a)\\) : \\(\\dfrac{1{,}5 - a^2}{2{,}25 - a^2}\\), avec \\(a^2 = e^{-1} \\approx 0{,}3679\\) : \\(1{,}1321/1{,}8821 \\approx 0{,}6015\\).\n\nPour aller plus loin : la variance a posteriori vaut \\(1 - \\mathbf{s}^\\top(\\mathbf{K} + 0{,}5\\,\\mathbf{I})^{-1}\\mathbf{s} \\approx 0{,}3008\\) (simulation du modèle par le script : 0,3005).", "type": "qcm", "multiple": false, "reponse": "0,602", "fiche": null, "verif": {"script": "verif/seance_ml_4.py", "cles": ["Q07_a", "Q07_a2", "Q07_d_seul", "Q07_d_sigma", "Q07_den", "Q07_exact", "Q07_num", "Q07_var", "Q07_var_mc"]}}, {"id": "ML4-08", "section": "mla", "theme": "EM, mélange de deux gaussiennes, une itération", "difficulte": 4, "temps_cible_s": 120, "enonce": "Mélange de deux gaussiennes sur \\(\\mathbb{R}\\) : une étiquette cachée \\(Z \\in \\{1, 2\\}\\) avec \\(\\mathbb{P}(Z = c) = \\omega_c\\), puis \\(X\\) de loi \\(\\mathcal{N}(\\mu_c, \\sigma_c^2)\\) sachant \\(Z = c\\). On observe trois valeurs, \\(0\\), \\(1\\) et \\(5\\), indépendantes. On part de \\(\\omega_1 = \\omega_2 = 1/2\\), \\(\\mu_1 = 0\\), \\(\\mu_2 = 4\\), \\(\\sigma_1^2 = \\sigma_2^2 = 1\\), et l'on fait une itération de EM : étape E (responsabilités \\(r_{i1} = \\mathbb{P}(Z_i = 1 \\mid X_i = x_i)\\) sous les paramètres de départ), puis étape M.\n\nQue vaut le nouveau \\(\\mu_1\\), arrondi à trois décimales ?", "options": [{"id": "a", "texte": "0,496", "correcte": true, "explication": "Oui : \\(\\mu_1 = \\sum_i r_{i1}x_i/\\sum_i r_{i1}\\), moyenne pondérée par les responsabilités, à peu près (0,9997 ; 0,982 ; 0) pour les trois observations."}, {"id": "b", "texte": "0,500", "correcte": false, "explication": "C'est l'affectation dure (comme k-means) : 0 et 1 entièrement à la composante 1. EM pondère : l'observation 1 n'appartient à la composante 1 qu'avec probabilité \\(0{,}982\\), et 5 avec une probabilité infime mais non nulle."}, {"id": "c", "texte": "0,327", "correcte": false, "explication": "La somme pondérée a été divisée par le nombre d'observations, 3, au lieu de la somme des responsabilités, \\(n_1 \\approx 1{,}982\\)."}, {"id": "d", "texte": "2,000", "correcte": false, "explication": "C'est la moyenne simple des trois observations : elle ignore les responsabilités. C'est l'estimation d'une seule gaussienne, pas d'une composante du mélange."}], "solution": "Réponse : \\(\\mu_1 \\approx 0{,}496\\).\n\nÉtape 1, étape E : à poids et variances égaux, \\(r_{i1} = \\dfrac{\\mathcal{N}(x_i; 0, 1)}{\\mathcal{N}(x_i; 0, 1) + \\mathcal{N}(x_i; 4, 1)} = \\dfrac{1}{1 + \\exp\\big((x_i^2 - (x_i - 4)^2)/2\\big)}\\). Pour \\(x = 0\\) : \\(1/(1 + e^{-8})\\) ; pour \\(x = 1\\) : \\(1/(1 + e^{-4}) \\approx 0{,}982\\) ; pour \\(x = 5\\) : \\(1/(1 + e^{12}) \\approx 0{,}0000061\\). Arrondies : (0,9997 ; 0,982 ; 0).\n\nÉtape 2, étape M (leçon, partie 5, E1) : \\(n_1 = \\sum_i r_{i1} \\approx 1{,}9817\\) et \\(\\mu_1 = (0 \\times r_{11} + 1 \\times r_{21} + 5 \\times r_{31})/n_1 \\approx 0{,}4956\\).\n\nContrôle (E2) : la log-vraisemblance passe de \\(-5{,}818\\) à \\(-3{,}663\\) après l'itération complète (script). Le nouveau \\(\\mu_2\\) vaut \\(4{,}928\\).", "type": "qcm", "multiple": false, "reponse": "0,496", "fiche": null, "verif": {"script": "verif/seance_ml_4.py", "cles": ["Q08_d_dur", "Q08_d_moyenne", "Q08_d_sur_n", "Q08_ell0", "Q08_ell1", "Q08_exact", "Q08_mu2", "Q08_n1", "Q08_r", "Q08_r1", "Q08_r3"]}}]}]}</script>
+<script>
+'use strict';
+const D = JSON.parse(document.getElementById('donnees').textContent);
+const ITEMS = D.sections.flatMap(s => s.questions.map(q => Object.assign({ nomSection: s.nom }, q)));
+const CLE = 'atelier-quant:' + D.id;
+const SERVEUR = location.protocol.startsWith('http');
+// La session survit à un rechargement de l'onglet : on se reconnecte alors au même noyau, variables comprises.
+const SESSION = (() => { const neuve = Math.random().toString(36).slice(2) + Date.now().toString(36); try { const s = sessionStorage.getItem('atelier-quant:session') || neuve; sessionStorage.setItem('atelier-quant:session', s); return s; } catch (e) { return neuve; } })();
+const page = document.getElementById('page');
+const noyauxDemarres = {};
+let E = etatNeuf('accueil');
+
+function etatNeuf(phase) { return { phase, courant: 0, debut: null, fin: null, reponses: {}, temps: {}, ordre: {}, cellules: {}, code: {}, controles: {}, ordreControles: {}, vus: {}, partie: {}, enregistrement: null, pauseDepuis: null, pauseTotale: 0 }; }
+// Options par défaut : la pause et « Je ne sais pas » sont permis, sauf si l'examen les interdit (examens blancs).
+const PAUSE_PERMISE = D.options.pause !== false;
+const NSP_PERMIS = D.options.je_ne_sais_pas !== false;
+function dureeEcoulee(fin) { return (fin - E.debut - (E.pauseTotale || 0) - (E.pauseDepuis ? fin - E.pauseDepuis : 0)) / 1000; }
+const NOTEES = ITEMS.filter(q => q.type !== 'lecon');
+function sauver() { try { localStorage.setItem(CLE, JSON.stringify(E)); } catch (e) {} }
+function charger() { try { const s = localStorage.getItem(CLE); if (s) E = Object.assign(etatNeuf('accueil'), JSON.parse(s)); } catch (e) {} }
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function enLigne(t) { return esc(t).replace(/`([^`]+)`/g, '<code class="sans-math">$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); }
+
+// Markdown réduit : titres #, tableaux |, listes - et 1., paragraphes, `code`, **gras**, blocs entre triples accents graves.
+function rendre(t) {
+  let h = '';
+  String(t).split('```').forEach((bloc, i) => {
+    if (i % 2) {
+      const info = (bloc.match(/^(\w*)\n/) || [])[1];
+      h += '<pre class="sans-math' + (info === 'sortie' ? ' sortie-lecon' : '') + '"><code>' + esc(bloc.replace(/^\w*\n/, '')) + '</code></pre>';
+      return;
+    }
+    const lignes = bloc.split('\n');
+    let k = 0;
+    while (k < lignes.length) {
+      const l = lignes[k];
+      if (!l.trim()) { k++; continue; }
+      const titre = l.match(/^(#{1,4})\s+(.*)$/);
+      if (titre) { const n = Math.min(4, titre[1].length + 1); h += '<h' + n + '>' + enLigne(titre[2]) + '</h' + n + '>'; k++; continue; }
+      if (l.trim().startsWith('|')) {
+        const rangs = [];
+        while (k < lignes.length && lignes[k].trim().startsWith('|')) { rangs.push(lignes[k].trim()); k++; }
+        const cellules = r => r.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+        h += '<div class="defile"><table><tr>' + cellules(rangs[0]).map(c => '<th>' + enLigne(c) + '</th>').join('') + '</tr>';
+        rangs.slice(1).filter(r => !/^\|[\s|:-]+\|$/.test(r)).forEach(r => { h += '<tr>' + cellules(r).map(c => '<td>' + enLigne(c) + '</td>').join('') + '</tr>'; });
+        h += '</table></div>'; continue;
+      }
+      const puce = /^\s*[-*]\s+/, numero = /^\s*\d+\.\s+/;
+      if (puce.test(l) || numero.test(l)) {
+        const motif = puce.test(l) ? puce : numero, balise = motif === puce ? 'ul' : 'ol';
+        h += '<' + balise + '>';
+        while (k < lignes.length && motif.test(lignes[k])) { h += '<li>' + enLigne(lignes[k].replace(motif, '')) + '</li>'; k++; }
+        h += '</' + balise + '>'; continue;
+      }
+      const par = [];
+      while (k < lignes.length && lignes[k].trim() && !/^(#{1,4}\s|\s*\||\s*[-*]\s|\s*\d+\.\s)/.test(lignes[k])) { par.push(lignes[k]); k++; }
+      const texte = par.join('\n').trim();
+      // Un paragraphe réduit à une seule formule est centré ; une formule au milieu d'une phrase reste dans la ligne.
+      const seule = texte.startsWith('\\(') && texte.endsWith('\\)') && texte.indexOf('\\(', 2) < 0;
+      h += (seule ? '<p class="formule">' : '<p>') + enLigne(par.join('\n')) + '</p>';
+    }
+  });
+  return h;
+}
+function composer(el) { if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([el || page]).catch(() => {}); }
+function mmss(s) { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+function melanger(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+async function api(chemin, corps) {
+  const r = await fetch(chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  return r.json();
+}
+
+let dernierTic = null;
+function tic() {
+  const ch = document.getElementById('chrono');
+  const bouton = document.getElementById('pause');
+  bouton.hidden = !(PAUSE_PERMISE && E.phase === 'epreuve');
+  document.getElementById('recommencerHaut').hidden = E.phase !== 'epreuve';
+  document.getElementById('voile').hidden = !(E.phase === 'epreuve' && E.pauseDepuis);
+  if (E.phase !== 'epreuve' || E.pauseDepuis) { dernierTic = null; return; }
+  const maintenant = Date.now();
+  if (dernierTic !== null) { const q = ITEMS[E.courant]; E.temps[q.id] = (E.temps[q.id] || 0) + (maintenant - dernierTic) / 1000; }
+  dernierTic = maintenant;
+  const reste = D.duree_minutes * 60 - dureeEcoulee(maintenant);
+  ch.textContent = (reste < 0 ? '+' : '') + mmss(Math.abs(reste));
+  ch.classList.toggle('depasse', reste < 0);
+}
+setInterval(() => { tic(); if (E.phase === 'epreuve') sauver(); }, 500);
+if (SERVEUR) document.getElementById('lienAccueil').hidden = false;
+document.getElementById('lienAccueil').onclick = () => {
+  if (E.phase === 'epreuve' && PAUSE_PERMISE && !E.pauseDepuis) { tic(); E.pauseDepuis = Date.now(); sauver(); }
+};
+document.getElementById('recommencerHaut').onclick = () => {
+  if (!confirm('Effacer ce passage (réponses, code, chronomètre) et revenir au début de la séance ?')) return;
+  try { localStorage.removeItem(CLE); } catch (e) {}
+  E = etatNeuf('accueil'); dernierTic = null; afficher();
+};
+document.getElementById('pause').onclick = () => { tic(); E.pauseDepuis = Date.now(); sauver(); tic(); };
+document.getElementById('reprendre').onclick = () => {
+  if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+  dernierTic = null; sauver(); tic();
+};
+
+// ------------------------------------------------------------------ accueil
+function accueil() {
+  page.className = '';
+  document.getElementById('position').textContent = '';
+  document.getElementById('chrono').textContent = mmss(D.duree_minutes * 60);
+  let h = '<div class="carte presentation"><h2>' + esc(D.titre) + '</h2><p class="meta">' + D.duree_minutes + ' min · ' + NOTEES.length + ' question' + (NOTEES.length > 1 ? 's' : '') + (D.options.pause === false ? ' · sans pause' : '') + '</p>' + rendre(D.presentation);
+  h += '<div class="sections-liste">';
+  D.sections.forEach(s => { const n = s.questions.filter(q => q.type !== 'lecon').length; h += '<div><span>' + esc(s.nom) + '</span><span class="meta">' + (n ? n + ' question' + (n > 1 ? 's' : '') : 'leçon') + ' · ' + s.budget_min + ' min</span></div>'; });
+  h += '</div>';
+  D.avertissements.forEach(a => { h += '<div class="note">' + rendre(a) + '</div>'; });
+  if (!SERVEUR && ITEMS.some(q => q.type === 'code')) h += '<div class="note"><p><strong>Le notebook ne peut pas s\'exécuter :</strong> cette page est ouverte comme un fichier. Lance <code class="sans-math">python lancer.py</code> dans le dossier du projet, puis ouvre l\'examen depuis la page qui s\'affiche.</p></div>';
+  h += '<p class="meta">' + esc(D.conventions) + '</p>';
+  h += '<div class="barre"><button class="principal" id="demarrer">Commencer</button></div></div>';
+  page.innerHTML = h;
+  document.getElementById('demarrer').onclick = () => {
+    E = etatNeuf('epreuve');
+    E.debut = Date.now();
+    ITEMS.forEach(q => {
+      if (q.type === 'qcm') E.ordre[q.id] = melanger(q.options.map(o => o.id));
+      if (q.cellules_initiales) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+      if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => { E.ordreControles[q.id + ':' + cid] = melanger(c.options.map(o => o.id)); });
+    });
+    sauver(); afficher();
+  };
+  composer();
+}
+
+// ------------------------------------------------------------------ épreuve
+function pastilles() {
+  const faite = it => it.type === 'lecon' ? !!E.vus[it.id] : it.type === 'code' ? (E.code[it.id] || {}).soumissions > 0 : E.reponses[it.id] !== undefined;
+  const barre = document.querySelector('#progression > span');
+  if (barre) barre.style.width = (100 * ITEMS.filter(faite).length / ITEMS.length) + '%';
+  let h = '<div class="cadre"><aside class="plan"><div id="pastilles">', section = null, n = 0;
+  ITEMS.forEach((it, i) => {
+    if (it.nomSection !== section) { section = it.nomSection; h += '<div class="groupe">' + esc(section) + '</div>'; }
+    const libelle = it.type === 'lecon' ? 'Leçon' : 'Question ' + (++n);
+    h += '<button class="pastille' + (faite(it) ? ' faite' : '') + (i === E.courant ? ' courante' : '') + '" data-i="' + i + '" title="' + esc(it.theme) + '"' + (D.options.retour_arriere || i === E.courant ? '' : ' disabled') + '><span class="etat"></span><span class="libelle">' + libelle + '</span></button>';
+  });
+  return h + '</div></aside><div class="contenu">';
+}
+const FIN_CADRE = '</div></div>';
+function navigation() {
+  let h = '<div class="barre navigation">';
+  if (D.options.retour_arriere) h += '<button id="prec"' + (E.courant === 0 ? ' disabled' : '') + '>Précédente</button>';
+  if (E.courant < ITEMS.length - 1) h += '<button class="principal" id="suiv">Suivante</button>';
+  return h + '<button id="finir">Terminer et corriger</button></div>';
+}
+function brancherNavigation() {
+  const aller = i => { tic(); E.courant = i; sauver(); afficher(); };
+  page.querySelectorAll('.pastille').forEach(b => b.onclick = () => aller(Number(b.dataset.i)));
+  const p = document.getElementById('prec'); if (p) p.onclick = () => aller(E.courant - 1);
+  const s = document.getElementById('suiv'); if (s) s.onclick = () => aller(E.courant + 1);
+  document.getElementById('finir').onclick = () => {
+    const manquantes = NOTEES.filter(it => it.type === 'code' ? !((E.code[it.id] || {}).soumissions > 0) : E.reponses[it.id] === undefined).length;
+    if (manquantes && !confirm(manquantes + ' question(s) sans réponse ou jamais soumise(s). Terminer quand même ?')) return;
+    tic();
+    if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+    E.phase = 'bilan'; E.fin = Date.now(); sauver(); afficher();
+  };
+}
+
+function epreuve() {
+  tic();
+  const q = ITEMS[E.courant];
+  document.getElementById('position').textContent = q.nomSection + (q.type === 'lecon' ? ' · étape ' : ' · question ') + (E.courant + 1) + ' sur ' + ITEMS.length;
+  if (q.type === 'lecon') E.vus[q.id] = true;
+  if (q.cellules_initiales) return epreuveCode(q);
+  if (q.type === 'lecon') return epreuveLecon(q);
+  page.className = '';
+  const rang = NOTEES.indexOf(q) + 1;
+  let h = pastilles() + '<div class="carte question"><div class="surtitre"><span class="rang">Question ' + rang + ' sur ' + NOTEES.length + '</span><span class="chip">' + esc(q.theme) + '</span><span>temps visé ' + mmss(q.temps_cible_s) + '</span></div>' + rendre(q.enonce);
+  h += '<p class="consigne">' + (q.multiple ? 'Une ou plusieurs réponses : coche toutes les affirmations justes, et seulement elles (notation tout ou rien).' : 'Une seule réponse.') + '</p>';
+  E.ordre[q.id].forEach((oid, k) => {
+    const o = q.options.find(x => x.id === oid);
+    h += '<div class="option' + (choisies(q).includes(oid) ? ' choisie' : '') + '" data-o="' + oid + '"><span class="lettre' + (q.multiple ? ' carre' : '') + '">' + 'ABCDE'[k] + '</span><div>' + rendre(o.texte) + '</div></div>';
+  });
+  if (NSP_PERMIS) h += '<div class="option' + (E.reponses[q.id] === 'nsp' ? ' choisie' : '') + '" data-o="nsp"><span class="lettre">?</span><div><p>Je ne sais pas (compte comme faux, mais évite qu\'un hasard heureux masque une lacune)</p></div></div>';
+  page.innerHTML = h + navigation() + '</div>' + FIN_CADRE;
+  page.querySelectorAll('.option').forEach(el => el.onclick = () => {
+    const o = el.dataset.o;
+    if (q.multiple && o !== 'nsp') {
+      const s = choisies(q), k = s.indexOf(o);
+      if (k >= 0) s.splice(k, 1); else s.push(o);
+      if (s.length) E.reponses[q.id] = s.sort(); else delete E.reponses[q.id];
+    } else if (E.reponses[q.id] === o) delete E.reponses[q.id]; else E.reponses[q.id] = o;
+    sauver(); afficher();
+  });
+  brancherNavigation();
+  composer();
+}
+
+// ------------------------------------------------------------------ notebook
+function epreuveLecon(q) {
+  page.className = 'lecture';
+  page.innerHTML = pastilles() + '<div class="carte enonce"><div class="surtitre"><span class="rang">Leçon</span><span class="chip">' + esc(q.theme) + '</span><span>environ ' + Math.round(q.temps_cible_s / 60) + ' min</span></div>' + rendreLecon(q) + navigation() + '</div>' + FIN_CADRE;
+  brancherControles(q);
+  brancherNavigation();
+  composer();
+}
+
+// Points de contrôle : question corrigée dès le clic, non notée.
+function rendreLecon(q) {
+  const brut = rendre(q.contenu).replace(/<p>\[\[controle:([\w-]+)\]\]<\/p>/g, (_, cid) => '<div class="controle" data-c="' + cid + '"></div>');
+  // Une partie par titre de niveau 2 ; dans chaque partie, un bloc par rubrique (problème, énoncé, preuve, exemple...).
+  const source = document.createElement('div');
+  source.innerHTML = brut;
+  const parties = [];
+  Array.from(source.childNodes).forEach(n => {
+    if (n.nodeName === 'H3' || !parties.length) parties.push({ titre: n.nodeName === 'H3' ? n.textContent : 'Introduction', noeuds: [] });
+    parties[parties.length - 1].noeuds.push(n);
+  });
+  const genre = t => /preuve/i.test(t) ? 'preuve' : /pi[èe]ge/i.test(t) ? 'pieges' : /exemple|exp[ée]rience/i.test(t) ? 'exemple'
+    : /[ée]nonc[ée]/i.test(t) ? 'enonce-bloc' : /intuition/i.test(t) ? 'intuition' : /probl[èe]me/i.test(t) ? 'probleme'
+    : /cas limites/i.test(t) ? 'limites' : /d[ée]finition|notation|cadre|mod[èe]le/i.test(t) ? 'definitions' : '';
+  const courante = Math.min((E.partie || {})[q.id] || 0, parties.length - 1);
+  let h = '<div class="lecon-corps" data-lecon="' + q.id + '"><nav class="sommaire">';
+  parties.forEach((p, k) => { h += '<button data-partie="' + k + '"' + (k === courante ? ' class="active"' : '') + '>' + (k + 1) + '. ' + esc(p.titre.replace(/^(Leçon|Partie \d+|Outil \d+|\d+\.)\s*:?\s*/i, '').slice(0, 42) || p.titre) + '</button>'; });
+  h += '</nav>';
+  parties.forEach((p, k) => {
+    h += '<section class="partie" data-partie="' + k + '"' + (k === courante ? '' : ' hidden') + '>';
+    let bloc = null;
+    const fermer = () => { if (bloc) { h += bloc.genre === 'question' ? ficheDebrief(bloc.titre, bloc.noeuds) : bloc.genre === 'preuve' ? '</details>' : '</div>'; bloc = null; } };
+    p.noeuds.forEach(n => {
+      if (bloc && bloc.genre === 'question' && n.nodeName !== 'H4' && n.nodeName !== 'H3') { bloc.noeuds.push(n); return; }
+      if (n.nodeName === 'H4' && /^Question \d+/.test(n.textContent)) {
+        fermer();
+        bloc = { genre: 'question', titre: n.textContent, noeuds: [] };
+      } else if (n.nodeName === 'H4') {
+        fermer();
+        const g = genre(n.textContent);
+        bloc = { genre: g };
+        if (g === 'preuve') h += '<details class="bloc preuve"><summary>' + esc(n.textContent) + '<span class="meta">déplier pour la lire</span></summary>';
+        else h += '<div class="bloc ' + g + '"><h4>' + esc(n.textContent) + '</h4>';
+      } else if (n.nodeName === 'H3') { fermer(); h += n.outerHTML; }
+      else h += n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    });
+    fermer();
+    h += '<div class="pied-partie"><button data-aller="' + (k - 1) + '"' + (k === 0 ? ' disabled' : '') + '>Partie précédente</button>'
+      + '<span class="meta">Partie ' + (k + 1) + ' sur ' + parties.length + '</span>'
+      + (k < parties.length - 1 ? '<button class="principal" data-aller="' + (k + 1) + '">Partie suivante</button>' : '<span class="meta">Fin de la leçon : passe à la suite avec « Suivante ».</span>') + '</div></section>';
+  });
+  return h + '</div>';
+}
+// Une question du débrief : en-tête (numéro, titre, verdict), énoncé, réponses côte à côte, rubriques, à retenir.
+function ficheDebrief(titre, noeuds) {
+  const m = titre.match(/^(Question \d+)\s*:?\s*(.*)$/);
+  const gras = n => n.nodeName === 'P' && n.firstChild && n.firstChild.nodeName === 'STRONG' ? n.firstChild.textContent.trim() : '';
+  const reste = n => { const c = n.cloneNode(true); c.removeChild(c.firstChild); return c.innerHTML.trim(); };
+  let enonce = '', ta = null, attendue = null, verdict = '', corps = '', retenir = '', revoir = '', etat = 'enonce';
+  noeuds.forEach(n => {
+    const g = gras(n), html = n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    if (/^Ta réponse/.test(g)) { ta = reste(n); etat = 'corps'; }
+    else if (/^Réponse attendue/.test(g)) { attendue = reste(n); etat = 'corps'; }
+    else if (/^Verdict/.test(g)) { verdict = reste(n); etat = 'corps'; }
+    else if (/^À retenir/.test(g)) { retenir = '<h5>À retenir</h5><p>' + reste(n) + '</p>'; etat = 'retenir'; }
+    else if (/^Leçon à revoir/.test(g)) { revoir = reste(n); etat = 'fin'; }
+    else if (g && n.textContent.trim() === g) { corps += '<h5>' + esc(g.replace(/[.:]\s*$/, '')) + '</h5>'; etat = 'corps'; }
+    else if (etat === 'enonce') enonce += n.nodeName === 'P' && /^Type :/.test(n.textContent) ? '<p class="meta">' + n.innerHTML + '</p>' : n.nodeName === 'UL' ? '<ul class="choix">' + n.innerHTML + '</ul>' : html;
+    else if (etat === 'retenir') retenir += html;
+    else corps += html;
+  });
+  const brut = verdict.replace(/<[^>]+>/g, '').trim();
+  const v = /^juste/i.test(brut) ? ['v-juste', 'Juste'] : /^fausse/i.test(brut) ? ['v-fausse', 'Fausse'] : /^incompl/i.test(brut) ? ['v-incomplete', 'Incomplète']
+    : /^non visible/i.test(brut) ? ['', 'Réponse non visible'] : ['', ''];
+  const suite = brut.replace(/^[^.]*\.\s*/, '');
+  let h = '<article class="fiche ' + v[0] + '"><header class="fiche-tete"><span class="num">' + esc(m[1]) + '</span><span class="titre">' + esc(m[2]) + '</span>'
+    + (v[1] ? '<span class="verdict">' + v[1] + '</span>' : '') + '</header><div class="fiche-corps">';
+  if (ta === null && attendue === null) return h + enonce + corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '') + '</div></article>';
+  h += '<h5>Énoncé</h5>' + enonce;
+  h += '<div class="fiche-reponses"><div><span class="lab">Ta réponse</span>' + (ta || 'non visible') + '</div><div><span class="lab">Réponse attendue</span>' + (attendue || '') + '</div></div>';
+  if (suite) h += '<p class="meta">' + verdict.replace(/^[^.]*\.\s*/, '') + '</p>';
+  h += corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '');
+  return h + '</div></article>';
+}
+function brancherLecon(q) {
+  const corps = page.querySelector('.lecon-corps');
+  if (!corps) return;
+  const aller = k => {
+    if (!E.partie) E.partie = {};
+    E.partie[q.id] = k; sauver();
+    corps.querySelectorAll('.partie').forEach(sec => { sec.hidden = Number(sec.dataset.partie) !== k; });
+    corps.querySelectorAll('.sommaire button').forEach(b => b.classList.toggle('active', Number(b.dataset.partie) === k));
+    const cadre = corps.closest('.enonce');
+    if (cadre) cadre.scrollTop = 0;
+    window.scrollTo(0, 0);
+  };
+  corps.querySelectorAll('.sommaire button').forEach(b => b.onclick = () => aller(Number(b.dataset.partie)));
+  corps.querySelectorAll('[data-aller]').forEach(b => b.onclick = () => aller(Number(b.dataset.aller)));
+}
+function dessinerControle(q, el) {
+  const cid = el.dataset.c, c = q.controles[cid], cle = q.id + ':' + cid, choix = E.controles[cle];
+  const ordre = E.ordreControles[cle] || c.options.map(o => o.id);
+  let h = '<p class="titre-controle">Point de contrôle' + (choix ? (c.options.find(o => o.id === choix).correcte ? ' · juste' : ' · à revoir') : '') + '</p>' + rendre(c.question);
+  ordre.forEach((oid, k) => {
+    const o = c.options.find(x => x.id === oid);
+    const classe = choix ? (o.correcte ? ' juste' : (oid === choix ? ' fausse' : '')) + (oid === choix ? ' choisie' : '') : '';
+    const montrer = choix && (oid === choix || o.correcte);
+    h += '<div class="option' + classe + '" data-co="' + oid + '"><span class="lettre">' + 'ABCD'[k] + '</span><div>' + rendre(o.texte)
+      + (montrer ? '<div class="explication">' + rendre(o.explication) + '</div>' : '') + '</div></div>';
+  });
+  el.innerHTML = h;
+  if (!choix) el.querySelectorAll('.option').forEach(op => op.onclick = () => { E.controles[cle] = op.dataset.co; sauver(); dessinerControle(q, el); composer(el); });
+}
+function brancherControles(q) { page.querySelectorAll('.controle').forEach(el => dessinerControle(q, el)); brancherLecon(q); }
+
+function epreuveCode(q) {
+  page.className = 'large';
+  const lecon = q.type === 'lecon';
+  let h = pastilles() + '<div class="deux' + (lecon ? ' lecon' : '') + '"><div class="carte enonce"><div class="meta">' + esc(q.theme) + (lecon ? ' · durée visée ' : ' · temps cible ') + mmss(q.temps_cible_s) + '</div>' + (lecon ? rendreLecon(q) : rendre(q.enonce)) + '</div>';
+  h += '<div class="carte"><div class="notebook-barre"><button id="toutExecuter">Tout exécuter</button><button id="redemarrer">Redémarrer le noyau</button><button id="ajouter">Ajouter une cellule</button><span class="meta" id="versions">' + (SERVEUR ? 'noyau : démarrage...' : 'noyau indisponible : lance python lancer.py') + '</span><span class="meta" id="modeEditeur"></span></div>';
+  h += '<div id="cellules"></div>';
+  if (!lecon) h += '<div class="barre"><button id="testsVisibles">Tests visibles</button><button class="principal" id="soumettre">Soumettre</button><span class="meta" id="etatSoumission"></span></div>';
+  h += '<div class="resultats-tests" id="resultatsTests"></div>' + navigation() + '</div></div>' + FIN_CADRE;
+  page.innerHTML = h;
+  dessinerCellules(q);
+  if (lecon) brancherControles(q); else afficherEtatSoumission(q);
+  brancherNavigation();
+  document.getElementById('toutExecuter').onclick = async () => { for (let i = 0; i < E.cellules[q.id].length; i++) { if (!(await executerCellule(q, i))) break; } };
+  document.getElementById('redemarrer').onclick = () => demarrerNoyau(q, true);
+  document.getElementById('ajouter').onclick = () => { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(E.cellules[q.id].length - 1); };
+  if (!lecon) {
+    document.getElementById('testsVisibles').onclick = () => lancerTests(q, 'visibles');
+    document.getElementById('soumettre').onclick = () => lancerTests(q, 'caches');
+  }
+  if (!SERVEUR) page.querySelectorAll('.notebook-barre button, #testsVisibles, #soumettre').forEach(b => b.disabled = true);
+  else if (!noyauxDemarres[q.id]) demarrerNoyau(q, false, true);
+  else document.getElementById('versions').textContent = noyauxDemarres[q.id];
+  composer(page.querySelector('.enonce'));
+}
+
+async function demarrerNoyau(q, confirmer, reconnexion) {
+  if (confirmer && !confirm('Redémarrer le noyau ? Toutes les variables seront perdues.')) return;
+  const zone = document.getElementById('versions');
+  zone.textContent = 'noyau : démarrage...';
+  let v;
+  try { v = await api(reconnexion ? '/api/connecter' : '/api/redemarrer', { session: SESSION, dossier: q.dossier }); }
+  catch (e) { v = null; }
+  if (!v) noyauxDemarres[q.id] = 'noyau injoignable : le serveur lancer.py est-il démarré ?';
+  else {
+    const etat = v.neuf ? 'noyau neuf' : 'noyau reconnecté, variables conservées';
+    noyauxDemarres[q.id] = v.erreur ? 'noyau : ' + v.erreur : etat + ' · Python ' + v.python + ' · pandas ' + v.pandas + ' · numpy ' + v.numpy;
+    if (v.neuf) (E.cellules[q.id] || []).forEach(c => c.numero = null);
+    sauver(); majNumeros(q);
+  }
+  const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id];
+}
+
+function rendreSortie(c) { return c.sortie || ''; }
+
+// ------------------------------------------------------------------ éditeur
+// Monaco (l'éditeur de VS Code) depuis cdnjs ; les suggestions, signatures et aides viennent de jedi
+// dans le noyau, qui connaît les variables déjà exécutées. Sans connexion, repli sur une zone de texte simple.
+const MONACO_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min';
+let MONACO = null, promesseMonaco = null;
+const EDITEURS = [];
+window.EDITEURS = EDITEURS;
+// Monaco annule ses tâches en cours quand on ferme un éditeur ; cette annulation n'est pas une erreur.
+window.addEventListener('unhandledrejection', ev => { if (ev.reason && ev.reason.name === 'Canceled') ev.preventDefault(); });
+function sombre() { return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches; }
+function questionCode() { const q = ITEMS[E.courant]; return E.phase === 'epreuve' && q && q.cellules_initiales ? q : null; }
+function chargerMonaco() {
+  if (promesseMonaco) return promesseMonaco;
+  promesseMonaco = new Promise(resolve => {
+    const abandon = setTimeout(() => fini(null), 20000);
+    function fini(m) { clearTimeout(abandon); if (window.MODE_EDITEUR === undefined) { MONACO = m; window.MODE_EDITEUR = m ? 'monaco' : 'simple'; } resolve(MONACO); }
+    const s = document.createElement('script');
+    s.src = MONACO_BASE + '/vs/loader.js';
+    s.onerror = () => fini(null);
+    s.onload = () => {
+      window.MonacoEnvironment = { getWorkerUrl: () => 'data:text/javascript;charset=utf-8,' + encodeURIComponent("self.MonacoEnvironment={baseUrl:'" + MONACO_BASE + "/'};importScripts('" + MONACO_BASE + "/vs/base/worker/workerMain.js');") };
+      window.require.config({ paths: { vs: MONACO_BASE + '/vs' } });
+      window.require(['vs/editor/editor.main'], () => { try { configurerMonaco(window.monaco); fini(window.monaco); } catch (e) { fini(null); } }, () => fini(null));
+    };
+    document.head.appendChild(s);
+  });
+  return promesseMonaco;
+}
+async function aide(type, model, position) {
+  const q = questionCode();
+  if (!q || !SERVEUR) return null;
+  try { return await api('/api/' + type, { session: SESSION, dossier: q.dossier, code: model.getValue(), ligne: position.lineNumber, colonne: position.column - 1 }); }
+  catch (e) { return null; }
+}
+function configurerMonaco(m) {
+  const K = m.languages.CompletionItemKind;
+  const genres = { module: K.Module, class: K.Class, instance: K.Variable, function: K.Function, param: K.Variable, path: K.File, keyword: K.Keyword, property: K.Property, statement: K.Variable };
+  m.languages.registerCompletionItemProvider('python', {
+    triggerCharacters: ['.'],
+    provideCompletionItems: async (model, position) => {
+      const r = await aide('completer', model, position);
+      if (!r || !r.completions) return { suggestions: [] };
+      const mot = model.getWordUntilPosition(position);
+      const plage = new m.Range(position.lineNumber, mot.startColumn, position.lineNumber, mot.endColumn);
+      return { suggestions: r.completions.map((c, k) => ({ label: c.nom, kind: genres[c.type] ?? K.Variable, insertText: c.nom, detail: c.description, range: plage, sortText: String(k).padStart(4, '0') })) };
+    }
+  });
+  m.languages.registerSignatureHelpProvider('python', {
+    signatureHelpTriggerCharacters: ['(', ','],
+    provideSignatureHelp: async (model, position) => {
+      const r = await aide('signatures', model, position);
+      if (!r || !r.signatures || !r.signatures.length) return null;
+      return { value: { signatures: r.signatures.map(x => ({ label: x.texte, documentation: x.doc, parameters: x.parametres.map(p => ({ label: p })) })), activeSignature: 0, activeParameter: r.signatures[0].index ?? 0 }, dispose() {} };
+    }
+  });
+  m.languages.registerHoverProvider('python', {
+    provideHover: async (model, position) => {
+      const r = await aide('aide', model, position);
+      if (!r || !r.aide || !r.aide.length) return null;
+      return { contents: r.aide.map(a => ({ value: '```text\n' + a.doc + '\n```' })) };
+    }
+  });
+}
+function creerEditeur(conteneur, code, rappels) {
+  if (MONACO) {
+    const m = MONACO;
+    const ed = m.editor.create(conteneur, {
+      value: code, language: 'python', theme: sombre() ? 'vs-dark' : 'vs', fontSize: 14, tabSize: 4, insertSpaces: true,
+      minimap: { enabled: false }, scrollBeyondLastLine: false, automaticLayout: true, lineNumbersMinChars: 3, folding: false,
+      glyphMargin: false, renderLineHighlight: 'none', overviewRulerLanes: 0, wordBasedSuggestions: 'off', fixedOverflowWidgets: true,
+      quickSuggestions: { other: true, comments: false, strings: false }, padding: { top: 6, bottom: 6 },
+      scrollbar: { alwaysConsumeMouseWheel: false, vertical: 'hidden', horizontalScrollbarSize: 8 }
+    });
+    // Sous Windows, Monaco utilise des fins de ligne \r\n ; le code est toujours lu avec des \n, comme dans un notebook.
+    const lire = () => ed.getModel().getValue(m.editor.EndOfLinePreference.LF);
+    const hauteur = () => { conteneur.style.height = Math.max(38, ed.getContentHeight()) + 'px'; };
+    ed.onDidContentSizeChange(hauteur); hauteur();
+    ed.onDidChangeModelContent(() => rappels.modif(lire()));
+    ed.onDidFocusEditorText(rappels.focus);
+    ed.addCommand(m.KeyMod.Shift | m.KeyCode.Enter, rappels.executerSuivant, '!suggestWidgetVisible');
+    ed.addCommand(m.KeyMod.CtrlCmd | m.KeyCode.Enter, rappels.executer, '!suggestWidgetVisible');
+    return { brut: ed, getValue: lire, setValue: v => ed.setValue(v), focus: () => ed.focus(), dispose: () => ed.dispose() };
+  }
+  const zone = document.createElement('textarea');
+  zone.spellcheck = false; zone.autocomplete = 'off'; zone.className = 'sans-math';
+  zone.value = code;
+  conteneur.appendChild(zone);
+  zone.addEventListener('input', () => { rappels.modif(zone.value); ajuster(zone); });
+  zone.addEventListener('focus', rappels.focus);
+  zone.addEventListener('keydown', ev => clavier(ev, zone, rappels));
+  setTimeout(() => ajuster(zone));
+  return { brut: zone, getValue: () => zone.value, setValue: v => { zone.value = v; zone.dispatchEvent(new Event('input')); }, focus: () => zone.focus(), dispose: () => {} };
+}
+function libererEditeurs() { EDITEURS.forEach(e => e.dispose()); EDITEURS.length = 0; }
+
+function dessinerCellules(q) {
+  const conteneur = document.getElementById('cellules');
+  if (!conteneur) return;
+  if (SERVEUR && window.MODE_EDITEUR === undefined) {
+    conteneur.innerHTML = '<p class="meta">Chargement de l\'éditeur...</p>';
+    chargerMonaco().then(() => { if (questionCode() === q) dessinerCellules(q); });
+    return;
+  }
+  libererEditeurs();
+  conteneur.innerHTML = '';
+  const etat = document.getElementById('modeEditeur');
+  if (etat) etat.textContent = MONACO ? 'éditeur VS Code, autocomplétion' : 'éditeur simple' + (SERVEUR ? ' (Monaco injoignable)' : '');
+  E.cellules[q.id].forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'cellule';
+    div.innerHTML = '<div class="numero">[' + (c.numero === null ? ' ' : c.numero) + ']</div><div><div class="editeur"></div>'
+      + '<div class="actions"><button data-a="executer">Exécuter</button><button data-a="dessous">Insérer dessous</button><button data-a="supprimer">Supprimer</button></div>'
+      + '<pre class="sortie sans-math"></pre></div>';
+    div.querySelector('pre.sortie').innerHTML = rendreSortie(c);
+    conteneur.appendChild(div);
+    EDITEURS.push(creerEditeur(div.querySelector('.editeur'), c.code, {
+      modif: v => { c.code = v; sauver(); },
+      focus: () => { conteneur.querySelectorAll('.cellule').forEach(x => x.classList.remove('active')); div.classList.add('active'); },
+      executer: () => executerCellule(q, i),
+      executerSuivant: () => {
+        executerCellule(q, i);
+        if (i === E.cellules[q.id].length - 1) { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); }
+        focaliser(i + 1);
+      }
+    }));
+    div.querySelector('[data-a=executer]').onclick = () => executerCellule(q, i);
+    div.querySelector('[data-a=dessous]').onclick = () => { E.cellules[q.id].splice(i + 1, 0, { code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(i + 1); };
+    div.querySelector('[data-a=supprimer]').onclick = () => { if (E.cellules[q.id].length > 1) { E.cellules[q.id].splice(i, 1); sauver(); dessinerCellules(q); } };
+  });
+}
+function majNumeros(q) { document.querySelectorAll('#cellules .numero').forEach((n, i) => { const c = E.cellules[q.id][i]; n.textContent = '[' + (c && c.numero !== null ? c.numero : ' ') + ']'; }); }
+function ajuster(zone) { zone.style.height = 'auto'; zone.style.height = (zone.scrollHeight + 2) + 'px'; }
+function focaliser(i) { const e = EDITEURS[i]; if (e) e.focus(); }
+function inserer(zone, texte) {
+  zone.focus();
+  if (!document.execCommand('insertText', false, texte)) zone.setRangeText(texte, zone.selectionStart, zone.selectionEnd, 'end');
+  zone.dispatchEvent(new Event('input'));
+}
+function clavier(ev, zone, rappels) {
+  if (ev.key === 'Enter' && (ev.shiftKey || ev.ctrlKey)) {
+    ev.preventDefault();
+    if (ev.shiftKey) rappels.executerSuivant(); else rappels.executer();
+    return;
+  }
+  const debut = zone.selectionStart, fin = zone.selectionEnd, v = zone.value;
+  const debutLigne = v.lastIndexOf('\n', debut - 1) + 1;
+  if (ev.key === 'Tab') {
+    ev.preventDefault();
+    const multi = v.slice(debut, fin).includes('\n');
+    if (!ev.shiftKey && !multi) { inserer(zone, '    '); return; }
+    const finBloc = fin;
+    const bloc = v.slice(debutLigne, finBloc);
+    const nouveau = ev.shiftKey ? bloc.replace(/^ {1,4}/gm, '') : bloc.replace(/^/gm, '    ');
+    zone.setSelectionRange(debutLigne, finBloc);
+    inserer(zone, nouveau);
+    zone.setSelectionRange(debutLigne, debutLigne + nouveau.length);
+    return;
+  }
+  if (ev.key === 'Enter' && !ev.altKey && !ev.metaKey) {
+    ev.preventDefault();
+    const ligne = v.slice(debutLigne, debut);
+    let retrait = ligne.match(/^ */)[0];
+    if (/:\s*(#.*)?$/.test(ligne)) retrait += '    ';
+    inserer(zone, '\n' + retrait);
+  }
+}
+
+async function executerCellule(q, i) {
+  if (!SERVEUR) return false;
+  const c = E.cellules[q.id][i];
+  const div = document.querySelectorAll('#cellules .cellule')[i];
+  if (div) { div.querySelector('.numero').textContent = '[*]'; div.querySelector('pre.sortie').innerHTML = ''; }
+  let r;
+  try { r = await api('/api/executer', { session: SESSION, dossier: q.dossier, code: c.code, nom: 'cellule ' + (i + 1) }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  E.compteur = (E.compteur || 0) + 1;
+  c.numero = E.compteur;
+  let h = '';
+  if (r.sortie) h += esc(r.sortie);
+  if (r.valeur !== null && r.valeur !== undefined) h += (h && !h.endsWith('\n') ? '\n' : '') + esc(r.valeur);
+  if (r.erreur) h += (h && !h.endsWith('\n') ? '\n' : '') + '<span class="erreur">' + esc(r.erreur) + '</span>';
+  if (r.redemarre) { noyauxDemarres[q.id] = 'noyau redémarré : variables perdues'; const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id]; }
+  c.sortie = h;
+  sauver();
+  const d = document.querySelectorAll('#cellules .cellule')[i];
+  if (d) { d.querySelector('.numero').textContent = '[' + c.numero + ']'; d.querySelector('pre.sortie').innerHTML = h; }
+  return !r.erreur;
+}
+
+function codeSource(q) { return E.cellules[q.id].map((c, i) => '# %% cellule ' + (i + 1) + '\n' + c.code).join('\n\n') + '\n'; }
+function afficherEtatSoumission(q) {
+  const s = E.code[q.id] || {};
+  const z = document.getElementById('etatSoumission');
+  if (z) z.textContent = s.soumissions ? s.soumissions + ' soumission(s) · dernière : ' + s.caches_reussis + '/' + s.caches_total + ' tests cachés réussis' : 'jamais soumis';
+}
+async function lancerTests(q, mode) {
+  const zone = document.getElementById('resultatsTests');
+  zone.innerHTML = '<p class="meta">' + (mode === 'visibles' ? 'Tests visibles' : 'Tests cachés') + ' en cours...</p>';
+  let r;
+  try { r = await api('/api/tests', { session: SESSION, dossier: q.dossier, module: q.module_tests, mode }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  if (r.erreur) { zone.innerHTML = '<pre class="sans-math"><span class="erreur">' + esc(r.erreur) + '</span></pre>'; return; }
+  let h = '<p class="etiquette ' + (r.reussis === r.total ? 'bon' : 'faux') + '">' + (mode === 'visibles' ? 'Tests visibles : ' : 'Tests cachés : ') + r.reussis + '/' + r.total + ' réussis</p>';
+  if (mode === 'visibles') {
+    h += '<div class="defile"><table><tr><th>Test</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th><th class="nombre">Durée</th></tr>';
+    r.resultats.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? '') + '</code></td><td class="nombre">' + t.duree_s + ' s</td></tr>'; });
+    h += '</table></div>';
+    r.resultats.filter(t => t.erreur).forEach(t => { h += '<pre class="sans-math"><span class="erreur">' + esc(t.nom + ' :\n' + t.erreur) + '</span></pre>'; });
+    E.code[q.id] = Object.assign(E.code[q.id] || {}, { visibles_reussis: r.reussis });
+  } else {
+    h += '<div class="defile"><table><tr><th>Test caché</th><th>Résultat</th></tr>';
+    r.resultats.forEach((t, k) => { h += '<tr><td>Test ' + (k + 1) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec' + (t.erreur ? ' (exception ou temps dépassé)' : '')) + '</td></tr>'; });
+    h += '</table></div>';
+    const s = E.code[q.id] || {};
+    E.code[q.id] = Object.assign(s, { soumissions: (s.soumissions || 0) + 1, caches_reussis: r.reussis, caches_total: r.total, details: r.resultats, code_source: codeSource(q) });
+    afficherEtatSoumission(q);
+    const p = page.querySelector('.pastille.courante'); if (p) p.classList.add('faite');
+  }
+  sauver();
+  zone.innerHTML = h;
+}
+
+// ------------------------------------------------------------------ bilan
+function points(q) {
+  if (q.type === 'code') { const c = E.code[q.id]; return c && c.soumissions ? c.caches_reussis / c.caches_total : 0; }
+  const r = E.reponses[q.id];
+  if (r === undefined || r === 'nsp') return 0;
+  // Une question à plusieurs réponses est notée tout ou rien : l'ensemble coché doit être exactement l'ensemble juste.
+  const s = choisies(q), bonnes = q.options.filter(o => o.correcte).map(o => o.id);
+  return s.length === bonnes.length && bonnes.every(b => s.includes(b)) ? 1 : -D.options.penalite;
+}
+function choisies(q) { const r = E.reponses[q.id]; return r === undefined || r === 'nsp' ? [] : Array.isArray(r) ? r.slice() : [r]; }
+function texteOption(q, id) { const o = q.options.find(x => x.id === id); return o ? o.texte : null; }
+
+function resultatJSON(duree) {
+  return {
+    examen: D.id, debut: new Date(E.debut).toISOString(), duree_s: Math.round(duree), pauses_s: Math.round((E.pauseTotale || 0) / 1000), options: D.options,
+    lecons: ITEMS.filter(q => q.type === 'lecon').map(q => {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      return { id: q.id, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), controles_justes_du_premier_coup: justes, controles_total: ids.length };
+    }),
+    questions: NOTEES.map(q => {
+      const base = { id: q.id, type: q.type, section: q.section, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), temps_cible_s: q.temps_cible_s, points: Number(points(q).toFixed(4)) };
+      if (q.type === 'code') {
+        const c = E.code[q.id] || {};
+        return Object.assign(base, { soumissions: c.soumissions || 0, caches_reussis: c.caches_reussis || 0, caches_total: c.caches_total || q.tests_caches, visibles_reussis: c.visibles_reussis ?? null, code_source: c.code_source || codeSource(q) });
+      }
+      const r = E.reponses[q.id] ?? null;
+      return Object.assign(base, { reponse: r, reponse_texte: r && r !== 'nsp' ? choisies(q).map(i => texteOption(q, i)).join(' ; ') : null, bonne_reponse_texte: q.options.filter(o => o.correcte).map(o => o.texte).join(' ; ') });
+    })
+  };
+}
+
+function bilan() {
+  page.className = '';
+  document.getElementById('position').textContent = 'Bilan';
+  const duree = dureeEcoulee(E.fin);
+  document.getElementById('chrono').textContent = mmss(duree);
+  let total = 0;
+  let h = '<div class="carte"><h2>Bilan</h2>@SCORE@<div class="defile"><table><tr><th>Section</th><th class="nombre">Score</th><th class="nombre">Temps passé</th><th class="nombre">Temps indicatif</th></tr>';
+  D.sections.forEach(s => {
+    const notees = s.questions.filter(q => q.type !== 'lecon');
+    const pts = notees.reduce((a, q) => a + points(q), 0);
+    const t = s.questions.reduce((a, q) => a + (E.temps[q.id] || 0), 0);
+    total += pts;
+    h += '<tr><td>' + esc(s.nom) + '</td><td class="nombre">' + (notees.length ? pts.toFixed(2).replace('.', ',') + ' / ' + notees.length : 'non notée') + '</td><td class="nombre">' + mmss(t) + '</td><td class="nombre">' + mmss(s.budget_min * 60) + '</td></tr>';
+  });
+  h += '<tr><th>Total</th><th class="nombre">' + total.toFixed(2).replace('.', ',') + ' / ' + NOTEES.length + '</th><th class="nombre">' + mmss(duree) + '</th><th class="nombre">' + mmss(D.duree_minutes * 60) + '</th></tr></table></div>';
+  h = h.replace('@SCORE@', '<div class="score-total"><strong>' + total.toFixed(2).replace('.', ',').replace(/,00$/, '') + ' / ' + NOTEES.length + '</strong><span class="meta">en ' + mmss(duree) + '</span></div>');
+  const barreFin = document.querySelector('#progression > span'); if (barreFin) barreFin.style.width = '100%';
+  h += '<p id="enregistrement" class="meta"></p>';
+  h += '<details><summary>Résultat brut (JSON)</summary><textarea readonly class="json sans-math" id="json"></textarea><div class="barre"><button id="telecharger">Enregistrer le fichier</button></div></details>';
+  h += '<div class="barre">' + (SERVEUR ? '<button class="principal" id="retourAccueil">Retour à l\'accueil (séance suivante)</button>' : '')
+    + '<button id="recommencer">Effacer et recommencer</button></div></div>';
+  ITEMS.forEach((q, i) => {
+    const temps = mmss(E.temps[q.id] || 0) + ' sur ' + mmss(q.temps_cible_s) + ' visés';
+    const tete = (classe, verdict) => '<article class="fiche ' + classe + '"><header class="fiche-tete"><span class="num">' + (q.type === 'lecon' ? 'Leçon' : 'Question ' + (i + 1)) + '</span><span class="titre">' + esc(q.theme)
+      + '</span><span class="temps">' + esc(q.nomSection) + ' · ' + temps + '</span>' + (verdict ? '<span class="verdict">' + verdict + '</span>' : '') + '</header><div class="fiche-corps">';
+    if (q.type === 'lecon') {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      h += tete('', '') + '<p>Points de contrôle justes du premier coup : ' + justes + ' sur ' + ids.length + '. La leçon reste consultable depuis la séance.</p></div></article>';
+      return;
+    }
+    if (q.type === 'qcm') {
+      const r = E.reponses[q.id], juste = points(q) === 1;
+      const s = choisies(q), incomplete = !juste && q.multiple && s.length > 0 && s.every(id => q.options.find(o => o.id === id).correcte);
+      h += tete(juste ? 'v-juste' : incomplete ? 'v-incomplete' : r === undefined || r === 'nsp' ? '' : 'v-fausse',
+        juste ? 'Juste' : r === undefined ? 'Sans réponse' : r === 'nsp' ? 'Je ne sais pas' : incomplete ? 'Incomplète' : 'Fausse');
+      h += '<h5>Énoncé</h5>' + rendre(q.enonce) + '<h5>' + (q.multiple ? 'Options (plusieurs réponses, tout ou rien)' : 'Options') + '</h5>';
+      E.ordre[q.id].forEach((oid, k) => {
+        const o = q.options.find(x => x.id === oid), choisie = s.includes(oid);
+        const puces = (o.correcte ? '<span class="puce bon">' + (q.multiple ? 'Juste' : 'Bonne réponse') + '</span>' : '') + (choisie ? '<span class="puce' + (o.correcte ? ' bon' : ' faux') + '">Ta réponse</span>' : '');
+        h += '<div class="option ' + (o.correcte ? 'juste' : 'fausse') + (choisie ? ' choisie' : '') + '"><span class="lettre">' + 'ABCDE'[k] + '</span><div>' + puces + rendre(o.texte)
+          + '<div class="explication">' + (o.correcte && !q.multiple ? '' : rendre(o.explication)) + '</div></div></div>';
+      });
+      h += '<h5>Correction</h5>' + rendre(q.solution);
+    } else {
+      const c = E.code[q.id] || {};
+      const tout = c.soumissions && c.caches_reussis === c.caches_total;
+      h += tete(tout ? 'v-juste' : c.soumissions ? 'v-incomplete' : '', c.soumissions ? c.caches_reussis + ' / ' + c.caches_total + ' tests cachés' : 'Jamais soumis');
+      h += '<details><summary>Énoncé</summary>' + rendre(q.enonce) + '</details>';
+      if (c.details) {
+        h += '<h5>Tests cachés</h5><div class="defile"><table><tr><th>Test caché</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th></tr>';
+        c.details.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? (t.erreur ? 'exception' : '')) + '</code></td></tr>'; });
+        h += '</table></div>';
+        c.details.filter(t => t.erreur).forEach(t => { h += '<details><summary>Erreur : ' + esc(t.nom) + '</summary><pre class="sans-math">' + esc(t.erreur) + '</pre></details>'; });
+      }
+      h += '<details><summary>Ton code soumis</summary><pre class="sans-math"><code>' + esc(c.code_source || codeSource(q)) + '</code></pre></details>';
+      h += '<details><summary>Correction</summary>' + rendre(q.solution) + '</details>';
+    }
+    h += '<p class="revoir">Vérification des nombres : <code class="sans-math">' + esc(q.verif.script) + '</code></p></div></article>';
+  });
+  page.innerHTML = h;
+  const resultat = resultatJSON(duree);
+  const zone = document.getElementById('json');
+  zone.value = JSON.stringify(resultat, null, 1);
+  document.getElementById('telecharger').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([zone.value], { type: 'application/json' }));
+    a.download = D.id + '_resultat.json'; a.click();
+  };
+  const retour = document.getElementById('retourAccueil'); if (retour) retour.onclick = () => { location.href = '/'; };
+  document.getElementById('recommencer').onclick = () => { if (confirm('Effacer ce passage ?')) { try { localStorage.removeItem(CLE); } catch (e) {} E = etatNeuf('accueil'); afficher(); } };
+  const info = document.getElementById('enregistrement');
+  if (E.enregistrement) info.textContent = E.enregistrement;
+  else if (!SERVEUR) info.textContent = 'Page ouverte comme un fichier : le résultat n\'est pas enregistré automatiquement. Copie le JSON ci-dessous dans la conversation.';
+  else {
+    info.textContent = 'Enregistrement du résultat...';
+    api('/api/resultat', resultat).then(r => {
+      E.enregistrement = r.erreur ? null : 'Résultat enregistré dans ' + r.fichier + ' ; ' + r.erreurs_ajoutees + ' erreur(s) ajoutée(s) au journal suivi/erreurs.md.';
+      info.textContent = E.enregistrement || 'Échec de l\'enregistrement : ' + r.erreur;
+      sauver();
+    }).catch(() => { info.textContent = 'Serveur injoignable : le résultat n\'est pas enregistré. Copie le JSON ci-dessous dans la conversation.'; });
+  }
+  composer();
+}
+
+function afficher() {
+  libererEditeurs();
+  document.getElementById('titre').textContent = D.titre;
+  document.title = D.titre;
+  if (E.phase === 'epreuve') epreuve(); else if (E.phase === 'bilan') bilan(); else accueil();
+  window.scrollTo(0, 0);
+}
+function completerEtat() {
+  ['reponses', 'temps', 'ordre', 'cellules', 'code', 'controles', 'ordreControles', 'vus', 'partie'].forEach(k => { if (!E[k] || typeof E[k] !== 'object') E[k] = {}; });
+  if (typeof E.courant !== 'number' || E.courant < 0 || E.courant >= ITEMS.length) E.courant = 0;
+  ITEMS.forEach(q => {
+    if (q.cellules_initiales && !Array.isArray(E.cellules[q.id])) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+    if (q.type === 'qcm') {
+      const ids = q.options.map(o => o.id);
+      const o = E.ordre[q.id];
+      if (!Array.isArray(o) || o.length !== ids.length || !ids.every(i => o.includes(i))) E.ordre[q.id] = melanger(ids);
+      const rep = E.reponses[q.id];
+      if (rep !== undefined && rep !== 'nsp' && (Array.isArray(rep) !== !!q.multiple || !choisies(q).length || !choisies(q).every(i => ids.includes(i)))) delete E.reponses[q.id];
+    }
+    if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => {
+      const cle = q.id + ':' + cid;
+      if (!Array.isArray(E.ordreControles[cle])) E.ordreControles[cle] = melanger(c.options.map(o => o.id));
+    });
+  });
+}
+charger();
+completerEtat();
+if (SERVEUR && ITEMS.some(q => q.cellules_initiales)) chargerMonaco();
+afficher();
+</script>
+</body>
+</html>

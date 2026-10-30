@@ -1,0 +1,44 @@
+{
+ "pandas": "2.3.3",
+ "alignement": "vérifié",
+ "formes": "vérifié",
+ "decalage": {
+  "faux_ligne_0": 100.0,
+  "juste_ligne_0": 99.0
+ },
+ "rangs": {
+  "average": [
+   2,
+   4,
+   2,
+   2
+  ],
+  "first": [
+   1,
+   4,
+   2,
+   3
+  ],
+  "dense": [
+   1,
+   2,
+   1,
+   1
+  ],
+  "min": [
+   1,
+   4,
+   1,
+   1
+  ]
+ },
+ "corr": "vérifié",
+ "apply_colonnes_recues": [
+  "date",
+  "actif",
+  "prix",
+  "signal"
+ ],
+ "apply_moyenne_toutes_colonnes": "échoue (TypeError)",
+ "ic_moyen_prix_signaux": 0.153333333333
+}

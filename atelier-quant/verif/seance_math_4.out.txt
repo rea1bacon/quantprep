@@ -1,0 +1,45 @@
+La_u3                    exact=0.175000  MC=0.174815  se=0.000601  z=-0.31
+La_pfp                   exact=10.000000  MC=9.997210  se=0.016999  z=-0.16
+La_pp                    exact=6.000000  MC=6.009200  se=0.010478  z=+0.88
+La_cr_h_sd               exact=0.333333  MC=0.334467  se=0.000861  z=+1.32
+La_cr_d_s                exact=6.666667  MC=6.667957  se=0.010358  z=+0.12
+La_cr_h_fd               exact=0.500000  MC=0.500250  se=0.000913  z=+0.27
+La_cr_d_f                exact=5.000000  MC=4.999270  se=0.009711  z=-0.08
+Martingales de la marche vérifiées symboliquement (r^Z, Z^2 - t, Z - (p-q)t, forme générale).
+Lb_h                     exact=0.774194  MC=0.772365  se=0.000935  z=-1.96
+Lb_mart_r                exact=0.250000  MC=0.251771  se=0.000908  z=+1.95
+Lb_d_sym                 exact=6.000000  MC=6.017255  se=0.010501  z=+1.64
+Lb_mart_z2               exact=0.000000  MC=-0.029630  se=0.027575  z=-1.07
+Lb_ce_pT                 exact=0.079589  MC=0.080045  se=0.000605  z=+0.75
+Lb_ce_e                  exact=0.000000  MC=-0.007875  se=0.008687  z=-0.91
+Lb_ce_cond               exact=-11.564513  MC=-11.591355  se=0.051653  z=-0.52
+Autocovariances de l'AR(1) : formule phi^h sigma^2/(1-phi^2) conforme à la série des chocs (5 valeurs de phi, h <= 5).
+Lc_mu                    exact=5.000000  MC=4.993402  se=0.003727  z=-1.77
+Lc_g0                    exact=2.777778  MC=2.777965  se=0.008231  z=+0.02
+Lc_g3                    exact=1.422222  MC=1.423459  se=0.006984  z=+0.18
+Lc_ey3                   exact=7.560000  MC=7.562236  se=0.003208  z=+0.70
+Lc_vy3                   exact=2.049600  MC=2.057698  se=0.006492  z=+1.25
+Lc_rw_cov                exact=100.000000  MC=99.647560  se=0.455487  z=-0.77
+Fonction génératrice de la loi normale et quatrième moment vérifiés symboliquement.
+Ld_ew1                   exact=1.648721  MC=1.651741  se=0.003450  z=+0.88
+Ld_qv_sd100_moy          exact=1.000000  MC=0.998568  se=0.000707  z=-2.03
+Ld_qv_sd100_var          exact=0.020000  MC=0.020006  se=0.000145  z=+0.04
+Ld_qv_sd10000_moy        exact=1.000000  MC=0.999840  se=0.000223  z=-0.72
+Ld_qv_sd10000_var        exact=0.000200  MC=0.000199  se=0.000005  z=-0.32
+Ld_ito_ms                exact=0.005000  MC=0.005101  se=0.000037  z=+2.73
+Ld_ito_moy               exact=0.000000  MC=-0.000136  se=0.003522  z=-0.04
+Ld_gbm_e                 exact=108.328707  MC=108.293565  se=0.034580  z=-1.02
+Ld_gbm_p                 exact=0.617911  MC=0.617062  se=0.000768  z=-1.10
+Ld_gbm_med               exact=0.500000  MC=0.500308  se=0.000791  z=+0.39
+Schéma d'Euler contre solution fermée, même bruit, 1000 pas : écart relatif moyen 7.12e-04
+Q01                      exact=0.300000  MC=0.300225  se=0.001025  z=+0.22
+Q02                      exact=42.000000  MC=42.033105  se=0.091051  z=+0.36
+Q03                      exact=0.692308  MC=0.692183  se=0.000843  z=-0.15
+Q03_duree                exact=3.846154  MC=3.849847  se=0.004871  z=+0.76
+Q04                      exact=0.547707  MC=0.549730  se=0.001113  z=+1.82
+Q05                      exact=2.250000  MC=2.252261  se=0.012176  z=+0.19
+Q06                      exact=7.333333  MC=7.340195  se=0.018884  z=+0.36
+Q07                      exact=14.000000  MC=14.055056  se=0.031373  z=+1.75
+Q08                      exact=451.028808  MC=450.687579  se=0.738677  z=-0.46
+260 valeurs exportées dans verif/seance_math_4.out.json.
+Toutes les vérifications passent.

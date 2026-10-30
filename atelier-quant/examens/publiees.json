@@ -1,0 +1,97 @@
+[
+ {
+  "id": "diagnostic",
+  "titre": "Test de positionnement",
+  "duree_min": 46
+ },
+ {
+  "id": "seance-code-1",
+  "titre": "Séance de code 1 : groupby, décalage, rangs",
+  "duree_min": 70
+ },
+ {
+  "id": "seance-math-1",
+  "titre": "Séance de mathématiques 1 : probabilités",
+  "duree_min": 65
+ },
+ {
+  "id": "seance-ml-1",
+  "titre": "Séance de ML 1 : régression linéaire, Ridge et Lasso",
+  "duree_min": 75
+ },
+ {
+  "id": "seance-ml-2",
+  "titre": "Séance de ML 2 : arbres, forêts aléatoires, boosting et XGBoost",
+  "duree_min": 70
+ },
+ {
+  "id": "seance-algebre-1",
+  "titre": "Séance d'algèbre linéaire : spectre, ACP et covariance",
+  "duree_min": 81
+ },
+ {
+  "id": "seance-math-2",
+  "titre": "Séance de mathématiques 2 : conditionnement et lois usuelles",
+  "duree_min": 40
+ },
+ {
+  "id": "seance-math-3",
+  "titre": "Séance de mathématiques 3 : statistique et inégalités",
+  "duree_min": 45
+ },
+ {
+  "id": "seance-code-2",
+  "titre": "Séance de code 2 : fenêtres glissantes, alignement temporel, normalisation, backtest",
+  "duree_min": 70
+ },
+ {
+  "id": "seance-ml-3",
+  "titre": "Séance de ML 3 : classification, métriques et validation",
+  "duree_min": 50
+ },
+ {
+  "id": "seance-math-4",
+  "titre": "Séance de mathématiques 4 : Markov, martingales et séries temporelles",
+  "duree_min": 36
+ },
+ {
+  "id": "seance-quant-1",
+  "titre": "Séance quantitative : sélection de modèles, finance quantitative et optimisation",
+  "duree_min": 46
+ },
+ {
+  "id": "seance-ml-4",
+  "titre": "Séance de ML 4 : optimisation, réseaux de neurones, noyaux et EM",
+  "duree_min": 51
+ },
+ {
+  "id": "seance-math-5",
+  "titre": "Séance de mathématiques 5 : statistique descriptive, tests d'adéquation et densités jointes",
+  "duree_min": 74
+ },
+ {
+  "id": "seance-ml-5",
+  "titre": "Séance de ML 5 : réseaux convolutifs, entraînement, apprentissage par renforcement et réflexes de choix multiple",
+  "duree_min": 92
+ },
+ {
+  "id": "seance-code-3",
+  "titre": "Séance de code 3 : une chaîne complète de classification avec scikit-learn",
+  "duree_min": 82
+ },
+ {
+  "id": "examen-blanc-1",
+  "titre": "Examen blanc 1",
+  "duree_min": 72
+ },
+ {
+  "id": "examen-blanc-2",
+  "titre": "Examen blanc 2",
+  "duree_min": 72
+ },
+ {
+  "id": "fiche-derniere-heure",
+  "titre": "Fiche de révision express : les réflexes de chaque leçon",
+  "duree_min": 60
+ }
+]

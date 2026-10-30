@@ -1,0 +1,900 @@
+{
+ "id": "seance-ml-5",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-ML-5",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon : réseaux convolutifs, entraînement, apprentissage par renforcement, réflexes de choix multiple",
+   "difficulte": 4,
+   "temps_cible_s": 3900,
+   "dossier": "coding/lecons",
+   "contenu": "## Leçon : réseaux convolutifs, entraînement, renforcement, affirmations à cocher\n\nDurée visée : 65 minutes pour tout lire, preuves comprises ; environ 30 minutes en ne lisant que les énoncés, les exemples et les pièges. La leçon a cinq parties indépendantes : tu peux les lire en plusieurs fois.\n\nCe qui est déjà démontré ailleurs est cité par le titre de la séance et n'est pas redémontré. Les expériences sont des blocs de code exécutés à la construction de cette page, avec numpy 1.21.6, scipy 1.8.1 et scikit-learn 1.1.1 (environnement `.venv-hackerrank`, sans PyTorch ni Keras) : la sortie affichée est la vraie sortie. Les autres nombres viennent du script `verif/seance_ml_5.py`. Les comportements de PyTorch et de Keras cités ont été exécutés le 9 octobre 2026 dans un environnement séparé (PyTorch 2.4.1, Keras 3.12.2) : pour toute autre version, ils sont à vérifier.\n\n**Conventions de notation**, valables pour toute la leçon :\n\n- une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice ;\n- exceptions assumées, parce que ce sont les notations universelles : \\(B\\) (taille d'un lot), \\(K\\) (nombre de classes ou de bras), \\(T\\) (nombre de pas de temps ou de tirages), \\(L\\) (majorant de courbure), \\(N\\) et \\(N_1\\) (tailles d'une population et de sa classe positive) et \\(M\\) (nombre de couches) sont des entiers ou des réels fixes ; \\(J(\\boldsymbol{\\theta})\\) est une fonction fixe du paramètre ; VP, FP, FN, VN sont des effectifs observés (séance de ML 3) ;\n- \\(\\lfloor u \\rfloor\\) est la partie entière de \\(u\\) (le plus grand entier inférieur ou égal à \\(u\\)), \\(\\lceil u \\rceil\\) son plafond (le plus petit entier supérieur ou égal à \\(u\\)) ;\n- \\(\\mathrm{sig}(z) = 1/(1 + e^{-z})\\) est la sigmoïde ; \\(I_A\\) vaut 1 si l'événement \\(A\\) a lieu, 0 sinon ; \\(\\lVert \\mathbf{v} \\rVert_\\infty\\) est la plus grande valeur absolue des coordonnées de \\(\\mathbf{v}\\) ;\n- en partie 4, \\(\\mathcal{S}\\) et \\(\\mathcal{A}\\) sont des ensembles finis (états, actions) ; \\(S_t\\), \\(A_t\\), \\(R_t\\), \\(G_t\\) sont aléatoires ; \\(s\\), \\(a\\), \\(r\\) désignent des valeurs.\n\n## Partie 1 : arithmétique des réseaux convolutifs\n\n### 1.1 Forme de sortie d'une convolution\n\n**Le problème.** Avant d'entraîner un réseau convolutif, il faut que les formes des tenseurs s'emboîtent : chaque couche attend un nombre de canaux précis, et deux tenseurs ne se concatènent ou ne s'additionnent que si certaines dimensions coïncident. Une question type donne une image, des couches, et demande la forme finale.\n\n**Les définitions.** Une image, ou une carte d'activations, est un tenseur de forme (hauteur, largeur, canaux). On raisonne sur un seul axe spatial ; l'autre se traite de la même façon, indépendamment. Sur cet axe :\n\n- \\(n\\) est la taille de l'entrée, dont les positions sont numérotées de 0 à \\(n - 1\\) ;\n- le **remplissage** (padding) \\(p \\ge 0\\) est le nombre de zéros ajoutés de chaque côté : l'entrée complétée a \\(n + 2p\\) positions ;\n- \\(k \\ge 1\\) est la taille du noyau (nombre de poids le long de l'axe) ;\n- la **dilatation** \\(d \\ge 1\\) est l'écart entre deux positions lues par des poids voisins ; le noyau dilaté couvre une **étendue** \\(e = d(k - 1) + 1\\) positions ;\n- le **pas** (stride) \\(s \\ge 1\\) est le déplacement du noyau entre deux sorties : la sortie numéro \\(j\\) (à partir de 0) lit les positions \\(js, js + d, \\dots, js + d(k - 1)\\) de l'entrée complétée.\n\n**L'intuition.** On pose le noyau tout à gauche, puis on le décale de \\(s\\) tant qu'il tient dans l'entrée complétée : la taille de sortie est le nombre de poses.\n\n**L'énoncé** (C1). Si \\(n + 2p \\ge e\\), la taille de sortie le long de l'axe est\n\n\\(\\displaystyle m = \\left\\lfloor \\frac{n + 2p - d(k - 1) - 1}{s} \\right\\rfloor + 1.\\)\n\n**La preuve.**\n\n1. La pose numéro \\(j\\) couvre les positions \\(js\\) à \\(js + e - 1\\) de l'entrée complétée (définition du pas et de l'étendue).\n2. Elle tient dans l'entrée complétée si et seulement si sa dernière position existe : \\(js + e - 1 \\le n + 2p - 1\\), soit \\(j \\le (n + 2p - e)/s\\).\n3. \\(j\\) est un entier positif ou nul : les poses possibles sont \\(j = 0, 1, \\dots, \\lfloor (n + 2p - e)/s \\rfloor\\), soit \\(\\lfloor (n + 2p - e)/s \\rfloor + 1\\) poses. On remplace \\(e\\) par \\(d(k - 1) + 1\\).\n\n**Deux conventions de remplissage.**\n\n- « valid » : aucun remplissage, \\(p = 0\\). Pour \\(s = d = 1\\), \\(m = n - k + 1\\) : un noyau \\(3 \\times 3\\) retire 2 à chaque dimension spatiale.\n- « same » : le remplissage est choisi pour que \\(m = \\lceil n/s \\rceil\\). Pour \\(s = 1\\), il faut \\(2p = d(k - 1)\\) : \\(p = d(k - 1)/2\\) de chaque côté quand \\(d(k - 1)\\) est pair (pour \\(d = 1\\) : \\(k\\) impair, \\(p = 1\\) pour \\(k = 3\\), \\(p = 2\\) pour \\(k = 5\\)), sinon un zéro de plus d'un côté que de l'autre. Pour \\(s > 1\\), le nombre total de zéros à ajouter est \\(\\max\\big((\\lceil n/s \\rceil - 1)s + e - n, 0\\big)\\) : (C1) donne alors \\(\\lceil n/s \\rceil\\) (contrôlé par le script sur toutes les combinaisons d'une grille).\n\n**Canaux et paramètres** (C2). Une couche de convolution à \\(f\\) filtres, appliquée à une entrée de \\(c\\) canaux avec un noyau \\(k \\times k\\), a une sortie de \\(f\\) canaux et \\(f\\,(k^2 c + 1)\\) paramètres avec biais. Preuve : chaque filtre est un bloc de \\(k \\times k \\times c\\) poids, qui lit **tous** les canaux d'entrée à la fois et produit un canal de sortie, plus un biais ; il y a \\(f\\) filtres. Deux conséquences : le nombre de canaux de sortie ne dépend que du nombre de filtres, pas du nombre de canaux d'entrée ; le nombre de paramètres ne dépend pas de la taille spatiale de l'image.\n\n**Exemple.** Entrée de taille 96. Noyau 7, remplissage 3, pas 2 : \\(m = \\lfloor (96 + 6 - 7)/2 \\rfloor + 1 = 48\\). Noyau 3 de dilatation 2 sans remplissage : étendue \\(5\\), \\(m = 92\\). Convolution \\(3 \\times 3\\) à 16 filtres sur une image à 3 canaux : \\(16 \\times (9 \\times 3 + 1) = 448\\) paramètres. Vérification par une vraie convolution numpy sur un tenseur \\(12 \\times 12 \\times 3\\), la fonction ne connaissant pas la formule :\n\n```python\nimport numpy as np\nfrom scipy.signal import correlate2d\nnp.set_printoptions(precision=4, suppress=True)\n\ndef conv2d(x, w, p=0, s=1, d=1):\n    # x : (hauteur, largeur, canaux) ; w : (k, k, canaux, filtres) ; p zéros de chaque côté, pas s, dilatation d\n    k, F = w.shape[0], w.shape[3]\n    xp = np.pad(x, ((p, p), (p, p), (0, 0)))\n    e = d * (k - 1) + 1                                    # étendue du noyau dilaté\n    lignes, colonnes = range(0, xp.shape[0] - e + 1, s), range(0, xp.shape[1] - e + 1, s)\n    return np.array([[[np.sum(xp[i:i + e:d, j:j + e:d, :] * w[:, :, :, f]) for f in range(F)] for j in colonnes] for i in lignes])\n\ndef taille(n, k, p=0, s=1, d=1):                           # formule (C1)\n    return (n + 2 * p - d * (k - 1) - 1) // s + 1\n\nrng = np.random.default_rng(0)\nx = rng.normal(size=(12, 12, 3))                           # petite « image » 12 x 12 à 3 canaux\nfor k, p, s, d in [(3, 0, 1, 1), (3, 1, 1, 1), (5, 2, 1, 1), (3, 1, 2, 1), (3, 0, 1, 2), (7, 3, 2, 1)]:\n    y = conv2d(x, rng.normal(size=(k, k, 3, 4)), p, s, d)\n    print(f\"k={k} p={p} s={s} d={d} : forme obtenue {y.shape}, formule {taille(12, k, p, s, d)}\")\nw = rng.normal(size=(3, 3, 1, 1))\nprint(\"mêmes valeurs que scipy, valid :\", np.allclose(conv2d(x[:, :, :1], w)[:, :, 0], correlate2d(x[:, :, 0], w[:, :, 0, 0], mode=\"valid\")))\nprint(\"mêmes valeurs que scipy, same  :\", np.allclose(conv2d(x[:, :, :1], w, p=1)[:, :, 0], correlate2d(x[:, :, 0], w[:, :, 0, 0], mode=\"same\")))\n```\n\n```sortie\nk=3 p=0 s=1 d=1 : forme obtenue (10, 10, 4), formule 10\nk=3 p=1 s=1 d=1 : forme obtenue (12, 12, 4), formule 12\nk=5 p=2 s=1 d=1 : forme obtenue (12, 12, 4), formule 12\nk=3 p=1 s=2 d=1 : forme obtenue (6, 6, 4), formule 6\nk=3 p=0 s=1 d=2 : forme obtenue (8, 8, 4), formule 8\nk=7 p=3 s=2 d=1 : forme obtenue (6, 6, 4), formule 6\nmêmes valeurs que scipy, valid : True\nmêmes valeurs que scipy, same  : True\n```\n\n**Correspondance avec les bibliothèques** (exécuté le 9 octobre 2026, hors de cette page) :\n\n- PyTorch 2.4.1, `nn.Conv2d(c, f, k, stride=1, padding=0, dilation=1)` : tenseurs dans l'ordre (lot, canaux, hauteur, largeur) ; les valeurs par défaut sont celles écrites ici ; la forme de sortie suit (C1) sur les six configurations essayées ; `padding='same'` est refusé dès que le pas dépasse 1.\n- Keras 3.12.2, `Conv2D(f, k, strides=1, padding='valid')` : tenseurs dans l'ordre (lot, hauteur, largeur, canaux) ; `'valid'` par défaut ; `'same'` donne \\(\\lceil n/s \\rceil\\), y compris pour un pas supérieur à 1.\n- La façon dont Keras répartit un nombre impair de zéros entre les deux côtés n'a pas été exécutée : à vérifier.\n\n**Cas limites.** \\(k = 1\\) : \\(m = \\lfloor (n + 2p - 1)/s \\rfloor + 1\\), soit \\(n\\) pour \\(s = 1\\), \\(p = 0\\) ; une convolution \\(1 \\times 1\\) ne change que le nombre de canaux. \\(n + 2p < e\\) : aucune pose, la couche n'est pas applicable. \\(s > 1\\) : les \\((n + 2p - e) \\bmod s\\) dernières positions ne sont lues par aucune pose.\n\n**Pièges.** Oublier le « + 1 » ; arrondir au plus proche au lieu de prendre la partie entière ; compter \\(p\\) une seule fois alors qu'il est ajouté des deux côtés ; croire que le nombre de filtres modifie la taille spatiale ; croire que le nombre de canaux d'entrée se retrouve en sortie.\n\n### 1.2 Pooling\n\n**La définition.** Une couche de pooling fait glisser une fenêtre \\(k \\times k\\) avec un pas \\(s\\) sur **chaque canal séparément** et renvoie le maximum (max-pooling) ou la moyenne de la fenêtre.\n\n**L'énoncé** (C1 bis). La taille spatiale de sortie suit (C1) avec les mêmes \\(k\\), \\(p\\), \\(s\\) ; le nombre de canaux est inchangé ; la couche n'a aucun paramètre. Pour une fenêtre \\(2 \\times 2\\) de pas 2 sans remplissage : \\(m = \\lfloor (n - 2)/2 \\rfloor + 1 = \\lfloor n/2 \\rfloor\\). Preuve : la preuve de (C1) ne dépend que des positions lues, pas de l'opération appliquée à la fenêtre.\n\n**Cas limite.** \\(n\\) impair : la dernière ligne et la dernière colonne ne sont lues par aucune fenêtre ; une carte de taille 97 donne \\(48\\). Dans PyTorch 2.4.1 et Keras 3.12.2, le pas par défaut d'un max-pooling est la taille de sa fenêtre, et `nn.MaxPool2d` a une option `ceil_mode=True` qui arrondit au plafond (exécuté le 9 octobre 2026).\n\n### 1.3 Concaténer ou additionner\n\n**Le problème.** Les architectures modernes ne sont pas de simples chaînes : des branches se rejoignent. Il y a deux façons de joindre deux tenseurs, avec des conditions différentes.\n\n**L'énoncé** (C3). Soit deux tenseurs de formes \\((n_1, n_2, c)\\) et \\((n_1', n_2', c')\\).\n\n1. Leur **concaténation selon les canaux** existe si et seulement si \\(n_1 = n_1'\\) et \\(n_2 = n_2'\\) ; sa forme est \\((n_1, n_2, c + c')\\). Les nombres de canaux sont libres et s'additionnent.\n2. Leur **addition** terme à terme (connexion résiduelle, séance de ML 4, partie 2.6) existe si et seulement si les trois dimensions coïncident ; la forme ne change pas.\n\nPreuve : ce sont les définitions. Concaténer, c'est mettre bout à bout, en chaque position spatiale, les \\(c\\) valeurs de l'un et les \\(c'\\) valeurs de l'autre : il faut les mêmes positions. Additionner, c'est sommer les valeurs de même position et de même canal : il faut aussi les mêmes canaux.\n\n**Exemple entièrement calculé.** Image \\(96 \\times 96 \\times 3\\). Deux branches **partent toutes deux de l'image** : A, convolution \\(3 \\times 3\\) à 16 filtres ; B, convolution \\(5 \\times 5\\) à 24 filtres ; pas 1, convention « same ». On concatène selon les canaux, puis on applique un max-pooling \\(2 \\times 2\\) de pas 2.\n\n1. Branche A : \\(p = 1\\), taille \\(96 + 2 - 3 + 1 = 96\\) : forme \\(96 \\times 96 \\times 16\\). Paramètres : \\(448\\).\n2. Branche B : \\(p = 2\\), taille \\(96 + 4 - 5 + 1 = 96\\) : forme \\(96 \\times 96 \\times 24\\). Paramètres : \\(24 \\times (25 \\times 3 + 1) = 1824\\).\n3. Concaténation : mêmes dimensions spatiales, donc possible ; forme \\(96 \\times 96 \\times 40\\).\n4. Max-pooling : \\(\\lfloor 96/2 \\rfloor = 48\\), canaux inchangés, aucun paramètre : forme finale \\(48 \\times 48 \\times 40\\). Total : \\(2272\\) paramètres.\n\nAvec la convention « valid », A donnerait une taille \\(94\\) et B une taille \\(92\\) : la concaténation serait impossible sans rogner A ou compléter B. Et l'addition de A et B est impossible dans les deux conventions, puisque \\(16 \\ne 24\\).\n\n```python\ndef maxpool(x, k=2, s=2):\n    return np.array([[x[i:i + k, j:j + k, :].max(axis=(0, 1)) for j in range(0, x.shape[1] - k + 1, s)] for i in range(0, x.shape[0] - k + 1, s)])\n\na = conv2d(x, rng.normal(size=(3, 3, 3, 16)), p=1)        # branche A : 3 x 3, 16 filtres, remplissage 1\nb = conv2d(x, rng.normal(size=(5, 5, 3, 24)), p=2)        # branche B : 5 x 5, 24 filtres, remplissage 2\nc = np.concatenate([a, b], axis=2)                         # concaténation selon l'axe des canaux\nprint(\"branches :\", a.shape, b.shape, \"; concaténation :\", c.shape, \"; après max-pooling 2 x 2 de pas 2 :\", maxpool(c).shape)\nprint(\"max-pooling 2 x 2 de pas 2 d'une carte 5 x 5 :\", maxpool(x[:5, :5, :]).shape)\na_valid, b_valid = conv2d(x, rng.normal(size=(3, 3, 3, 16))), conv2d(x, rng.normal(size=(5, 5, 3, 24)))\nprint(\"les mêmes branches sans remplissage :\", a_valid.shape, b_valid.shape)\n```\n\n```sortie\nbranches : (12, 12, 16) (12, 12, 24) ; concaténation : (12, 12, 40) ; après max-pooling 2 x 2 de pas 2 : (6, 6, 40)\nmax-pooling 2 x 2 de pas 2 d'une carte 5 x 5 : (2, 2, 3)\nles mêmes branches sans remplissage : (10, 10, 16) (8, 8, 24)\n```\n\n```python\nnp.concatenate([a_valid, b_valid], axis=2)\n```\n\n```sortie\nValueError: all the input array dimensions for the concatenation axis must match exactly, but along dimension 0, the array at index 0 has size 10 and the array at index 1 has size 8\n```\n\n```python\na + b\n```\n\n```sortie\nValueError: operands could not be broadcast together with shapes (12,12,16) (12,12,24)\n```\n\n**Trois architectures à reconnaître** (faits tirés des articles cités, non exécutés ici).\n\n- **Branches parallèles** (module Inception : Szegedy et al., « Going Deeper with Convolutions », CVPR 2015) : la même entrée passe par des convolutions de tailles différentes et par un pooling de pas 1, toutes remplies pour garder la taille spatiale, puis les sorties sont concaténées. Une convolution \\(1 \\times 1\\) placée avant une convolution coûteuse réduit le nombre de canaux lus : sur 192 canaux, une convolution \\(5 \\times 5\\) à 32 filtres a \\(153632\\) paramètres ; précédée d'une convolution \\(1 \\times 1\\) à 16 filtres, l'ensemble en a \\(15920\\), soit \\(9{,}7\\) fois moins (calcul par C2).\n- **Sauts par concaténation** (U-Net : Ronneberger, Fischer et Brox, « U-Net: Convolutional Networks for Biomedical Image Segmentation », MICCAI 2015) : un encodeur réduit la taille spatiale par pooling, un décodeur la rétablit, et chaque étage du décodeur concatène sa carte avec celle de l'encodeur de même taille. La couche suivante lit donc la somme des canaux : avec 64 et 64 canaux, une convolution \\(3 \\times 3\\) à 64 filtres lit \\(128\\) canaux et a \\(73792\\) paramètres, contre \\(36928\\) sans le saut. L'article d'origine utilise des convolutions sans remplissage et rogne la carte de l'encodeur avant de concaténer.\n- **Sauts par addition** (ResNet : He, Zhang, Ren et Sun, « Deep Residual Learning for Image Recognition », CVPR 2016) : l'entrée du bloc est additionnée à sa sortie, ce qui exige la même forme ; quand le bloc change le nombre de canaux ou la taille spatiale, une des options de l'article est de faire passer le saut par une convolution \\(1 \\times 1\\) qui rétablit la forme.\n\n**Pièges.**\n\n1. « Deux convolutions appliquées à l'image puis concaténées » décrit deux branches **parallèles**. En série, il n'y a qu'une sortie, rien à concaténer, et la seconde couche lit les canaux de la première : la convolution \\(5 \\times 5\\) à 24 filtres aurait alors \\(24 \\times (25 \\times 16 + 1) = 9624\\) paramètres au lieu de \\(1824\\).\n2. La concaténation additionne les canaux ; elle ne les multiplie pas et ne garde pas le plus grand.\n3. Le pooling ne touche pas aux canaux.\n4. Une bibliothèque peut additionner deux tenseurs de formes différentes par diffusion (broadcasting) : PyTorch 2.4.1 additionne un tenseur à 1 canal et un tenseur à 4 canaux sans erreur. Ce n'est pas une connexion résiduelle, et (C3) parle de l'addition terme à terme.\n\n### 1.4 Champ réceptif avec des pas\n\n**Le problème.** De combien de pixels d'entrée dépend une sortie ? La séance de ML 4 (partie 3.1, résultat C1) donne \\(1 + \\sum_l d_l(k_l - 1)\\) quand tous les pas valent 1. Un pas ou un pooling change le compte.\n\n**L'énoncé** (C4). On empile \\(M\\) couches (convolutions ou poolings) de tailles \\(k_l\\), de pas \\(s_l\\) et de dilatations \\(d_l\\). On pose \\(r_0 = 1\\), \\(j_0 = 1\\), puis, pour \\(l = 1, \\dots, M\\) : \\(r_l = r_{l-1} + d_l(k_l - 1)\\,j_{l-1}\\) et \\(j_l = j_{l-1}\\,s_l\\). Alors une sortie de la couche \\(l\\) ne dépend que d'une fenêtre de \\(r_l\\) positions consécutives de l'entrée (son **champ réceptif**), et les fenêtres de deux sorties voisines sont décalées de \\(j_l\\) positions (le **saut**).\n\n**La preuve**, par récurrence sur \\(l\\).\n\n1. \\(l = 0\\) : une « sortie » est une entrée ; fenêtre de taille 1, décalage 1.\n2. Supposons le résultat vrai au rang \\(l - 1\\). Une sortie de la couche \\(l\\) lit \\(k_l\\) sorties de la couche \\(l - 1\\), séparées de \\(d_l\\) rangs. Leurs fenêtres ont chacune \\(r_{l-1}\\) positions, et la fenêtre de la dernière est décalée de \\(d_l(k_l - 1)\\,j_{l-1}\\) positions par rapport à celle de la première (hypothèse de récurrence : \\(j_{l-1}\\) par rang). La réunion tient dans une fenêtre de \\(r_{l-1} + d_l(k_l - 1)\\,j_{l-1}\\) positions.\n3. Passer à la sortie voisine de la couche \\(l\\) avance de \\(s_l\\) rangs dans la couche \\(l - 1\\), donc de \\(s_l\\,j_{l-1}\\) positions dans l'entrée.\n\n**Exemple.** Convolution 3, pooling 2 de pas 2, convolution 3, pooling 2 de pas 2, convolution 3 (dilatation 1 partout) : champs réceptifs successifs \\((3 ; 4 ; 8 ; 10 ; 18)\\), saut final \\(4\\). Sans tenir compte des pas, on aurait trouvé \\(9\\). Mesure directe en dimension 1 : on modifie une entrée à la fois et on regarde si la sortie centrale change.\n\n```python\ndef conv1d(x, w, s=1):\n    return np.array([np.sum(x[i:i + len(w)] * w) for i in range(0, len(x) - len(w) + 1, s)])\n\ndef reseau(x):                                             # conv 3 ; pooling 2 de pas 2 ; conv 3 ; pooling 2 de pas 2 ; conv 3\n    for k, s in [(3, 1), (2, 2), (3, 1), (2, 2), (3, 1)]:\n        x = conv1d(x, np.ones(k), s)                       # seule la fenêtre lue compte ici : un max-pooling lit la même\n    return x\n\ncentre = len(reseau(np.zeros(100))) // 2\ninfluents = [i for i in range(100) if reseau(np.eye(100)[i])[centre] != 0]\nprint(\"entrées qui modifient la sortie centrale : de\", influents[0], \"à\", influents[-1], \", soit\", len(influents))\n```\n\n```sortie\nentrées qui modifient la sortie centrale : de 40 à 57 , soit 18\n```\n\n**Pièges.** Le pas d'une couche n'agit pas sur son propre terme, mais sur ceux des couches **suivantes** (c'est \\(j_{l-1}\\), pas \\(j_l\\), qui multiplie). (C4) donne l'étendue de la fenêtre ; toutes ses positions sont réellement lues quand les fenêtres réunies à l'étape 2 se touchent ou se chevauchent, c'est-à-dire quand \\(d_l\\,j_{l-1} \\le r_{l-1}\\) (même argument que le résultat C2 de la séance de ML 4).\n\n### 1.5 Convolution transposée\n\n**Le problème.** Un décodeur doit **augmenter** la taille spatiale. La convolution transposée est une couche apprise qui le fait.\n\n**La définition.** Chaque valeur d'entrée dépose le noyau, multiplié par cette valeur, dans la sortie ; deux dépôts voisins sont décalés de \\(s\\) ; les dépôts qui se recouvrent s'additionnent. Un remplissage \\(p\\) retire \\(p\\) positions de chaque côté du résultat.\n\n**L'énoncé** (C5). Pour une entrée de taille \\(n\\) : \\(m = (n - 1)\\,s - 2p + d(k - 1) + 1\\), plus un éventuel complément \\(o\\) avec \\(0 \\le o < s\\) (argument `output_padding` de PyTorch). C'est la plus petite taille qu'une convolution de mêmes \\(k\\), \\(p\\), \\(s\\), \\(d\\) envoie sur \\(n\\).\n\n**La preuve.** Le dernier dépôt commence à la position \\((n - 1)s\\) et couvre \\(e = d(k - 1) + 1\\) positions : la sortie a \\((n - 1)s + e\\) positions, moins \\(2p\\). Réciproquement, par (C1), une convolution envoie une taille \\(m'\\) sur \\(n\\) si et seulement si \\(\\lfloor (m' + 2p - e)/s \\rfloor = n - 1\\), soit \\((n - 1)s \\le m' + 2p - e < ns\\) : les tailles possibles sont \\(m' = (n - 1)s - 2p + e + o\\) avec \\(0 \\le o < s\\), et la plus petite correspond à \\(o = 0\\).\n\n**Exemple.** Entrée de taille 24. Noyau 2, pas 2 : \\(m = 48\\), la taille double. Noyau 4, pas 2, \\(p = 1\\) : \\(48\\). Noyau 3, pas 2, \\(p = 1\\) : \\(47\\), ou \\(48\\) avec \\(o = 1\\) ; les deux tailles sont envoyées sur 24 par la convolution correspondante, d'où le besoin de l'argument \\(o\\). Noyau 3, pas 2, \\(p = 0\\) : \\(49\\). Ces formes ont été retrouvées avec `nn.ConvTranspose2d` (PyTorch 2.4.1) ; `Conv2DTranspose` de Keras 3.12.2 donne \\(ns\\) avec `padding='same'` et \\((n - 1)s + k\\) avec `'valid'` sur les cas essayés (\\(k \\ge s\\)).\n\n```python\ndef conv1d_transposee(y, w, s):\n    t = np.zeros((len(y) - 1) * s + len(w))\n    for j, v in enumerate(y):\n        t[j * s:j * s + len(w)] += v * w                   # chaque entrée dépose le noyau, tous les s\n    return t\n\nw1 = np.array([1.0, 2.0, 3.0])\nprint(\"transposée de (1, 10, 100), noyau (1, 2, 3), pas 2 :\", conv1d_transposee(np.array([1.0, 10.0, 100.0]), w1, 2))\nxx, yy = rng.normal(size=9), rng.normal(size=4)\nprint(\"tailles : convolution\", conv1d(xx, w1, 2).shape, \"; transposée\", conv1d_transposee(yy, w1, 2).shape)\nprint(\"<conv(x), y> =\", np.dot(conv1d(xx, w1, 2), yy).round(6), \"; <x, transposée(y)> =\", np.dot(xx, conv1d_transposee(yy, w1, 2)).round(6))\n```\n\n```sortie\ntransposée de (1, 10, 100), noyau (1, 2, 3), pas 2 : [  1.   2.  13.  20. 130. 200. 300.]\ntailles : convolution (4,) ; transposée (9,)\n<conv(x), y> = 7.493498 ; <x, transposée(y)> = 7.493498\n```\n\nLa dernière ligne explique le nom : si la convolution est l'application linéaire de matrice \\(\\mathbf{A}\\), la convolution transposée de même noyau est celle de matrice \\(\\mathbf{A}^\\top\\), puisque \\((\\mathbf{A}\\mathbf{x})^\\top \\mathbf{y} = \\mathbf{x}^\\top (\\mathbf{A}^\\top \\mathbf{y})\\).\n\n**Piège.** Elle rétablit la **forme**, pas les valeurs : \\(\\mathbf{A}^\\top\\) n'est pas l'inverse de \\(\\mathbf{A}\\). L'appeler « déconvolution » est un abus de langage.\n\n[[controle:forme]]\n\n## Partie 2 : mettre en place un entraînement\n\n### 2.1 Trois ensembles, trois rôles\n\nLes rôles (l'apprentissage ajuste les poids, la validation choisit les hyperparamètres et le moment d'arrêt, le test mesure une fois à la fin) et les fuites d'information sont traités dans la séance de ML 3, partie 4. Trois compléments pour des images.\n\n1. **L'unité de découpage est l'exemple entier**, ici la paire (image, masque), jamais le pixel : les pixels d'une même image sont dépendants, et en placer dans deux ensembles est une fuite. Si plusieurs images viennent d'une même source (même patient, même scène, images voisines d'une vidéo), on découpe par source, pour la même raison.\n2. **Les proportions sont un choix, pas une règle.** 70/15/15 ou 80/10/10 sont des conventions. Ce qui fixe la taille du test est la précision voulue : une proportion \\(q\\) mesurée sur \\(n_{\\text{test}}\\) exemples indépendants a pour erreur standard \\(\\sqrt{q(1 - q)/n_{\\text{test}}}\\) (variance d'une moyenne de variables de Bernoulli indépendantes).\n3. Les trois ensembles sont disjoints, et leurs tailles somment à la taille totale : c'est le premier contrôle de cohérence d'un énoncé.\n\nExemple : \\(1500\\) paires, découpées en 70 %, 15 % et 15 % : \\(1050\\), \\(225\\) et \\(225\\). Une exactitude de 0,9 mesurée sur \\(225\\) images a une erreur standard de \\(0{,}02\\) ; il faudrait quatre fois plus d'images de test pour la ramener à \\(0{,}01\\).\n\n### 2.2 Époque, lot, itération\n\n**Les définitions.** Un **lot** (batch) est un paquet de \\(B\\) exemples d'apprentissage sur lequel on calcule un gradient moyen. Une **itération** (ou pas d'entraînement) est une mise à jour des poids, faite avec un lot. Une **époque** est un passage sur tous les exemples d'apprentissage, chacun utilisé une fois.\n\n**L'énoncé** (E1). Avec \\(n_{\\text{app}}\\) exemples d'apprentissage et des lots de taille \\(B\\), une époque compte \\(\\lceil n_{\\text{app}}/B \\rceil\\) itérations si l'on garde le dernier lot incomplet, \\(\\lfloor n_{\\text{app}}/B \\rfloor\\) si on l'écarte. Un entraînement de \\(n_e\\) époques fait \\(n_e\\) fois ce nombre de mises à jour.\n\n**La preuve.** Division euclidienne : \\(n_{\\text{app}} = uB + v\\) avec \\(0 \\le v < B\\). On forme \\(u\\) lots complets, et les \\(v\\) exemples restants forment un lot incomplet si \\(v > 0\\) : \\(u + 1 = \\lceil n_{\\text{app}}/B \\rceil\\) lots dans ce cas, \\(u\\) si \\(v = 0\\) ou si l'on écarte le reste.\n\n**Exemple.** \\(n_{\\text{app}} = 1050\\), \\(B = 32\\) : \\(1050 = 32 \\times 32 + 26\\), donc \\(33\\) itérations par époque, la dernière sur un lot de \\(26\\) exemples ; \\(40\\) époques font \\(1320\\) mises à jour. C'est la taille de l'**apprentissage** qui compte, pas la taille totale : avec \\(1500\\) on aurait écrit \\(47\\).\n\n**Ce qui se passe avec une valeur incohérente.** Certaines interfaces demandent le nombre \\(u'\\) de pas par époque. Ce nombre fixe ce que l'outil appelle « époque », soit \\(u' B\\) exemples consommés :\n\n- \\(u' B < n_{\\text{app}}\\) : une « époque » n'est plus un passage complet. Tout ce qui est compté en époques (calendrier de pas d'apprentissage, patience de l'arrêt précoce, fréquence de la validation) se déclenche plus tôt qu'on ne le croit ;\n- \\(u' B > n_{\\text{app}}\\) : il faut plus d'exemples qu'il n'y en a ; soit les données s'épuisent, soit des exemples repassent dans la même « époque ». Avec \\(u' = 47\\) et \\(B = 32\\), on demande \\(1504\\) exemples alors qu'il y en a \\(1050\\) ;\n- pour la validation, on veut évaluer chaque exemple exactement une fois : \\(\\lceil n_{\\text{val}}/B \\rceil\\) pas, ici \\(8\\) (le dernier lot contient \\(1\\) exemple) ; avec moins de pas, des exemples ne sont jamais évalués.\n\nComportements exécutés le 9 octobre 2026 : avec Keras 3.12.2, `fit` sur 1050 exemples en tableaux numpy avec `batch_size=32` fait 33 pas par époque, et 32 est la taille de lot par défaut ; `steps_per_epoch=10` fait 10 pas par époque ; `steps_per_epoch=50` s'arrête à 33 pas avec un avertissement d'épuisement des données. Avec PyTorch 2.4.1, un `DataLoader` de 1400 exemples et `batch_size=32` fournit 44 lots, et 43 avec `drop_last=True`. Avec d'autres sources de données (générateurs, jeux répétés à l'infini), le comportement est à vérifier.\n\n**Piège.** La taille de lot agit sur deux choses à la fois : le bruit du gradient, dont la variance est divisée par \\(B\\) (séance de ML 4, partie 1.3), et le nombre de mises à jour par époque, divisé par \\(B\\). Comparer deux tailles de lot « à nombre d'époques égal » compare donc aussi des nombres de mises à jour différents.\n\n### 2.3 Le pas d'apprentissage\n\n**Le problème.** Quel ordre de grandeur donner au pas d'apprentissage \\(\\eta\\) ? Il n'existe pas de valeur universelle, et l'on peut dire pourquoi.\n\n**L'énoncé** (P1). Soit \\(f\\) une fonction deux fois continûment dérivable dont la hessienne a, en tout point, toutes ses valeurs propres inférieures ou égales à \\(L > 0\\). Alors un pas de descente de gradient \\(\\boldsymbol{\\theta}' = \\boldsymbol{\\theta} - \\eta\\,\\nabla f(\\boldsymbol{\\theta})\\) vérifie \\(f(\\boldsymbol{\\theta}') \\le f(\\boldsymbol{\\theta}) - \\eta\\,(1 - \\tfrac{L\\eta}{2})\\,\\lVert \\nabla f(\\boldsymbol{\\theta}) \\rVert^2\\). Pour \\(0 < \\eta < 2/L\\), la perte ne peut donc pas augmenter.\n\n**La preuve.**\n\n1. Formule de Taylor avec reste de Lagrange (théorème général, admis) le long du segment : il existe un point \\(\\boldsymbol{\\xi}\\) du segment tel que \\(f(\\boldsymbol{\\theta} + \\mathbf{h}) = f(\\boldsymbol{\\theta}) + \\nabla f(\\boldsymbol{\\theta})^\\top \\mathbf{h} + \\tfrac12 \\mathbf{h}^\\top \\nabla^2 f(\\boldsymbol{\\xi})\\,\\mathbf{h}\\).\n2. Les valeurs propres de la hessienne sont au plus \\(L\\), donc \\(\\mathbf{h}^\\top \\nabla^2 f(\\boldsymbol{\\xi})\\,\\mathbf{h} \\le L\\,\\lVert \\mathbf{h} \\rVert^2\\) (quotient de Rayleigh, séance d'algèbre linéaire, section 1).\n3. Avec \\(\\mathbf{h} = -\\eta\\,\\nabla f(\\boldsymbol{\\theta})\\) : \\(f(\\boldsymbol{\\theta}') \\le f(\\boldsymbol{\\theta}) - \\eta\\,\\lVert \\nabla f \\rVert^2 + \\tfrac{L\\eta^2}{2}\\lVert \\nabla f \\rVert^2\\).\n\n**Conséquence : l'échelle du bon pas est \\(1/L\\), et \\(L\\) dépend du problème.** Multiplier toutes les variables d'entrée par 10 multiplie par 100 la hessienne des moindres carrés, \\(\\mathbf{X}^\\top \\mathbf{X}/n\\), donc divise par 100 le pas admissible ; sommer la perte sur les \\(n\\) exemples au lieu de la moyenner multiplie \\(L\\) par \\(n\\). Pour la régression logistique, la hessienne de la log-loss moyenne est \\(\\tfrac1n \\mathbf{X}^\\top \\mathbf{W}\\mathbf{X}\\) avec des poids \\(\\pi_i(1 - \\pi_i) \\le \\tfrac14\\) (séance de ML 3, partie 1), donc \\(L\\) peut être pris égal au quart de la plus grande valeur propre de \\(\\mathbf{X}^\\top \\mathbf{X}/n\\). Expérience : descente de gradient sur une régression logistique, 200 pas, pour des pas d'apprentissage espacés d'un facteur 10.\n\n```python\nfrom scipy.special import expit                            # sigmoïde calculée sans dépassement\n\nrng = np.random.default_rng(1)\nn, p = 400, 5\nX = rng.normal(size=(n, p)) * np.array([1.0, 1.0, 1.0, 1.0, 3.0])\ny = (rng.random(n) < expit(X.dot(np.array([1.0, -1.0, 0.5, 0.0, 0.3])))).astype(float)\nL = np.linalg.eigvalsh(X.T.dot(X) / n).max() / 4           # majorant de la plus grande valeur propre de la hessienne\nprint(\"pas limite garanti 2 / L :\", round(2 / L, 3))\n\ndef perte_finale(eta, pas=200):\n    b = np.zeros(p)\n    for _ in range(pas):\n        b = b - eta * X.T.dot(expit(X.dot(b)) - y) / n     # gradient de la log-loss moyenne\n    z = X.dot(b)\n    return np.mean(np.logaddexp(0, z) - y * z)\n\nprint(\"log-loss au départ :\", round(np.log(2), 4))\nfor eta in [1e-4, 1e-3, 1e-2, 1e-1, 2 / L, 3.0, 30.0]:\n    print(f\"pas {eta:8.4f} : log-loss après 200 pas {perte_finale(eta):.4f}\")\n```\n\n```sortie\npas limite garanti 2 / L : 0.854\nlog-loss au départ : 0.6931\npas   0.0001 : log-loss après 200 pas 0.6887\npas   0.0010 : log-loss après 200 pas 0.6590\npas   0.0100 : log-loss après 200 pas 0.5628\npas   0.1000 : log-loss après 200 pas 0.4740\npas   0.8536 : log-loss après 200 pas 0.4721\npas   3.0000 : log-loss après 200 pas 0.9773\npas  30.0000 : log-loss après 200 pas 5.2979\n```\n\nLecture : trop petit, le pas laisse la perte presque à sa valeur de départ ; au-delà de la limite, la perte finit **au-dessus** de sa valeur de départ. Entre les deux, plusieurs ordres de grandeur conviennent, à des vitesses différentes.\n\n**Valeurs par défaut des bibliothèques : des faits de version, pas des vérités.** Lues dans les signatures le 9 octobre 2026 :\n\n| Optimiseur | PyTorch 2.4.1 | Keras 3.12.2 |\n|---|---|---|\n| SGD | 0,001 | 0,01 |\n| Adam | 0,001 | 0,001 |\n| AdamW | 0,001 | 0,001 |\n| RMSprop | 0,01 | 0,001 |\n| Adagrad | 0,01 | 0,001 |\n\nLes deux bibliothèques ne s'accordent ni sur SGD ni sur RMSprop : une valeur par défaut est un point de départ, à régler sur la validation. Ce que l'on peut affirmer sans bibliothèque :\n\n- avec Adam, le premier pas déplace chaque poids d'environ \\(\\eta\\), quelle que soit l'échelle du gradient (séance de ML 4, partie 1.4) ; or une initialisation de He sur une couche de 512 entrées tire des poids d'écart-type \\(\\sqrt{2/512} = 0{,}0625\\) (séance de ML 4, partie 2.2). Un pas \\(\\eta = 1\\) ou \\(\\eta = 10\\) remplace donc les poids par des valeurs sans rapport avec l'initialisation dès la première mise à jour ;\n- une perte qui augmente ou devient infinie signale un pas trop grand ; une perte qui décroît à peine sur des centaines de pas, un pas trop petit (ou un gradient qui disparaît, séance de ML 4, partie 2.3).\n\n### 2.4 Choisir la perte et l'activation de sortie\n\n**Le principe** (V1). On choisit un modèle probabiliste de la cible sachant la sortie du réseau, et la perte est l'opposé de sa log-vraisemblance. L'activation de sortie est celle qui transforme un réel quelconque en paramètre valide de ce modèle.\n\n1. **Régression** : cible réelle, modèle « sortie plus bruit gaussien de variance fixe ». L'opposé de la log-densité vaut \\((y - \\hat y)^2/(2\\sigma^2)\\) plus une constante : erreur quadratique, sortie linéaire (aucune activation).\n2. **Classification binaire** : loi de Bernoulli de paramètre \\(\\pi = \\mathrm{sig}(z)\\), où \\(z\\) est la sortie brute (le **logit**). Perte : entropie croisée binaire \\(-y \\ln \\pi - (1 - y)\\ln(1 - \\pi)\\) (séance de ML 3, partie 1).\n3. **\\(K\\) classes exclusives** : \\(K\\) logits \\(z_1, \\dots, z_K\\), probabilités \\(p_j = e^{z_j}/\\sum_{i} e^{z_i}\\) (**softmax**). Perte : entropie croisée catégorielle \\(-\\ln p_y\\), où \\(y\\) est la vraie classe.\n4. **\\(K\\) étiquettes non exclusives** (multi-étiquette) : \\(K\\) lois de Bernoulli, donc \\(K\\) sigmoïdes et la somme de \\(K\\) entropies croisées binaires. Un softmax serait faux : il impose aux probabilités de sommer à 1.\n5. **Segmentation** : une classification **par pixel**. La carte de sortie a la taille spatiale du masque et 1 canal (sigmoïde, deux classes) ou \\(K\\) canaux (softmax, \\(K\\) classes) ; la perte est la moyenne sur les pixels de l'entropie croisée du pixel.\n\n**L'énoncé.**\n\n1. (V2) Pour le softmax et l'entropie croisée catégorielle \\(\\ell = -\\ln p_y\\) : \\(\\partial \\ell/\\partial z_j = p_j - I_{\\{j = y\\}}\\).\n2. (V3) Avec deux classes de logits \\(z_0\\) et \\(z_1\\) : \\(p_1 = \\mathrm{sig}(z_1 - z_0)\\). Deux canaux suivis d'un softmax et un canal suivi d'une sigmoïde décrivent donc la même famille de modèles, avec la même perte.\n3. (V4) Derrière une sigmoïde, le gradient par rapport au logit vaut \\(\\pi - y\\) pour l'entropie croisée et \\((\\pi - y)\\,\\pi(1 - \\pi)\\) pour la perte quadratique \\(\\tfrac12(\\pi - y)^2\\).\n\n**La preuve.**\n\n1. (V2) \\(\\ell = -z_y + \\ln \\sum_i e^{z_i}\\). La dérivée du premier terme par rapport à \\(z_j\\) est \\(-I_{\\{j = y\\}}\\) ; celle du second est \\(e^{z_j}/\\sum_i e^{z_i} = p_j\\).\n2. (V3) \\(p_1 = e^{z_1}/(e^{z_0} + e^{z_1})\\) ; on divise haut et bas par \\(e^{z_1}\\) : \\(1/(1 + e^{-(z_1 - z_0)})\\).\n3. (V4) \\(\\mathrm{sig}' = \\mathrm{sig}(1 - \\mathrm{sig})\\). Entropie croisée : \\(\\partial \\ell/\\partial z = \\big(-y/\\pi + (1 - y)/(1 - \\pi)\\big)\\pi(1 - \\pi) = \\pi - y\\). Quadratique : \\((\\pi - y)\\,\\pi(1 - \\pi)\\) par la règle de la chaîne.\n\n**Exemples.** Logits \\((2 ; 1 ; -1)\\) : probabilités \\((0{,}7054 ; 0{,}2595 ; 0{,}0351)\\) ; si la vraie classe est la deuxième, la perte vaut \\(1{,}3490\\). Sigmoïde saturée du mauvais côté, \\(z = -4\\) et \\(y = 1\\) : \\(\\pi = 0{,}0180\\) ; gradient de l'entropie croisée \\(-0{,}9820\\), gradient de la perte quadratique \\(-0{,}0173\\), soit \\(0{,}0177\\) fois le premier : la perte quadratique n'apprend presque plus quand le modèle est très sûr de lui et se trompe. Contrôle de (V3) sur une carte \\(4 \\times 4\\) :\n\n```python\ndef softmax(z):\n    e = np.exp(z - z.max(axis=-1, keepdims=True))\n    return e / e.sum(axis=-1, keepdims=True)\n\nrng = np.random.default_rng(2)\nz = rng.normal(size=(4, 4, 2))                             # carte 4 x 4, deux canaux de logits\np_softmax = softmax(z)[:, :, 1]\np_sigmoide = expit(z[:, :, 1] - z[:, :, 0])\nmasque = (rng.random((4, 4)) < 0.3).astype(float)\nce = -np.mean(np.log(np.where(masque == 1, p_softmax, 1 - p_softmax)))\nbce = -np.mean(masque * np.log(p_sigmoide) + (1 - masque) * np.log(1 - p_sigmoide))\nprint(\"softmax à deux canaux = sigmoïde de la différence :\", np.allclose(p_softmax, p_sigmoide))\nprint(\"entropie croisée catégorielle par pixel :\", ce.round(6), \"; binaire :\", bce.round(6))\n```\n\n```sortie\nsoftmax à deux canaux = sigmoïde de la différence : True\nentropie croisée catégorielle par pixel : 0.594061 ; binaire : 0.594061\n```\n\n**Pièges.**\n\n1. Appliquer l'activation deux fois. Dans PyTorch 2.4.1, `CrossEntropyLoss` attend des **logits** et des indices de classe (elle calcule elle-même le logarithme du softmax), et `BCEWithLogitsLoss` attend des logits ; dans Keras 3.12.2, les pertes `BinaryCrossentropy`, `CategoricalCrossentropy` et `SparseCategoricalCrossentropy` ont `from_logits=False` par défaut, donc attendent des probabilités (exécuté le 9 octobre 2026).\n2. Confondre multi-classe (une seule classe par exemple, softmax) et multi-étiquette (plusieurs possibles, sigmoïdes).\n3. Format des étiquettes : indice de classe ou vecteur indicateur (un 1 à la place de la classe, des 0 ailleurs). Dans Keras 3.12.2, `SparseCategoricalCrossentropy` prend des indices et `CategoricalCrossentropy` des vecteurs indicateurs, pour la même valeur de perte (exécuté le 9 octobre 2026).\n4. Une erreur quadratique reste le bon choix pour une cible réelle, même comprise entre 0 et 1 ; c'est la nature de la cible (classe ou quantité) qui décide.\n\n### 2.5 Dice et IoU\n\n**Le problème.** En segmentation, quand l'objet occupe une petite part de l'image, l'exactitude par pixel récompense le masque vide. On mesure donc le recouvrement entre le masque prédit et le vrai masque.\n\n**Les définitions.** \\(A\\) est l'ensemble des pixels prédits « objet », \\(B_0\\) l'ensemble des pixels réellement « objet » (deux ensembles fixes, notés en majuscules comme le veut l'usage pour des ensembles), \\(\\lvert \\cdot \\rvert\\) le nombre de pixels. Avec les effectifs de la séance de ML 3 : \\(\\mathrm{VP} = \\lvert A \\cap B_0 \\rvert\\), \\(\\mathrm{FP} = \\lvert A \\rvert - \\mathrm{VP}\\), \\(\\mathrm{FN} = \\lvert B_0 \\rvert - \\mathrm{VP}\\).\n\n- **IoU** (intersection sur union, indice de Jaccard) : \\(\\mathrm{IoU} = \\dfrac{\\lvert A \\cap B_0 \\rvert}{\\lvert A \\cup B_0 \\rvert} = \\dfrac{\\mathrm{VP}}{\\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN}}\\).\n- **Dice** : \\(\\mathrm{Dice} = \\dfrac{2\\,\\lvert A \\cap B_0 \\rvert}{\\lvert A \\rvert + \\lvert B_0 \\rvert} = \\dfrac{2\\,\\mathrm{VP}}{2\\,\\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN}}\\) : c'est le score F1 de la classe « objet » (séance de ML 3, partie 2).\n\n**L'énoncé** (S1). Si \\(A \\cup B_0\\) n'est pas vide : \\(\\mathrm{Dice} = \\dfrac{2\\,\\mathrm{IoU}}{1 + \\mathrm{IoU}}\\) et \\(\\mathrm{IoU} = \\dfrac{\\mathrm{Dice}}{2 - \\mathrm{Dice}}\\). En conséquence \\(\\mathrm{Dice} \\ge \\mathrm{IoU}\\), avec égalité seulement en 0 et en 1, et sur **une** image les deux mesures classent deux prédictions dans le même ordre.\n\n**La preuve.**\n\n1. On note \\(i = \\mathrm{VP}\\) et \\(u = \\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN} > 0\\), de sorte que \\(\\mathrm{IoU} = i/u\\) et \\(\\lvert A \\rvert + \\lvert B_0 \\rvert = 2\\,\\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN} = i + u\\).\n2. \\(\\mathrm{Dice} = 2i/(i + u)\\) ; en divisant haut et bas par \\(u\\) : \\(2\\,\\mathrm{IoU}/(1 + \\mathrm{IoU})\\). On résout en \\(\\mathrm{IoU}\\) pour la formule inverse.\n3. \\(\\mathrm{Dice} - \\mathrm{IoU} = \\mathrm{IoU}\\,(1 - \\mathrm{IoU})/(1 + \\mathrm{IoU}) \\ge 0\\), nul si et seulement si \\(\\mathrm{IoU}\\) vaut 0 ou 1. Et \\(t \\mapsto 2t/(1 + t)\\) est strictement croissante sur \\([0, 1]\\) (dérivée \\(2/(1 + t)^2 > 0\\)) : même ordre.\n\n**Exemple.** Image de \\(400\\) pixels, VP = \\(30\\), FP = \\(10\\), FN = \\(20\\) : \\(\\mathrm{IoU} = \\tfrac{1}{2}\\), \\(\\mathrm{Dice} = \\tfrac{2}{3}\\). L'exactitude par pixel vaut \\(0{,}925\\), et le masque « tout en fond » obtient \\(0{,}875\\) d'exactitude avec un Dice nul, parce que l'objet n'occupe que \\(0{,}125\\) de l'image.\n\n```python\nvrai = np.zeros((20, 20), dtype=bool)\nvrai[4:9, 3:13] = True                                     # 50 pixels d'objet\npred = np.zeros((20, 20), dtype=bool)\npred[6:10, 3:13] = True                                    # 40 pixels prédits\nvp, fp, fn = np.sum(pred & vrai), np.sum(pred & ~vrai), np.sum(~pred & vrai)\niou, dice = vp / (vp + fp + fn), 2 * vp / (2 * vp + fp + fn)\nprint(\"VP, FP, FN :\", vp, fp, fn, \"; IoU :\", iou, \"; Dice :\", round(dice, 4), \"; 2 IoU / (1 + IoU) :\", round(2 * iou / (1 + iou), 4))\nprint(\"exactitude par pixel :\", np.mean(pred == vrai), \"; masque « tout en fond » : exactitude\", np.mean(~vrai), \"et Dice 0\")\n```\n\n```sortie\nVP, FP, FN : 30 10 20 ; IoU : 0.5 ; Dice : 0.6667 ; 2 IoU / (1 + IoU) : 0.6667\nexactitude par pixel : 0.925 ; masque « tout en fond » : exactitude 0.875 et Dice 0\n```\n\n**Cas limites.** Masque vrai vide et prédiction vide : \\(0/0\\) ; il faut une convention (score 1, ou un petit terme ajouté en haut et en bas), à lire dans la définition utilisée. Aucun recouvrement : les deux valent 0. Les vrais négatifs n'entrent dans aucune des deux formules.\n\n**Pièges.**\n\n1. « Même ordre » vaut image par image, pas pour des **moyennes** : la fonction \\(2t/(1 + t)\\) n'est pas affine. Deux images, modèle X d'IoU \\((\\tfrac12 ; \\tfrac12)\\), modèle Y d'IoU \\((\\tfrac15 ; \\tfrac{41}{50})\\) : l'IoU moyen préfère Y (\\(0{,}51\\) contre \\(0{,}50\\)), le Dice moyen préfère X (\\(0{,}667\\) contre \\(0{,}617\\)).\n2. Comme perte, on utilise une version dérivable : \\(1 - \\dfrac{2\\sum_i \\pi_i y_i}{\\sum_i \\pi_i + \\sum_i y_i}\\), où \\(\\pi_i\\) est la probabilité prédite au pixel \\(i\\) et \\(y_i\\) son étiquette. Ce n'est pas une log-vraisemblance : elle n'a pas la justification (V1), et les probabilités qu'elle produit n'ont pas de raison d'être calibrées.\n\n### 2.6 Classes déséquilibrées : stratifier, pondérer, mesurer\n\n**Le problème.** Quand une classe est rare, trois choses se dérèglent : la métrique (l'exactitude récompense le classifieur constant, séance de ML 3, partie 2), le découpage (un ensemble de validation peut ne contenir presque aucun exemple rare) et l'apprentissage (la classe rare pèse peu dans la perte). À chacune son remède, et le mot « variance » y désigne deux choses qu'il faut séparer :\n\n- la **variance du modèle** : ses prédictions changent beaucoup d'un jeu d'apprentissage à l'autre (partie 3) ; remèdes : régularisation, plus de données, modèle plus simple ;\n- la **variance de l'évaluation** : la métrique mesurée change beaucoup d'un découpage à l'autre ; remèdes : stratification, plus de plis, ensemble de test plus grand.\n\n**L'énoncé.**\n\n1. (St1) Dans une population de \\(N\\) exemples dont \\(N_1\\) positifs (proportion \\(q = N_1/N\\)), on tire un ensemble de test de \\(n\\) exemples, uniformément et sans remise. Le nombre \\(X\\) de positifs du test vérifie \\(\\mathbb{E}[X] = nq\\) et \\(\\mathrm{Var}(X) = nq(1 - q)\\,\\dfrac{N - n}{N - 1}\\). Avec un découpage **stratifié** (on tire séparément \\(nq\\) positifs parmi les positifs et \\(n(1 - q)\\) négatifs parmi les négatifs, quand ces nombres sont entiers), \\(X = nq\\) : variance nulle.\n2. (W1) Soit un point où la probabilité vraie d'être positif vaut \\(q \\in ]0, 1[\\). La prévision \\(r\\) qui minimise l'entropie croisée espérée **pondérée**, \\(-w\\,q \\ln r - (1 - q)\\ln(1 - r)\\) avec un poids \\(w > 0\\) sur les positifs, est \\(r^* = \\dfrac{wq}{wq + 1 - q}\\) : la cote \\(r^*/(1 - r^*)\\) vaut \\(w\\) fois la vraie cote \\(q/(1 - q)\\).\n\n**La preuve.**\n\n1. (St1) \\(X = \\sum_{i=1}^n I_i\\), où \\(I_i\\) vaut 1 si le \\(i\\)-ième exemple tiré est positif. Par symétrie, chaque tirage est uniforme sur la population : \\(\\mathbb{E}[I_i] = q\\), d'où \\(\\mathbb{E}[X] = nq\\) et \\(\\mathrm{Var}(I_i) = q(1 - q)\\).\n2. Pour \\(i \\ne j\\) : \\(\\mathbb{P}(I_i = I_j = 1) = \\dfrac{N_1(N_1 - 1)}{N(N - 1)}\\), donc \\(\\mathrm{Cov}(I_i, I_j) = q\\,\\dfrac{N_1 - 1}{N - 1} - q^2 = -\\dfrac{q(1 - q)}{N - 1}\\) (on réduit au même dénominateur avec \\(N_1 = qN\\)).\n3. \\(\\mathrm{Var}(X) = n\\,q(1 - q) - n(n - 1)\\dfrac{q(1 - q)}{N - 1} = nq(1 - q)\\,\\dfrac{N - n}{N - 1}\\) : somme des \\(n\\) variances et des \\(n(n - 1)\\) covariances.\n4. (W1) \\(h(r) = -wq \\ln r - (1 - q)\\ln(1 - r)\\) a pour dérivée \\(-wq/r + (1 - q)/(1 - r)\\), nulle si et seulement si \\(wq(1 - r) = (1 - q)r\\), soit \\(r = wq/(wq + 1 - q)\\) ; sa dérivée seconde \\(wq/r^2 + (1 - q)/(1 - r)^2\\) est strictement positive : minimum unique. Enfin \\(r^*/(1 - r^*) = wq/(1 - q)\\).\n\n**Exemple.** \\(N = 1000\\), \\(30\\) positifs, test de \\(200\\) : en moyenne \\(6\\) positifs, variance \\(4{,}66\\), écart-type \\(2{,}16\\) ; la probabilité d'avoir 2 positifs ou moins vaut \\(0{,}0419\\) (loi hypergéométrique, calcul exact ; simulation du script : 0,0415, erreur standard 0,0003). Une métrique de rappel calculée sur 2 positifs ne prend que les valeurs 0, 0,5 et 1. Stratifié, le test contient exactement \\(6\\) positifs.\n\n```python\nfrom sklearn.model_selection import KFold, StratifiedKFold, train_test_split\n\ny = np.r_[np.ones(30, dtype=int), np.zeros(970, dtype=int)]\nX = np.arange(1000).reshape(-1, 1)\nsans = np.array([train_test_split(X, y, test_size=200, random_state=g)[3].sum() for g in range(2000)])\navec = np.array([train_test_split(X, y, test_size=200, random_state=g, stratify=y)[3].sum() for g in range(2000)])\nprint(\"sans stratification : moyenne\", sans.mean(), \"; écart-type\", sans.std().round(3), \"; part des découpages avec 2 positifs ou moins :\", np.mean(sans <= 2))\nprint(\"avec stratification : valeurs observées\", sorted(set(avec)))\nprint(\"5 plis mélangés :\", [int(y[t].sum()) for _, t in KFold(5, shuffle=True, random_state=0).split(X)],\n      \"; 5 plis stratifiés :\", [int(y[t].sum()) for _, t in StratifiedKFold(5, shuffle=True, random_state=0).split(X, y)])\n```\n\n```sortie\nsans stratification : moyenne 5.956 ; écart-type 2.152 ; part des découpages avec 2 positifs ou moins : 0.0435\navec stratification : valeurs observées [6]\n5 plis mélangés : [5, 7, 7, 6, 5] ; 5 plis stratifiés : [6, 6, 6, 6, 6]\n```\n\nPondération : \\(q = 0{,}1\\) et \\(w = 9\\) donnent \\(r^* = \\tfrac{1}{2}\\) ; \\(w = 4\\) donne \\(\\tfrac{4}{13}\\). Pondérer revient à déplacer le seuil : \\(r^* > \\tfrac12\\) si et seulement si \\(q > 1/(1 + w)\\), soit \\(q > \\tfrac{1}{10}\\) pour \\(w = 9\\). Avec 100 positifs sur 1000, les poids « balanced » de scikit-learn, \\(n/(2 n_c)\\) pour une classe d'effectif \\(n_c\\), valent \\(5\\) et \\(0{,}556\\), de rapport \\(9\\). Expérience : régression logistique sur des données dont le vrai modèle est logistique, de constante \\(-3\\) et de pente \\(1{,}5\\).\n\n```python\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.utils.class_weight import compute_class_weight\n\nrng = np.random.default_rng(2)\nn = 20000\nx = rng.normal(size=(n, 1))\ny = (rng.random(n) < expit(-3.0 + 1.5 * x[:, 0])).astype(int)\npoids = compute_class_weight(\"balanced\", classes=np.array([0, 1]), y=y)\nprint(\"proportion de positifs :\", y.mean(), \"; poids « balanced » :\", poids.round(3), \"; logarithme de leur rapport :\", np.log(poids[1] / poids[0]).round(3))\nfor cw in [None, \"balanced\"]:\n    m = LogisticRegression(C=1e6, class_weight=cw).fit(x, y)\n    pr = m.predict_proba(x)[:, 1]\n    pos = pr > 0.5\n    print(f\"class_weight={cw}: constante {m.intercept_[0]:.3f}, pente {m.coef_[0, 0]:.3f}, probabilité moyenne {pr.mean():.3f}, \"\n          f\"rappel {np.mean(pos[y == 1]):.3f}, précision {np.mean(y[pos]):.3f}\")\n```\n\n```sortie\nproportion de positifs : 0.0962 ; poids « balanced » : [0.553 5.198] ; logarithme de leur rapport : 2.24\nclass_weight=None: constante -3.001, pente 1.488, probabilité moyenne 0.096, rappel 0.139, précision 0.605\nclass_weight=balanced: constante -0.784, pente 1.535, probabilité moyenne 0.368, rappel 0.755, précision 0.235\n```\n\nLecture : la pondération laisse la pente presque inchangée et décale la constante d'environ le logarithme du rapport des poids, comme l'annonce (W1) ; la probabilité moyenne prédite n'est plus la proportion de positifs ; le rappel monte, la précision baisse. La pondération ne crée pas d'information : elle change le point de fonctionnement.\n\n**Cas limites.** \\(w = 1\\) : \\(r^* = q\\), la règle de score est propre (séance de ML 3, partie 2). Remplacer chaque positif par \\(w\\) copies (sur-échantillonnage, \\(w\\) entier) donne exactement la perte pondérée de poids \\(w\\) : même effet. Ne garder qu'une fraction \\(1/w\\) des négatifs multiplie aussi la cote par \\(w\\) en espérance, mais jette des données.\n\n**Pièges.**\n\n1. Rééquilibrer (pondérer, dupliquer, sous-échantillonner) se fait sur l'**apprentissage seul**, après le découpage : dupliquer avant de découper place des copies du même exemple des deux côtés, et un ensemble de validation rééquilibré ne mesure plus la performance à la vraie proportion.\n2. La stratification ne change ni le biais ni la variance du modèle : elle stabilise la composition des ensembles, donc l'évaluation.\n3. Après pondération, les probabilités ne sont plus calibrées : pour les utiliser comme probabilités, on divise la cote prédite par \\(w\\).\n4. Une régularisation plus forte répond à une variance du modèle (écart entre erreur d'apprentissage et de validation), pas au déséquilibre lui-même.\n\n[[controle:pas]]\n\n## Partie 3 : biais et variance en image de cible\n\n### 3.1 Ce que représente la cible\n\n**Le problème.** Une figure classique montre quatre cibles de tir, avec des impacts groupés ou dispersés, centrés ou décalés, et demande laquelle est « fort biais, faible variance ». Il faut savoir ce que sont le centre et les impacts.\n\n**Les définitions.** On fixe un point \\(\\mathbf{x}_0\\). Le **centre** de la cible est la vraie valeur à prédire en ce point, \\(m_0 = \\mathbb{E}[Y_0]\\). Chaque **impact** est la prédiction \\(\\hat Y_0\\) d'un modèle entraîné sur **un** jeu d'apprentissage ; tirer un nouveau jeu d'apprentissage de la même loi donne un nouvel impact. Le **biais** est l'écart entre le centre du nuage d'impacts et le centre de la cible, \\(\\mathbb{E}[\\hat Y_0] - m_0\\) ; la **variance** est la dispersion du nuage, \\(\\mathrm{Var}(\\hat Y_0)\\).\n\n**L'énoncé.** \\(\\mathbb{E}[(Y_0 - \\hat Y_0)^2] = \\sigma^2 + \\text{biais}^2 + \\text{variance}\\), où \\(\\sigma^2\\) est la variance du bruit de \\(Y_0\\) : démontré dans la séance de ML 1, partie 6, énoncé 1. Le bruit n'est pas sur la cible : même un nuage parfaitement groupé au centre laisse l'erreur \\(\\sigma^2\\).\n\n| Image | Biais | Variance | Situation |\n|---|---|---|---|\n| impacts groupés au centre | faible | faible | l'idéal ; l'erreur restante est le bruit |\n| impacts groupés, loin du centre | fort | faible | modèle trop rigide : sous-apprentissage |\n| impacts dispersés autour du centre | faible | forte | modèle trop souple pour la quantité de données : surapprentissage |\n| impacts dispersés, loin du centre | fort | forte | mauvais modèle et trop peu de données |\n\n**Exemple entièrement calculé par simulation.** La vraie fonction est \\(\\sin(3x)\\), le bruit a pour écart-type 0,3, on vise \\(x_0 = 0{,}5\\). Chaque ligne tire 2000 jeux d'apprentissage, ajuste un polynôme par moindres carrés (avec une pénalité Ridge sur tous les coefficients à la dernière ligne), et résume les 2000 impacts.\n\n```python\nrng = np.random.default_rng(3)\nf = lambda u: np.sin(3 * u)                                # la vraie fonction\nx0, sigma = 0.5, 0.3                                       # point visé, écart-type du bruit\n\ndef tirs(degre, n, lam=0.0, R=2000):\n    # R jeux d'apprentissage indépendants ; renvoie les R prédictions en x0 (les R impacts sur la cible)\n    preds = np.empty(R)\n    for r in range(R):\n        x = rng.uniform(-1, 1, n)\n        yv = f(x) + sigma * rng.normal(size=n)\n        A = np.vander(x, degre + 1)                        # colonnes x^degre, ..., x, 1\n        b = np.linalg.solve(A.T.dot(A) + lam * np.eye(degre + 1), A.T.dot(yv))\n        preds[r] = np.vander([x0], degre + 1).dot(b)[0]\n    return preds\n\nfor nom, degre, n, lam in [(\"degré 1, n = 30\", 1, 30, 0.0), (\"degré 1, n = 300\", 1, 300, 0.0), (\"degré 4, n = 30\", 4, 30, 0.0),\n                           (\"degré 12, n = 30\", 12, 30, 0.0), (\"degré 12, n = 300\", 12, 300, 0.0), (\"degré 12, n = 30, ridge 0,01\", 12, 30, 0.01)]:\n    t = tirs(degre, n, lam)\n    print(f\"{nom:28s}: biais {t.mean() - f(x0):+.3f}, écart-type {t.std():.3f}, erreur quadratique {np.mean((t - f(x0)) ** 2):.4f}\")\n```\n\n```sortie\ndegré 1, n = 30             : biais -0.470, écart-type 0.132, erreur quadratique 0.2380\ndegré 1, n = 300            : biais -0.477, écart-type 0.040, erreur quadratique 0.2288\ndegré 4, n = 30             : biais -0.006, écart-type 0.121, erreur quadratique 0.0148\ndegré 12, n = 30            : biais -0.030, écart-type 0.599, erreur quadratique 0.3598\ndegré 12, n = 300           : biais -0.002, écart-type 0.054, erreur quadratique 0.0029\ndegré 12, n = 30, ridge 0,01: biais -0.004, écart-type 0.121, erreur quadratique 0.0146\n```\n\nLecture, ligne par ligne :\n\n1. degré 1 : impacts groupés loin du centre (fort biais, faible variance) ;\n2. dix fois plus de données : le nuage se resserre, il ne se recentre pas ;\n3. degré 4 : groupé près du centre ;\n4. degré 12 avec 30 points : centré mais très dispersé (faible biais, forte variance) ;\n5. dix fois plus de données : la dispersion s'effondre ;\n6. même degré 12 et mêmes 30 points, avec une petite pénalité : la dispersion retombe au niveau du degré 4, pour un biais qui reste petit.\n\n### 3.2 De la lecture des erreurs au remède\n\n**Reconnaître la situation sans voir la cible.** On ne dispose que d'un jeu de données, donc d'un seul impact. On lit deux erreurs, mesurées avec la même perte : l'erreur d'apprentissage et l'erreur de validation.\n\n- Les deux sont élevées et proches : le modèle n'arrive pas à suivre même ses données d'apprentissage ; c'est le signe d'un **fort biais**.\n- L'erreur d'apprentissage est faible et l'erreur de validation nettement plus élevée : le modèle suit le bruit de son échantillon ; c'est le signe d'une **forte variance**.\n\nCe sont des indices, pas des théorèmes : « élevée » se juge par rapport au bruit irréductible ou à une référence, et un écart peut aussi venir d'une différence de loi entre apprentissage et validation.\n\n| Remède | Effet sur le biais | Effet sur la variance | Où c'est démontré ou montré |\n|---|---|---|---|\n| plus de données d'apprentissage | inchangé | baisse | lignes 2 et 5 ci-dessus ; variance des MCO en \\(\\sigma^2(\\mathbf{X}^\\top \\mathbf{X})^{-1}\\), séance de ML 1, partie 2 |\n| régularisation plus forte (L1, L2, dropout, arbres moins profonds, arrêt précoce) | monte | baisse | Ridge : séance de ML 1, partie 6 ; ligne 6 ci-dessus |\n| modèle plus complexe (plus de variables, de degrés, de couches, de profondeur) | baisse | monte | lignes 1, 3, 4 ci-dessus ; arbre : séance de ML 2, partie 1 |\n| moyenne de modèles (bagging, forêt) | inchangé | baisse | séance de ML 2, parties 2 et 3 |\n| boosting d'arbres peu profonds | baisse | peut monter avec le nombre d'arbres | séance de ML 2, partie 4 |\n\n**Cas limite.** La colonne « modèle plus complexe » décrit le régime où le nombre de paramètres reste inférieur au nombre d'observations. Au-delà du seuil d'interpolation, l'erreur de test peut redescendre (double descente : séance quantitative, partie 2).\n\n**Pièges.**\n\n1. Les impacts ne sont pas les observations d'un jeu de données : ce sont les prédictions de modèles entraînés sur des jeux différents.\n2. « Forte variance » ne veut pas dire « données bruitées » : c'est la sensibilité du modèle à son échantillon.\n3. Augmenter la complexité n'est jamais un remède au surapprentissage dans le régime classique : c'est le remède au sous-apprentissage.\n4. Ajouter des données ne corrige pas un biais.\n\n[[controle:cible]]\n\n## Partie 4 : apprentissage par renforcement\n\n### 4.1 Le cadre : processus de décision markovien\n\n**Le problème.** Un agent agit dans un environnement, étape après étape ; chaque action rapporte une récompense et change la situation. Personne ne lui donne la bonne action : il n'a que les récompenses. Comment définir, puis trouver, un bon comportement ?\n\n**Les définitions.** Un **processus de décision markovien** est la donnée de :\n\n- un ensemble fini d'**états** \\(\\mathcal{S}\\) et un ensemble fini d'**actions** \\(\\mathcal{A}\\) ;\n- des probabilités de **transition** \\(p(s' \\mid s, a)\\) : la probabilité d'arriver dans l'état \\(s'\\) quand on fait l'action \\(a\\) dans l'état \\(s\\) ; elles ne dépendent que de \\(s\\) et \\(a\\), pas du passé (propriété de Markov) ;\n- une **récompense** \\(r(s, a)\\), nombre réel reçu en faisant \\(a\\) dans \\(s\\), avec \\(\\lvert r(s, a) \\rvert \\le r_{\\max}\\) ;\n- un **facteur d'actualisation** \\(\\gamma \\in [0, 1[\\).\n\nUne **politique** \\(\\pi\\) donne, pour chaque état \\(s\\), une loi \\(\\pi(a \\mid s)\\) sur les actions. À partir d'un état \\(S_0\\), l'agent produit une trajectoire aléatoire \\(S_0, A_0, R_1, S_1, A_1, R_2, \\dots\\), où \\(A_t\\) suit \\(\\pi(\\cdot \\mid S_t)\\), \\(R_{t+1} = r(S_t, A_t)\\) et \\(S_{t+1}\\) suit \\(p(\\cdot \\mid S_t, A_t)\\). Le **retour** depuis l'instant \\(t\\) est la somme actualisée des récompenses futures :\n\n\\(\\displaystyle G_t = R_{t+1} + \\gamma R_{t+2} + \\gamma^2 R_{t+3} + \\dots = \\sum_{i \\ge 0} \\gamma^i R_{t+1+i}.\\)\n\nLa série converge, et \\(\\lvert G_t \\rvert \\le r_{\\max}/(1 - \\gamma)\\) (série géométrique). Les **fonctions de valeur** d'une politique sont \\(v_\\pi(s) = \\mathbb{E}_\\pi[G_t \\mid S_t = s]\\) et \\(q_\\pi(s, a) = \\mathbb{E}_\\pi[G_t \\mid S_t = s, A_t = a]\\), où \\(\\mathbb{E}_\\pi\\) désigne l'espérance quand les actions suivent \\(\\pi\\). L'objectif est une politique qui maximise \\(v_\\pi(s)\\) en tout état : la **récompense** est immédiate, le **retour** est cumulé, et c'est l'espérance du retour que l'on maximise.\n\n**Exemple.** Récompenses 1, 0, 4 puis 0 ensuite, \\(\\gamma = 0{,}9\\) : \\(G_0 = 1 + 0{,}9 \\times 0 + 0{,}81 \\times 4 = 4{,}24\\). Récompense 2 à chaque pas : \\(G_0 = 2/(1 - 0{,}9) = 20\\).\n\n**Ce qui distingue ce cadre de l'apprentissage supervisé.**\n\n1. Pas d'étiquette : la récompense évalue l'action faite, elle ne dit pas quelle était la bonne.\n2. Les données dépendent de l'agent : ce qu'il observe dépend de ses actions ; les observations ne sont ni indépendantes ni de même loi.\n3. Les conséquences sont différées : une action peut ne payer que bien plus tard, à travers les états qu'elle rend accessibles.\n4. Il faut explorer : une action jamais essayée a une valeur inconnue (partie 4.5).\n\n### 4.2 Équations de Bellman et itération sur la valeur\n\n**L'énoncé.**\n\n1. (Be1) Pour toute politique \\(\\pi\\) et tout état \\(s\\) : \\(\\displaystyle v_\\pi(s) = \\sum_a \\pi(a \\mid s)\\Big[r(s, a) + \\gamma \\sum_{s'} p(s' \\mid s, a)\\,v_\\pi(s')\\Big]\\), et le crochet vaut \\(q_\\pi(s, a)\\). Sous forme matricielle, \\(\\mathbf{v}_\\pi = \\mathbf{r}_\\pi + \\gamma\\,\\mathbf{P}_\\pi \\mathbf{v}_\\pi\\), où \\(\\mathbf{r}_\\pi\\) a pour coordonnées \\(\\sum_a \\pi(a \\mid s)\\,r(s, a)\\) et \\(\\mathbf{P}_\\pi\\) pour coefficients \\(\\sum_a \\pi(a \\mid s)\\,p(s' \\mid s, a)\\) ; ce système a une solution unique.\n2. (Be2) Pour un vecteur \\(\\mathbf{v}\\) indexé par les états, on pose \\((\\mathcal{T}\\mathbf{v})(s) = \\max_a \\big[r(s, a) + \\gamma \\sum_{s'} p(s' \\mid s, a)\\,v(s')\\big]\\). Alors \\(\\lVert \\mathcal{T}\\mathbf{v} - \\mathcal{T}\\mathbf{w} \\rVert_\\infty \\le \\gamma\\,\\lVert \\mathbf{v} - \\mathbf{w} \\rVert_\\infty\\) ; \\(\\mathcal{T}\\) a un unique point fixe \\(\\mathbf{v}^*\\) (**équation de Bellman d'optimalité** \\(\\mathbf{v}^* = \\mathcal{T}\\mathbf{v}^*\\)) ; \\(v^*(s) \\ge v_\\pi(s)\\) pour toute politique \\(\\pi\\) et tout état \\(s\\), avec égalité pour la politique **gloutonne** qui choisit en chaque état une action réalisant le maximum.\n3. (Be3) **Itération sur la valeur** : \\(\\mathbf{v}_{i+1} = \\mathcal{T}\\mathbf{v}_i\\) vérifie \\(\\lVert \\mathbf{v}_i - \\mathbf{v}^* \\rVert_\\infty \\le \\gamma^i\\,\\lVert \\mathbf{v}_0 - \\mathbf{v}^* \\rVert_\\infty\\).\n\n**La preuve.**\n\n1. \\(G_t = R_{t+1} + \\gamma\\,G_{t+1}\\) : on met \\(\\gamma\\) en facteur dans la série à partir du deuxième terme.\n2. Par linéarité de l'espérance conditionnelle : \\(v_\\pi(s) = \\mathbb{E}_\\pi[R_{t+1} \\mid S_t = s] + \\gamma\\,\\mathbb{E}_\\pi[G_{t+1} \\mid S_t = s]\\). Le premier terme vaut \\(\\sum_a \\pi(a \\mid s)\\,r(s, a)\\) (on conditionne par \\(A_t\\)).\n3. Pour le second, on conditionne par \\(A_t = a\\) puis \\(S_{t+1} = s'\\), de probabilités \\(\\pi(a \\mid s)\\) et \\(p(s' \\mid s, a)\\). Sachant \\(S_{t+1} = s'\\), la suite de la trajectoire ne dépend plus de \\(s\\) ni de \\(a\\) (propriété de Markov, et la politique ne regarde que l'état courant) : \\(\\mathbb{E}_\\pi[G_{t+1} \\mid S_t = s, A_t = a, S_{t+1} = s'] = v_\\pi(s')\\). D'où (Be1).\n4. Unicité : si \\((\\mathbf{I} - \\gamma\\mathbf{P}_\\pi)\\mathbf{u} = \\mathbf{0}\\), alors \\(\\lVert \\mathbf{u} \\rVert_\\infty = \\gamma\\,\\lVert \\mathbf{P}_\\pi \\mathbf{u} \\rVert_\\infty \\le \\gamma\\,\\lVert \\mathbf{u} \\rVert_\\infty\\), car chaque ligne de \\(\\mathbf{P}_\\pi\\) est faite de nombres positifs de somme 1 ; comme \\(\\gamma < 1\\), \\(\\mathbf{u} = \\mathbf{0}\\) : la matrice est inversible.\n5. (Be2), contraction. Pour deux fonctions \\(g\\) et \\(h\\) sur \\(\\mathcal{A}\\) : \\(g(a) \\le h(a) + \\max_{a'} \\lvert g(a') - h(a') \\rvert\\) pour tout \\(a\\), donc \\(\\max g \\le \\max h + \\max \\lvert g - h \\rvert\\), et de même en échangeant les rôles : \\(\\lvert \\max g - \\max h \\rvert \\le \\max \\lvert g - h \\rvert\\). On l'applique aux deux crochets : leur différence vaut \\(\\gamma \\sum_{s'} p(s' \\mid s, a)\\,(v(s') - w(s'))\\), de valeur absolue au plus \\(\\gamma\\,\\lVert \\mathbf{v} - \\mathbf{w} \\rVert_\\infty\\).\n6. Point fixe. Existence : théorème du point fixe de Banach pour une application contractante de \\(\\mathbb{R}^{\\lvert \\mathcal{S} \\rvert}\\) (théorème général, admis). Unicité : deux points fixes vérifient \\(\\lVert \\mathbf{v} - \\mathbf{w} \\rVert_\\infty \\le \\gamma\\,\\lVert \\mathbf{v} - \\mathbf{w} \\rVert_\\infty\\), donc sont égaux. (Be3) : récurrence sur \\(i\\) avec \\(\\mathbf{w} = \\mathbf{v}^* = \\mathcal{T}\\mathbf{v}^*\\).\n7. Optimalité. Soit \\(\\pi^*\\) la politique gloutonne pour \\(\\mathbf{v}^*\\). L'équation \\(\\mathbf{v}^* = \\mathcal{T}\\mathbf{v}^*\\) s'écrit \\(\\mathbf{v}^* = \\mathbf{r}_{\\pi^*} + \\gamma\\,\\mathbf{P}_{\\pi^*}\\mathbf{v}^*\\) : par l'unicité de l'étape 4, \\(\\mathbf{v}^* = \\mathbf{v}_{\\pi^*}\\). Pour une politique \\(\\pi\\) quelconque, notons \\(\\mathcal{T}_\\pi \\mathbf{v} = \\mathbf{r}_\\pi + \\gamma\\,\\mathbf{P}_\\pi \\mathbf{v}\\). Une moyenne étant inférieure au maximum, \\(\\mathcal{T}_\\pi \\mathbf{v}^* \\le \\mathcal{T}\\mathbf{v}^* = \\mathbf{v}^*\\) coordonnée par coordonnée ; \\(\\mathcal{T}_\\pi\\) conserve les inégalités (coefficients de \\(\\mathbf{P}_\\pi\\) positifs), donc \\(\\mathcal{T}_\\pi^i \\mathbf{v}^* \\le \\mathbf{v}^*\\) pour tout \\(i\\) ; et \\(\\mathcal{T}_\\pi^i \\mathbf{v}^* \\to \\mathbf{v}_\\pi\\) (même argument de contraction, de point fixe \\(\\mathbf{v}_\\pi\\)). À la limite, \\(\\mathbf{v}_\\pi \\le \\mathbf{v}^*\\).\n\n**Exemple entièrement calculé.** Deux états, \\(\\gamma = 0{,}9\\).\n\n| État | Action | Récompense | État suivant |\n|---|---|---|---|\n| 1 | prudent | 1 | 1 |\n| 1 | risqué | 0 | 1 ou 2, avec probabilité 1/2 chacun |\n| 2 | attendre | 2 | 2 |\n| 2 | encaisser | 4 | 1 |\n\nPolitique (risqué en 1, attendre en 2), par (Be1) :\n\n1. État 2 : \\(v(2) = 2 + 0{,}9\\,v(2)\\), donc \\(v(2) = 20\\).\n2. État 1 : \\(v(1) = 0 + 0{,}9\\,\\big(\\tfrac12 v(1) + \\tfrac12 \\times 20\\big)\\), donc \\(0{,}55\\,v(1) = 9\\) et \\(v(1) = \\tfrac{180}{11} \\approx 16{,}364\\).\n3. Est-elle optimale ? On vérifie (Be2) : en 1, prudent vaudrait \\(1 + 0{,}9 \\times \\tfrac{180}{11} = \\tfrac{173}{11} < \\tfrac{180}{11}\\) ; en 2, encaisser vaudrait \\(4 + 0{,}9 \\times \\tfrac{180}{11} = \\tfrac{206}{11} < 20\\). Chaque maximum est atteint par l'action de la politique : \\(\\mathbf{v}^* = (\\tfrac{180}{11} ; 20)\\).\n\nÀ comparer : la politique (prudent, attendre) donne \\(v(1) = 10\\) ; (prudent, encaisser) donne \\(v(2) = 13\\) ; (risqué, encaisser) donne \\(v(1) = \\tfrac{360}{29} \\approx 12{,}41\\). Le script résout les quatre systèmes en fractions et simule la politique optimale depuis l'état 1 : retour moyen 16,376, erreur standard 0,011. Itération sur la valeur depuis \\(\\mathbf{v}_0 = (0 ; 0)\\) : \\(\\mathbf{v}_1 = (1 ; 4)\\), \\(\\mathbf{v}_2 = (2{,}25 ; 5{,}60)\\), \\(\\mathbf{v}_3 = (3{,}5325 ; 7{,}0400)\\) ; l'écart initial vaut \\(20\\), et il passe sous 0,01 après \\(72\\) itérations (la borne (Be3) en garantit au plus \\(73\\)).\n\n```python\n# mdp[état][action] = (récompense, {état suivant: probabilité})\nmdp = {1: {\"prudent\": (1.0, {1: 1.0}), \"risqué\": (0.0, {1: 0.5, 2: 0.5})},\n       2: {\"attendre\": (2.0, {2: 1.0}), \"encaisser\": (4.0, {1: 1.0})}}\n\ndef q_de(v, s, a, gamma):\n    r, suivants = mdp[s][a]\n    return r + gamma * sum(pr * v[t] for t, pr in suivants.items())\n\ndef iteration_valeur(gamma, nb=200):\n    v = {1: 0.0, 2: 0.0}\n    for k in range(1, nb + 1):\n        v = {s: max(q_de(v, s, a, gamma) for a in mdp[s]) for s in mdp}\n        if k in (1, 2, 3, 10, 50, nb):\n            glouton = [max(mdp[s], key=lambda a: q_de(v, s, a, gamma)) for s in mdp]\n            print(f\"k = {k:3d} : v = ({v[1]:.4f} ; {v[2]:.4f}) ; politique gloutonne : {glouton[0]}, {glouton[1]}\")\n    return v\n\nv = iteration_valeur(0.9)\nprint(\"180/11 =\", round(180 / 11, 4))\nprint(\"avec gamma = 0,5 :\")\nv5 = iteration_valeur(0.5, 60)\n```\n\n```sortie\nk =   1 : v = (1.0000 ; 4.0000) ; politique gloutonne : risqué, attendre\nk =   2 : v = (2.2500 ; 5.6000) ; politique gloutonne : risqué, attendre\nk =   3 : v = (3.5325 ; 7.0400) ; politique gloutonne : risqué, attendre\nk =  10 : v = (10.1654 ; 13.8013) ; politique gloutonne : risqué, attendre\nk =  50 : v = (16.2720 ; 19.9084) ; politique gloutonne : risqué, attendre\nk = 200 : v = (16.3636 ; 20.0000) ; politique gloutonne : risqué, attendre\n180/11 = 16.3636\navec gamma = 0,5 :\nk =   1 : v = (1.0000 ; 4.0000) ; politique gloutonne : prudent, encaisser\nk =   2 : v = (1.5000 ; 4.5000) ; politique gloutonne : prudent, encaisser\nk =   3 : v = (1.7500 ; 4.7500) ; politique gloutonne : prudent, encaisser\nk =  10 : v = (1.9980 ; 4.9980) ; politique gloutonne : prudent, encaisser\nk =  50 : v = (2.0000 ; 5.0000) ; politique gloutonne : prudent, encaisser\nk =  60 : v = (2.0000 ; 5.0000) ; politique gloutonne : prudent, encaisser\n```\n\n**Cas limite : le facteur d'actualisation fait partie du problème.** Avec \\(\\gamma = 0{,}5\\), la politique optimale devient (prudent, encaisser), de valeurs \\((2 ; 5)\\) : risqué vaudrait \\(\\tfrac{7}{4}\\) en 1 et attendre \\(4{,}5\\) en 2. Un \\(\\gamma\\) petit rend l'agent myope (\\(\\gamma = 0\\) : il maximise la récompense immédiate) ; un \\(\\gamma\\) proche de 1 lui fait accepter une récompense nulle aujourd'hui pour un état meilleur demain.\n\n**Pièges.** (Be1) est un système **linéaire** (une politique fixée) ; (Be2) contient un maximum et n'est pas linéaire. L'itération sur la valeur demande de connaître \\(p\\) et \\(r\\) : c'est de la planification, pas de l'apprentissage par essais.\n\n### 4.3 Q-learning\n\n**Le problème.** L'agent ne connaît ni \\(p\\) ni \\(r\\) : il observe seulement des transitions \\((s, a, r, s')\\). Peut-il quand même trouver \\(q^*\\), la fonction de valeur d'action de la politique optimale ?\n\n**L'énoncé.** \\(q^*(s, a) = r(s, a) + \\gamma \\sum_{s'} p(s' \\mid s, a) \\max_{a'} q^*(s', a')\\) (c'est (Be2) écrit pour \\(q^*\\), puisque \\(v^*(s') = \\max_{a'} q^*(s', a')\\)). Le **Q-learning** tient un tableau \\(Q(s, a)\\) et, après chaque transition observée \\((s, a, r, s')\\), fait\n\n\\(\\displaystyle Q(s, a) \\leftarrow Q(s, a) + \\alpha\\,\\big[r + \\gamma \\max_{a'} Q(s', a') - Q(s, a)\\big],\\)\n\noù \\(\\alpha \\in ]0, 1]\\) est un pas. Le crochet est l'écart entre une **cible**, estimation à un tirage du membre de droite de l'équation, et la valeur courante.\n\n- La cible utilise \\(\\max_{a'}\\), quelle que soit l'action que l'agent fera réellement en \\(s'\\) : le Q-learning apprend \\(q^*\\) en suivant une **autre** politique (méthode **hors politique**, off-policy).\n- **SARSA** remplace le maximum par \\(Q(s', a')\\) pour l'action \\(a'\\) réellement choisie : il apprend la valeur de la politique suivie (méthode **sur politique**, on-policy).\n- Convergence (Watkins et Dayan, « Q-learning », Machine Learning, 1992 ; théorème admis) : avec un tableau, si chaque couple (état, action) est visité une infinité de fois et si les pas vérifient les conditions de Robbins et Monro (séance de ML 4, partie 1.3), \\(Q\\) converge vers \\(q^*\\) avec probabilité 1.\n\n**Expérience.** Sur l'exemple à deux états, le comportement est entièrement aléatoire (action tirée à pile ou face). Les deux règles voient donc les mêmes données ; seule la cible change.\n\n```python\ncouples = [(1, \"prudent\"), (1, \"risqué\"), (2, \"attendre\"), (2, \"encaisser\")]\n\ndef apprendre(regle, gamma=0.9, pas=300000, graine=0):\n    rng = np.random.default_rng(graine)\n    hasard = rng.random((pas, 2))\n    Q, N = dict.fromkeys(couples, 0.0), dict.fromkeys(couples, 0)\n    s, a = 1, \"prudent\"\n    for u1, u2 in hasard:\n        r, suivants = mdp[s][a]\n        etats = list(suivants)\n        s2 = etats[0] if u1 < suivants[etats[0]] else etats[1]\n        a2 = list(mdp[s2])[int(u2 < 0.5)]                  # comportement : action tirée à pile ou face, sans regarder Q\n        if regle == \"Q-learning\":\n            cible = r + gamma * max(Q[(s2, b)] for b in mdp[s2])\n        else:                                              # SARSA : l'action réellement choisie ensuite\n            cible = r + gamma * Q[(s2, a2)]\n        N[(s, a)] += 1\n        Q[(s, a)] += (cible - Q[(s, a)]) / N[(s, a)] ** 0.7     # pas décroissant, propre à chaque couple\n        s, a = s2, a2\n    return np.array([Q[c] for c in couples])\n\nq_etoile = np.array([q_de(v, s, a, 0.9) for s, a in couples])    # valeurs exactes, par la partie 4.2\nP, r = np.zeros((4, 4)), np.array([mdp[s][a][0] for s, a in couples])\nfor i, (s, a) in enumerate(couples):                       # politique uniforme : système linéaire (Be1) sur les couples\n    for t, pr in mdp[s][a][1].items():\n        for j, (s2, a2) in enumerate(couples):\n            if s2 == t:\n                P[i, j] = pr * 0.5\nq_uniforme = np.linalg.solve(np.eye(4) - 0.9 * P, r)\nprint(\"couples (état, action)            :\", couples)\nprint(\"q* exact                          :\", q_etoile.round(3))\nprint(\"Q-learning                        :\", apprendre(\"Q-learning\").round(3))\nprint(\"q de la politique uniforme, exact :\", q_uniforme.round(3))\nprint(\"SARSA                             :\", apprendre(\"SARSA\").round(3))\n```\n\n```sortie\ncouples (état, action)            : [(1, 'prudent'), (1, 'risqué'), (2, 'attendre'), (2, 'encaisser')]\nq* exact                          : [15.727 16.364 20.    18.727]\nQ-learning                        : [15.728 16.364 19.996 18.727]\nq de la politique uniforme, exact : [12.032 12.484 15.935 15.032]\nSARSA                             : [12.03  12.484 15.933 15.025]\n```\n\nLecture : avec le même comportement aléatoire, le Q-learning retrouve les valeurs **optimales** et SARSA celles de la politique **suivie**. Dans les deux tableaux, l'action de plus grande valeur est la même en chaque état sur cet exemple ; ce n'est pas une propriété générale.\n\n**Pièges.** « Hors politique » ne veut pas dire « sans exploration » : il faut encore visiter tous les couples. Avec un réseau de neurones à la place du tableau, le théorème de convergence ne s'applique plus.\n\n### 4.4 Gradient de politique et REINFORCE\n\n**Le problème.** Au lieu d'apprendre des valeurs puis d'en déduire les actions, on peut paramétrer directement la politique, \\(\\pi_{\\boldsymbol{\\theta}}(a \\mid s)\\), et monter le gradient du retour espéré. Difficulté : le retour dépend de \\(\\boldsymbol{\\theta}\\) à travers la loi des trajectoires, que l'on ne connaît pas.\n\n**Le cadre.** Épisodes de longueur fixe \\(T\\). Une trajectoire est \\(\\tau = (s_0, a_0, s_1, \\dots, a_{T-1}, s_T)\\), son retour \\(g(\\tau) = \\sum_{t=0}^{T-1} \\gamma^t\\,r(s_t, a_t)\\), et sa probabilité \\(\\mathbb{P}_{\\boldsymbol{\\theta}}(\\tau) = \\mu(s_0)\\prod_{t=0}^{T-1} \\pi_{\\boldsymbol{\\theta}}(a_t \\mid s_t)\\,p(s_{t+1} \\mid s_t, a_t)\\), où \\(\\mu\\) est la loi de l'état initial. On suppose \\(\\pi_{\\boldsymbol{\\theta}}(a \\mid s) > 0\\) et dérivable en \\(\\boldsymbol{\\theta}\\) (par exemple un softmax). L'objectif est \\(J(\\boldsymbol{\\theta}) = \\mathbb{E}_{\\boldsymbol{\\theta}}[g(\\tau)] = \\sum_\\tau \\mathbb{P}_{\\boldsymbol{\\theta}}(\\tau)\\,g(\\tau)\\), somme finie. On note \\(G_t = \\sum_{i=t}^{T-1} \\gamma^{i-t} R_{i+1}\\) le retour à partir de \\(t\\).\n\n**L'énoncé.**\n\n1. (PG1) \\(\\displaystyle \\nabla J(\\boldsymbol{\\theta}) = \\mathbb{E}_{\\boldsymbol{\\theta}}\\Big[g(\\tau) \\sum_{t=0}^{T-1} \\nabla \\ln \\pi_{\\boldsymbol{\\theta}}(A_t \\mid S_t)\\Big]\\) : ni \\(p\\) ni \\(r\\) ne sont dérivés.\n2. (PG2) Pour toute fonction \\(h\\) du passé jusqu'à \\(S_t\\) inclus (états et actions avant \\(t\\), et \\(S_t\\)) : \\(\\mathbb{E}_{\\boldsymbol{\\theta}}\\big[h\\,\\nabla \\ln \\pi_{\\boldsymbol{\\theta}}(A_t \\mid S_t)\\big] = \\mathbf{0}\\).\n3. (PG3) En conséquence, pour toute **ligne de base** \\(b(s)\\) qui ne dépend pas de l'action : \\(\\displaystyle \\nabla J(\\boldsymbol{\\theta}) = \\mathbb{E}_{\\boldsymbol{\\theta}}\\Big[\\sum_{t=0}^{T-1} \\gamma^t\\,\\big(G_t - b(S_t)\\big)\\,\\nabla \\ln \\pi_{\\boldsymbol{\\theta}}(A_t \\mid S_t)\\Big]\\).\n\n**La preuve.**\n\n1. Astuce du logarithme : pour une fonction strictement positive, \\(\\nabla \\mathbb{P}_{\\boldsymbol{\\theta}}(\\tau) = \\mathbb{P}_{\\boldsymbol{\\theta}}(\\tau)\\,\\nabla \\ln \\mathbb{P}_{\\boldsymbol{\\theta}}(\\tau)\\). Donc \\(\\nabla J = \\sum_\\tau \\mathbb{P}_{\\boldsymbol{\\theta}}(\\tau)\\,g(\\tau)\\,\\nabla \\ln \\mathbb{P}_{\\boldsymbol{\\theta}}(\\tau)\\), qui est une espérance.\n2. \\(\\ln \\mathbb{P}_{\\boldsymbol{\\theta}}(\\tau) = \\ln \\mu(s_0) + \\sum_t \\ln \\pi_{\\boldsymbol{\\theta}}(a_t \\mid s_t) + \\sum_t \\ln p(s_{t+1} \\mid s_t, a_t)\\). Seul le terme du milieu dépend de \\(\\boldsymbol{\\theta}\\) : c'est (PG1). (Les trajectoires de probabilité nulle ne comptent pas dans la somme.)\n3. (PG2) Sachant le passé et \\(S_t = s\\), \\(A_t\\) suit \\(\\pi_{\\boldsymbol{\\theta}}(\\cdot \\mid s)\\) : \\(\\mathbb{E}[\\nabla \\ln \\pi_{\\boldsymbol{\\theta}}(A_t \\mid s)] = \\sum_a \\pi_{\\boldsymbol{\\theta}}(a \\mid s)\\,\\dfrac{\\nabla \\pi_{\\boldsymbol{\\theta}}(a \\mid s)}{\\pi_{\\boldsymbol{\\theta}}(a \\mid s)} = \\nabla \\sum_a \\pi_{\\boldsymbol{\\theta}}(a \\mid s) = \\nabla 1 = \\mathbf{0}\\). On multiplie par \\(h\\), fixé sachant le passé, puis on prend l'espérance.\n4. (PG3) Dans (PG1), on écrit \\(g(\\tau) = \\sum_{i < t} \\gamma^i R_{i+1} + \\gamma^t G_t\\) devant le terme d'indice \\(t\\). La première somme est une fonction du passé (les récompenses d'avant \\(t\\) ne dépendent que des états et actions d'avant \\(t\\)) : par (PG2), sa contribution est nulle. De même \\(\\gamma^t b(S_t)\\) est une fonction du passé : on peut la retrancher.\n\n**REINFORCE** (Williams, 1992) : on joue un épisode avec \\(\\pi_{\\boldsymbol{\\theta}}\\), puis \\(\\boldsymbol{\\theta} \\leftarrow \\boldsymbol{\\theta} + \\alpha \\sum_t \\gamma^t (G_t - b(S_t))\\,\\nabla \\ln \\pi_{\\boldsymbol{\\theta}}(A_t \\mid S_t)\\) : une montée de gradient stochastique, dont l'estimateur est sans biais par (PG3). La méthode est sur politique (les épisodes doivent venir de la politique courante) et son estimateur a une forte variance, que la ligne de base réduit sans introduire de biais. Quand \\(b\\) est une estimation apprise de \\(v_\\pi\\), on parle d'**acteur-critique**.\n\n**Exemple entièrement calculé.** Un seul état, un seul pas (\\(T = 1\\)), deux actions ; \\(\\pi_\\theta(1) = \\mathrm{sig}(\\theta)\\), noté \\(\\pi\\). L'action 1 rapporte 11, l'action 0 rapporte 10. Les dérivées sont \\(\\tfrac{d}{d\\theta}\\ln \\pi = 1 - \\pi\\) et \\(\\tfrac{d}{d\\theta}\\ln(1 - \\pi) = -\\pi\\). Pour \\(\\theta = 0\\), \\(\\pi = \\tfrac12\\) :\n\n1. \\(J = 11\\pi + 10(1 - \\pi)\\), de dérivée \\(\\pi(1 - \\pi)(11 - 10) = \\tfrac{1}{4}\\).\n2. Sans ligne de base, l'estimateur vaut \\(11 \\times \\tfrac12 = 5{,}5\\) avec probabilité \\(\\tfrac12\\) et \\(-10 \\times \\tfrac12 = -5\\) avec probabilité \\(\\tfrac12\\) : espérance \\(\\tfrac{1}{4}\\), variance \\(27{,}5625\\).\n3. Avec \\(b = 10\\) : valeurs \\(\\tfrac12\\) et 0, même espérance, variance \\(0{,}0625\\). Avec \\(b = 10{,}5\\) : valeurs \\(\\tfrac14\\) et \\(\\tfrac14\\), variance \\(0\\).\n\n```python\nrng = np.random.default_rng(5)\n\ndef gradients(theta, b, nb=200000):\n    pi = expit(theta)\n    A = rng.random(nb) < pi                                # action 1 avec probabilité pi\n    R = np.where(A, 11.0, 10.0)\n    score = np.where(A, 1 - pi, -pi)                       # dérivée de ln pi(A) par rapport à theta\n    return (R - b) * score\n\nfor b in [0.0, 10.0, 10.5]:\n    g = gradients(0.0, b)\n    print(f\"ligne de base {b:4.1f} : moyenne {g.mean():.4f}, variance {g.var():.4f}\")\n\ndef reinforce(b, alpha=0.05, pas=400, runs=2000):\n    theta = np.zeros(runs)                                 # 2000 apprentissages indépendants, menés en parallèle\n    for _ in range(pas):\n        pi = expit(theta)\n        A = rng.random(runs) < pi\n        theta = theta + alpha * (np.where(A, 11.0, 10.0) - b) * np.where(A, 1 - pi, -pi)\n    return expit(theta)\n\nfor b in [0.0, 10.5]:\n    pi = reinforce(b)\n    print(f\"ligne de base {b:4.1f} : pi(1) après 400 pas, moyenne {pi.mean():.3f}, écart-type {pi.std():.3f}, part des apprentissages avec pi(1) < 0,5 : {np.mean(pi < 0.5):.3f}\")\n```\n\n```sortie\nligne de base  0.0 : moyenne 0.2545, variance 27.5625\nligne de base 10.0 : moyenne 0.2498, variance 0.0625\nligne de base 10.5 : moyenne 0.2500, variance 0.0000\nligne de base  0.0 : pi(1) après 400 pas, moyenne 0.729, écart-type 0.381, part des apprentissages avec pi(1) < 0,5 : 0.252\nligne de base 10.5 : pi(1) après 400 pas, moyenne 0.936, écart-type 0.004, part des apprentissages avec pi(1) < 0,5 : 0.000\n```\n\nLecture : la moyenne du gradient estimé ne dépend pas de la ligne de base, sa variance si. Sans ligne de base, une part notable des apprentissages est partie dans le mauvais sens après 400 pas.\n\n**Pièges.** Le gradient de politique n'a besoin ni d'un modèle de l'environnement, ni d'une récompense dérivable : seule la politique est dérivée. Il converge au mieux vers un maximum local de \\(J\\). Il s'applique à des actions continues (politique gaussienne), là où le maximum sur les actions du Q-learning devient lui-même un problème d'optimisation.\n\n### 4.5 Exploration contre exploitation\n\n**Le problème.** Pour savoir qu'une action est bonne, il faut l'essayer ; chaque essai d'une action médiocre coûte. Le **bandit** à \\(K\\) bras isole ce dilemme : un seul état, \\(K\\) actions, la récompense du bras \\(i\\) est tirée d'une loi de moyenne \\(\\mu_i\\) inconnue. Le **regret** après \\(T\\) tirages est \\(T \\max_i \\mu_i\\) moins la somme des moyennes des bras tirés.\n\n**L'énoncé.**\n\n1. (X1) **Stratégie gloutonne** (tirer chaque bras une fois, puis toujours celui de meilleure moyenne observée) sur deux bras de Bernoulli de moyennes 0,8 et 0,5 : avec probabilité au moins \\(\\tfrac{1}{10}\\), elle ne tire plus jamais le meilleur bras. Son regret espéré croît donc linéairement : au moins \\(29{,}94\\) après \\(1000\\) tirages.\n2. (X2) **Epsilon-gloutonne** (avec probabilité \\(\\epsilon\\), un bras tiré uniformément au hasard ; sinon le meilleur observé) : tous les bras sont tirés une infinité de fois, mais avec \\(\\epsilon\\) constant le regret espéré par tirage reste au moins \\(\\tfrac{\\epsilon}{K}\\sum_i (\\max_j \\mu_j - \\mu_i)\\) : linéaire aussi.\n3. (X3) **UCB1** (Auer, Cesa-Bianchi et Fischer, « Finite-time Analysis of the Multiarmed Bandit Problem », Machine Learning, 2002) : au tirage \\(t\\), choisir le bras qui maximise \\(\\bar x_i + \\sqrt{2 \\ln t / n_i}\\), où \\(\\bar x_i\\) est la moyenne observée du bras \\(i\\) et \\(n_i\\) son nombre de tirages (valeurs constatées au moment du choix). Pour des récompenses dans \\([0, 1]\\), son regret espéré croît au plus comme \\(\\ln T\\) (théorème admis).\n\n**La preuve.**\n\n1. (X1) Si le premier tirage du bras de moyenne 0,8 donne 0 et celui du bras de moyenne 0,5 donne 1, événement de probabilité \\(0{,}2 \\times 0{,}5\\), les moyennes observées sont 0 et 1. La stratégie tire le second bras ; sa moyenne observée reste strictement positive (il a au moins un succès), alors que celle du premier bras, qui n'est plus tiré, reste 0. Par récurrence, le premier bras n'est plus jamais tiré. Chaque tirage du second bras coûte \\(0{,}8 - 0{,}5 = 0{,}3\\) de regret : au moins \\(0{,}1 \\times 0{,}3 \\times (T - 2)\\) en espérance.\n2. (X2) À chaque tirage, avec probabilité \\(\\epsilon\\) le bras est uniforme sur les \\(K\\) bras : le bras \\(i\\) est tiré avec probabilité au moins \\(\\epsilon/K\\), et coûte alors \\(\\max_j \\mu_j - \\mu_i\\).\n3. Origine du terme d'UCB1 : l'inégalité de Hoeffding (théorème général, admis) borne par \\(e^{-2nu^2}\\) la probabilité qu'une moyenne de \\(n\\) variables indépendantes à valeurs dans \\([0, 1]\\) dépasse son espérance de \\(u\\). Avec \\(u = \\sqrt{2 \\ln t / n}\\), la borne vaut \\(t^{-4}\\) : l'indice est une borne supérieure de confiance de \\(\\mu_i\\), d'autant plus large que le bras a été peu tiré. Exemple : \\(t = 100\\), \\(n_i = 10\\) donne un terme de \\(0{,}960\\).\n\n**Expérience.** Les deux bras de (X1), 5000 tirages, 500 parties par stratégie, \\(\\epsilon = 0{,}1\\). (X2) garantit ici un regret d'au moins \\(75{,}0\\) pour la stratégie epsilon-gloutonne.\n\n```python\ndef bandit(strategie, T=5000, runs=500, eps=0.1, graine=0):\n    rng = np.random.default_rng(graine)\n    mu = np.array([0.8, 0.5])                              # probabilités de gain des deux bras\n    S, N = np.zeros((runs, 2)), np.zeros((runs, 2))        # gains cumulés et nombres de tirages, par bras\n    lignes, regret = np.arange(runs), np.zeros(runs)\n    for t in range(T):\n        if t < 2:\n            bras = np.full(runs, t)                        # un tirage de chaque bras pour commencer\n        elif strategie == \"gloutonne\":\n            bras = np.argmax(S / N, axis=1)\n        elif strategie == \"epsilon-gloutonne\":\n            bras = np.where(rng.random(runs) < eps, rng.integers(0, 2, runs), np.argmax(S / N, axis=1))\n        else:\n            bras = np.argmax(S / N + np.sqrt(2 * np.log(t + 1) / N), axis=1)\n        S[lignes, bras] += rng.random(runs) < mu[bras]\n        N[lignes, bras] += 1\n        regret += mu.max() - mu[bras]\n    return regret.mean(), np.mean(N[:, 0] < N[:, 1])\n\nfor strategie in [\"gloutonne\", \"epsilon-gloutonne\", \"UCB1\"]:\n    reg, rate = bandit(strategie)\n    print(f\"{strategie:18s}: regret moyen après 5000 tirages {reg:7.1f} ; part des parties où le moins bon bras est le plus tiré : {rate:.3f}\")\n```\n\n```sortie\ngloutonne         : regret moyen après 5000 tirages   213.6 ; part des parties où le moins bon bras est le plus tiré : 0.142\nepsilon-gloutonne : regret moyen après 5000 tirages    78.1 ; part des parties où le moins bon bras est le plus tiré : 0.000\nUCB1              : regret moyen après 5000 tirages    39.8 ; part des parties où le moins bon bras est le plus tiré : 0.000\n```\n\nLecture : la stratégie gloutonne finit sur le moins bon bras dans une part des parties au moins égale à la borne de (X1), et son regret est le plus grand ; le regret de la stratégie epsilon-gloutonne dépasse la borne de (X2), qu'elle ne peut pas battre tant que \\(\\epsilon\\) reste constant ; UCB1 a le plus petit regret des trois dans cette expérience.\n\n**Cas limites.** \\(\\epsilon = 0\\) : stratégie gloutonne. \\(\\epsilon = 1\\) : exploration pure, aucune exploitation. Un \\(\\epsilon_t\\) qui décroît vers 0 assez lentement pour que \\(\\sum_t \\epsilon_t = \\infty\\) continue de tirer chaque bras une infinité de fois tout en exploitant de plus en plus.\n\n### 4.6 Affirmations fausses fréquentes\n\n1. « L'agent a besoin d'exemples étiquetés de la bonne action. » Faux : il n'a que des récompenses (4.1).\n2. « L'agent maximise la récompense immédiate. » Faux : l'espérance du retour cumulé actualisé ; l'exemple à deux états choisit une récompense nulle en 1 (4.2).\n3. « Un \\(\\gamma\\) proche de 0 rend l'agent prévoyant. » Faux : c'est l'inverse (4.2, cas limite).\n4. « Le Q-learning est une méthode sur politique. » Faux : sa cible prend le maximum, pas l'action suivie (4.3).\n5. « Les méthodes de gradient de politique apprennent une fonction de valeur et choisissent l'action par un maximum. » Faux : elles optimisent directement les paramètres de la politique ; c'est le Q-learning qui passe par les valeurs. Un acteur-critique combine les deux (4.4).\n6. « Le gradient de politique exige de connaître ou de dériver les transitions. » Faux : (PG1) ne dérive que la politique.\n7. « Retrancher une ligne de base biaise le gradient. » Faux si elle ne dépend pas de l'action : (PG3).\n8. « Une fois les valeurs estimées, explorer ne sert plus. » Faux : (X1), une estimation pessimiste d'un bon bras n'est jamais corrigée si on ne le tire plus.\n9. « Une stratégie epsilon-gloutonne à \\(\\epsilon\\) constant finit par ne plus rien perdre. » Faux : (X2).\n10. « Récompense et retour sont la même chose. » Faux : le retour est la somme actualisée des récompenses futures.\n\n[[controle:rl]]\n\n## Partie 5 : réflexes pour les affirmations à cocher\n\n### 5.1 Lire une affirmation\n\nDans une question à plusieurs réponses, chaque affirmation se juge seule. Quand la notation est tout ou rien, comme sur ce site, une seule erreur de lecture suffit à perdre la question. La méthode tient en quatre gestes.\n\n1. **Repérer le quantificateur.** « Toujours », « jamais », « garantit », « nécessairement », « seulement » : l'affirmation est universelle, un seul contre-exemple la réfute. « Peut », « en espérance », « sous telle hypothèse » : un seul exemple, ou une hypothèse, suffit à la rendre vraie.\n2. **Chercher le contre-exemple dans les cas limites** : variables corrélées ou identiques ; plus de variables que d'observations ; changement d'unité d'une variable ; classe rare ; pénalité nulle ou infinie ; interaction pure entre deux variables.\n3. **Ne pas réfuter par réflexe.** Certaines affirmations universelles sont vraies, parce que ce sont des théorèmes : R² ne baisse jamais quand on ajoute une variable (séance de ML 1, partie 3) ; la solution Ridge est unique pour tout \\(\\lambda > 0\\) (séance de ML 1, partie 4) ; un gain de Gini est toujours positif ou nul (séance de ML 2, partie 1) ; les directions principales sont toujours orthogonales (5.4).\n4. **Séparer « vrai » et « vrai pour la raison donnée ».** « Le Lasso est préférable en grande dimension car il a une forme fermée » : conclusion défendable, raison fausse, affirmation fausse.\n\nLes fiches qui suivent donnent, pour chaque thème, les faits exacts avec leurs conditions. Ce qui est démontré dans une autre séance est cité ; le reste est démontré ou montré ici.\n\n### 5.2 Arbres de décision\n\n**Ce que choisit un nœud** (T1). À chaque nœud, l'algorithme CART choisit le couple (variable, seuil) dont la coupure réduit le plus l'impureté **des observations de ce nœud** (séance de ML 2, partie 1) ; à la racine, ce sont toutes les observations d'apprentissage. Ce critère évalue chaque variable **seule**, pour **une** coupure : la variable de la racine est celle de plus grande réduction d'impureté en une coupure, ce qui n'est pas « la variable la plus importante » en un autre sens (importance par permutation, effet sur les prédictions de l'arbre entier).\n\nContre-exemple démontré. \\(X_1\\) et \\(X_2\\) sont deux variables binaires indépendantes et équiprobables, \\(Y = 1\\) si et seulement si \\(X_1 \\ne X_2\\) (ou exclusif), et \\(X_3\\) est égale à \\(Y\\) avec probabilité 0,6, à \\(1 - Y\\) sinon.\n\n1. Sachant \\(X_1 = 0\\) comme sachant \\(X_1 = 1\\), \\(\\mathbb{P}(Y = 1) = \\tfrac12\\) : les deux enfants ont les proportions du parent, le gain de Gini de \\(X_1\\) est \\(0\\) (de même pour \\(X_2\\)).\n2. Sachant \\(X_3\\), la proportion de la classe majoritaire est 0,6 : Gini des enfants \\(2 \\times 0{,}6 \\times 0{,}4 = \\tfrac{12}{25}\\), gain \\(\\tfrac12 - \\tfrac{12}{25} = \\tfrac{1}{50} > 0\\).\n3. La racine coupe donc selon \\(X_3\\) (en population ; le script retrouve ces gains sur 400000 tirages : 0,0000 et 0,0202). Pourtant \\(X_1\\) et \\(X_2\\) déterminent \\(Y\\) exactement, et \\(X_3\\) ne donne que 60 % d'exactitude.\n\n```python\nfrom sklearn.inspection import permutation_importance\nfrom sklearn.tree import DecisionTreeClassifier\n\nrng = np.random.default_rng(6)\nn = 4000\nx1, x2 = rng.integers(0, 2, n), rng.integers(0, 2, n)\ny = x1 ^ x2                                                # ou exclusif : y vaut 1 si et seulement si x1 et x2 diffèrent\nx3 = np.where(rng.random(n) < 0.6, y, 1 - y)               # x3 : égale à y avec probabilité 0,6\nX = np.column_stack([x1, x2, x3])\napp, val = slice(0, 2000), slice(2000, n)\narbre = DecisionTreeClassifier(random_state=0).fit(X[app], y[app])\nprint(\"variable testée à la racine : x\" + str(arbre.tree_.feature[0] + 1), \"; profondeur :\", arbre.get_depth(), \"; feuilles :\", arbre.get_n_leaves())\nprint(\"importances par impureté                 :\", arbre.feature_importances_.round(3))\nperm = permutation_importance(arbre, X[val], y[val], n_repeats=10, random_state=0)\nprint(\"importances par permutation (validation) :\", perm.importances_mean.round(3))\nsouche = DecisionTreeClassifier(max_depth=1, random_state=0).fit(X[app], y[app])\nprint(\"exactitude en validation : arbre complet\", arbre.score(X[val], y[val]), \"; arbre de profondeur 1\", souche.score(X[val], y[val]).round(3))\n```\n\n```sortie\nvariable testée à la racine : x3 ; profondeur : 3 ; feuilles : 8\nimportances par impureté                 : [0.001 0.965 0.035]\nimportances par permutation (validation) : [0.504 0.499 0.   ]\nexactitude en validation : arbre complet 1.0 ; arbre de profondeur 1 0.604\n```\n\nLecture : la racine teste \\(x_3\\) ; l'importance par permutation place \\(x_1\\) et \\(x_2\\) à égalité, loin devant \\(x_3\\) ; l'importance par impureté, elle, attribue presque tout à **une seule** des deux variables de l'ou exclusif, celle qui est coupée en dernier, alors que leurs rôles sont symétriques. Trois « importances », trois réponses.\n\n**Variables numériques, profondeur** (T2, T3).\n\n- Une variable numérique est utilisée telle quelle : les coupures candidates sont des seuils placés entre deux valeurs observées consécutives, sans aucune mise en classes préalable, et la même variable peut resservir plus bas avec un autre seuil (séance de ML 2, partie 1, définitions). Ni standardisation ni transformation monotone ne changent l'arbre appris sur l'apprentissage (résultat R6 de la même partie).\n- Un arbre binaire de profondeur \\(D\\) a au plus \\(2^D\\) feuilles (récurrence : chaque niveau double au plus le nombre de nœuds). Il utilise au plus \\(2^D - 1\\) coupures, donc pas forcément toutes les variables.\n- Plus profond : biais plus faible, variance plus forte. Avec la même règle de choix et les égalités de gain départagées de la même façon, l'arbre de profondeur \\(D + 1\\) raffine celui de profondeur \\(D\\), et son impureté d'apprentissage pondérée ne peut pas être plus grande, chaque gain étant positif ou nul (résultats R2 à R4) ; l'erreur de validation, elle, n'est pas monotone (expérience de la séance de ML 2, partie 1).\n\n```python\nxc = rng.normal(size=(300, 1))\nyc = (xc[:, 0] > 0.37).astype(int)\na1 = DecisionTreeClassifier(random_state=0).fit(xc, yc)\ntri = np.sort(xc[:, 0])\nprint(\"seuil appris :\", a1.tree_.threshold[0].round(4), \"; valeurs d'entraînement qui encadrent 0,37 :\", tri[tri <= 0.37].max().round(4), \"et\", tri[tri > 0.37].min().round(4))\nXb, yb = rng.normal(size=(500, 3)), rng.integers(0, 2, 500)\nfor prof in [1, 2, 3, 4]:\n    print(\"profondeur maximale\", prof, \": feuilles\", DecisionTreeClassifier(max_depth=prof, random_state=0).fit(Xb, yb).get_n_leaves(), \", au plus\", 2 ** prof)\n```\n\n```sortie\nseuil appris : 0.3596 ; valeurs d'entraînement qui encadrent 0,37 : 0.3438 et 0.3754\nprofondeur maximale 1 : feuilles 2 , au plus 2\nprofondeur maximale 2 : feuilles 4 , au plus 4\nprofondeur maximale 3 : feuilles 8 , au plus 8\nprofondeur maximale 4 : feuilles 15 , au plus 16\n```\n\nFait de version : dans scikit-learn 1.1.1, `DecisionTreeClassifier` n'accepte que des nombres ; une variable qualitative doit être encodée avant.\n\n```python\nDecisionTreeClassifier().fit(np.array([[\"rouge\"], [\"bleu\"], [\"rouge\"]]), [0, 1, 0])\n```\n\n```sortie\nValueError: could not convert string to float: 'rouge'\n```\n\n### 5.3 Importances de variables\n\nTrois mesures, trois questions différentes. On les explique avant de les résumer.\n\n**Par réduction d'impureté** : somme des gains des coupures faites sur la variable, pondérés par la part des observations qui atteignent le nœud. Elle est calculée sur l'apprentissage ; elle est biaisée en faveur des variables qui offrent beaucoup de coupures (continues, ou qualitatives à nombreuses modalités), et une variable de pur bruit reçoit une importance positive dès qu'elle sert à couper (séance de ML 2, partie 7, résultat I1) ; elle dépend de l'ordre des coupures (expérience ci-dessus).\n\n**Par permutation** : baisse du score quand on mélange les valeurs de la variable sur des données de validation. Elle vaut pour tout modèle ; son espérance est nulle pour une variable indépendante du reste (résultat I2 de la même partie). Limites : entre variables corrélées, l'importance se dilue ou se déplace selon le modèle choisi, et la permutation fabrique des combinaisons de valeurs absentes des données (séance quantitative, partie 3, résultat P1).\n\n**Par les coefficients d'un modèle linéaire.**\n\nÉnoncé (Co1). Dans une régression par moindres carrés avec constante, de matrice de rang plein, si l'on remplace la variable \\(x_j\\) par \\(c\\,x_j\\) (\\(c \\ne 0\\), changement d'unité), le coefficient \\(\\hat b_j\\) devient \\(\\hat b_j/c\\), les autres coefficients et les prédictions ne changent pas.\n\nPreuve. Tout vecteur de coefficients \\(\\mathbf{b}\\) pour les anciennes variables correspond au vecteur \\(\\mathbf{b}'\\), égal à \\(\\mathbf{b}\\) sauf \\(b_j' = b_j/c\\), pour les nouvelles, avec les mêmes valeurs ajustées (\\(b_j x_j = (b_j/c)(c\\,x_j)\\)), donc la même somme des carrés des résidus. Les deux problèmes ont donc des minimiseurs qui se correspondent, et chacun est unique (rang plein : séance de ML 1, partie 1).\n\nConséquences : la valeur absolue d'un coefficient dépend de l'unité, donc ne classe pas des variables d'unités différentes. Le produit \\(\\hat b_j\\) fois l'écart-type de \\(x_j\\) ne dépend pas de l'unité ; son carré, multiplié par 2, est l'importance par permutation d'un modèle linéaire (séance quantitative, résultat P1). Autres limites : entre variables corrélées, les coefficients sont instables (facteur d'inflation de la variance, séance de ML 1, partie 2) ; un coefficient mesure un effet « toutes autres variables du modèle fixées », et peut changer de signe quand on en ajoute une (biais de variable omise, même partie) ; avec une pénalité, changer l'unité change aussi la solution (séance de ML 1, partie 4, pièges).\n\n```python\nfrom sklearn.linear_model import LinearRegression\n\nrng = np.random.default_rng(7)\nn = 500\ndistance_km = rng.uniform(1, 50, n)\npieces = rng.integers(1, 6, n).astype(float)\nprix = 200 - 4.0 * distance_km + 30.0 * pieces + rng.normal(0, 10, n)\nfor nom, Xr in [(\"distance en km\", np.column_stack([distance_km, pieces])), (\"distance en m\", np.column_stack([1000 * distance_km, pieces]))]:\n    m = LinearRegression().fit(Xr, prix)\n    print(f\"{nom:15s}: coefficients {m.coef_.round(4)} ; coefficients fois écart-type de la variable {(m.coef_ * Xr.std(axis=0)).round(2)}\")\n```\n\n```sortie\ndistance en km : coefficients [-4.0063 29.967 ] ; coefficients fois écart-type de la variable [-55.95  42.03]\ndistance en m  : coefficients [-0.004 29.967] ; coefficients fois écart-type de la variable [-55.95  42.03]\n```\n\nLecture : en valeur absolue, le coefficient brut de la distance est le plus petit des deux, et mille fois plus petit encore en mètres ; multiplié par l'écart-type, c'est la distance qui pèse le plus, dans les deux unités.\n\n| Mesure | Données utilisées | Limite principale | Valable pour |\n|---|---|---|---|\n| réduction d'impureté | apprentissage | biais vers les variables à nombreuses valeurs ; positive même pour du bruit | arbres et ensembles d'arbres |\n| permutation | validation | variables corrélées : dilution, combinaisons irréalistes | tout modèle |\n| coefficient linéaire | apprentissage | dépend de l'unité ; instable entre variables corrélées | modèles linéaires |\n\n### 5.4 Analyse en composantes principales\n\nLes preuves sont dans la séance d'algèbre linéaire, sections 1, 5 et 9. Faits exacts, avec leur statut :\n\n1. **Réduction de dimension** : garder les \\(k\\) premières composantes donne la meilleure approximation de rang \\(k\\) des données centrées, au sens des moindres carrés (Eckart-Young, section 5). Vrai sans condition.\n2. **Orthogonalité** : les directions principales sont des vecteurs propres orthonormés d'une matrice symétrique ; les composantes (les nouvelles variables) sont non corrélées (section 9, point 2). Vrai sans condition. « Indépendantes » est faux en général : non corrélé n'implique indépendant que pour un vecteur gaussien.\n3. **Combinaisons linéaires** : chaque composante est une combinaison linéaire de **toutes** les variables centrées, \\(G_k = \\mathbf{q}_k^\\top(\\mathbf{R} - \\mathbf{m})\\). L'ACP ne sélectionne pas de variables.\n4. **Standardisation** : l'ACP n'est pas invariante par changement d'unité. Sur la covariance, une variable de grande variance domine ; standardiser revient à faire l'ACP de la matrice de corrélation (section 9, point 4). « Il faut toujours standardiser » est faux : si les variables ont la même unité et que leurs variances portent une information, la covariance est le bon objet. « Standardiser est sans effet » est faux aussi.\n5. **Part de variance** : la part de la composante \\(k\\) est \\(\\lambda_k/\\sum_i \\lambda_i\\). La première a la plus grande part, comprise entre \\(1/p\\) (pour \\(p\\) variables : plus grande valeur propre au moins égale à la moyenne) et 1. « Elle explique toujours la majorité de la variance » est faux : pour 10 variables non corrélées de même variance, sa part est \\(0{,}1\\).\n6. **Non supervisée** : l'ACP n'utilise pas la cible. Les premières composantes ne sont pas forcément les plus utiles pour prédire.\n7. **Linéaire** : elle ne voit que des directions ; le signe de chaque direction est arbitraire.\n\n```python\nfrom sklearn.decomposition import PCA\n\nrng = np.random.default_rng(8)\nn = 2000\nF = rng.normal(size=n)\nX = np.column_stack([F + 0.5 * rng.normal(size=n), F + 0.5 * rng.normal(size=n), 0.1 * rng.normal(size=n), 20 * rng.normal(size=n)])\nacp = PCA().fit(X)\nprint(\"données brutes, parts de variance :\", acp.explained_variance_ratio_.round(4))\nprint(\"données brutes, première direction :\", acp.components_[0].round(3))\nZ = (X - X.mean(axis=0)) / X.std(axis=0)\nacz = PCA().fit(Z)\nprint(\"données standardisées, parts de variance :\", acz.explained_variance_ratio_.round(4))\nprint(\"données standardisées, première direction :\", acz.components_[0].round(3))\nG = acp.transform(X)                                       # valeurs des composantes, données brutes\nprint(\"directions orthonormées :\", np.allclose(acp.components_.dot(acp.components_.T), np.eye(4)),\n      \"; composantes = données centrées fois directions :\", np.allclose(G, (X - X.mean(axis=0)).dot(acp.components_.T)),\n      \"; plus grande corrélation entre deux composantes :\", np.abs(np.corrcoef(G, rowvar=False) - np.eye(4)).max().round(6))\ncible = X[:, 2] + 0.01 * rng.normal(size=n)                # une cible qui ne dépend que de la variable de plus petite variance\nprint(\"carré de la corrélation entre la cible et chaque composante :\", [round(np.corrcoef(G[:, k], cible)[0, 1] ** 2, 3) for k in range(4)])\n```\n\n```sortie\ndonnées brutes, parts de variance : [0.9927 0.0066 0.0007 0.    ]\ndonnées brutes, première direction : [ 0.002  0.002 -0.    -1.   ]\ndonnées standardisées, parts de variance : [0.4522 0.2529 0.2462 0.0487]\ndonnées standardisées, première direction : [-0.705 -0.706  0.047  0.051]\ndirections orthonormées : True ; composantes = données centrées fois directions : True ; plus grande corrélation entre deux composantes : 0.0\ncarré de la corrélation entre la cible et chaque composante : [0.0, 0.001, 0.001, 0.986]\n```\n\nLecture : sur les données brutes, la première composante est presque la quatrième variable, celle d'écart-type 20 ; standardisées, les données donnent une première direction portée par les deux variables corrélées. Les directions sont orthonormées et les composantes non corrélées dans tous les cas. La cible, qui ne dépend que de la variable de plus petite variance, est portée par la **dernière** composante : la garder ou non ne se décide pas sur la variance expliquée.\n\n### 5.5 L1, L2, elastic net en grande dimension\n\n**Le problème.** Beaucoup plus de variables que d'observations, et l'on veut un modèle lisible : peu de variables retenues. Quelle pénalité ?\n\n**Les définitions.** Avec les notations de la séance de ML 1 (parties 4 et 5), l'**elastic net** (Zou et Hastie, « Regularization and variable selection via the elastic net », Journal of the Royal Statistical Society B, 2005) minimise, pour \\(\\lambda > 0\\) et \\(\\alpha \\in [0, 1]\\) :\n\n\\(\\displaystyle \\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\lambda\\Big[\\alpha\\,\\lVert \\mathbf{b} \\rVert_1 + \\tfrac{1 - \\alpha}{2}\\,\\lVert \\mathbf{b} \\rVert^2\\Big].\\)\n\n\\(\\alpha = 1\\) : Lasso ; \\(\\alpha = 0\\) : Ridge.\n\n**Ce qui est déjà démontré** (séance de ML 1). Ridge : solution unique quel que soit le rang, aucun coefficient exactement nul sauf cas de probabilité nulle, deux colonnes identiques reçoivent le même coefficient. Lasso : un coefficient ne peut être non nul que si \\(\\lvert g_j \\rvert = \\lambda\\), où \\(g_j = \\mathbf{x}_j^\\top(\\mathbf{y} - \\mathbf{X}\\hat{\\mathbf{b}})\\) est le produit scalaire de la colonne \\(j\\) avec le résidu ; tous sont nuls dès que \\(\\lambda \\ge \\lambda_{\\max}\\) ; en position générale, au plus \\(\\min(n, p)\\) coefficients non nuls (admis là-bas) ; avec deux colonnes identiques, une infinité de solutions, et entre colonnes très corrélées un choix instable.\n\n**L'énoncé.**\n\n1. (EN1) Pour \\(\\alpha < 1\\), le critère de l'elastic net est strictement convexe : la solution est unique, même si \\(p > n\\), et deux colonnes identiques reçoivent le même coefficient.\n2. (EN2) Pour \\(0 < \\alpha < 1\\), le coefficient \\(j\\) de la solution est nul si et seulement si \\(\\lvert g_j \\rvert \\le \\lambda\\alpha\\) : il y a des zéros exacts, comme pour le Lasso.\n3. (EN3) Colonnes orthonormées, \\(\\mathbf{z} = \\mathbf{X}^\\top \\mathbf{y}\\) : \\(\\hat b_j = \\dfrac{\\mathrm{signe}(z_j)\\max(\\lvert z_j \\rvert - \\lambda\\alpha, 0)}{1 + \\lambda(1 - \\alpha)}\\) : un seuillage doux, puis une division.\n\n**La preuve.**\n\n1. (EN1) Le terme \\(\\tfrac{\\lambda(1 - \\alpha)}{2}\\lVert \\mathbf{b} \\rVert^2\\) est strictement convexe et les deux autres sont convexes : la somme est strictement convexe, donc a au plus un minimiseur ; elle en a un (fonction continue qui tend vers l'infini avec \\(\\lVert \\mathbf{b} \\rVert\\), comme pour le Lasso). Si \\(\\mathbf{x}_1 = \\mathbf{x}_2\\), échanger \\(b_1\\) et \\(b_2\\) dans la solution ne change pas le critère : on obtient un minimiseur, égal à la solution par unicité, donc \\(b_1 = b_2\\).\n2. (EN2) On écrit le critère comme un Lasso sur des données augmentées : avec \\(\\tilde{\\mathbf{X}}\\) formée de \\(\\mathbf{X}\\) au-dessus de \\(\\sqrt{\\lambda(1 - \\alpha)}\\,\\mathbf{I}_p\\) et \\(\\tilde{\\mathbf{y}}\\) formé de \\(\\mathbf{y}\\) suivi de \\(p\\) zéros, \\(\\tfrac12\\lVert \\tilde{\\mathbf{y}} - \\tilde{\\mathbf{X}}\\mathbf{b} \\rVert^2 = \\tfrac12\\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\tfrac{\\lambda(1 - \\alpha)}{2}\\lVert \\mathbf{b} \\rVert^2\\). Les conditions d'optimalité du Lasso (séance de ML 1, partie 5, énoncé 2) s'appliquent avec le seuil \\(\\lambda\\alpha\\) et \\(\\tilde g_j = g_j - \\lambda(1 - \\alpha)\\hat b_j\\), qui vaut \\(g_j\\) quand \\(\\hat b_j = 0\\). Réciproquement, si \\(\\hat b_j \\ne 0\\) : \\(\\lvert g_j \\rvert = \\lambda\\alpha + \\lambda(1 - \\alpha)\\lvert \\hat b_j \\rvert > \\lambda\\alpha\\).\n3. (EN3) Comme dans le cas orthonormal du Lasso (même partie, preuve, étape 6), le critère se découple en \\(\\sum_j \\big[\\tfrac12(z_j - b_j)^2 + \\lambda\\alpha\\lvert b_j \\rvert + \\tfrac{\\lambda(1 - \\alpha)}{2}b_j^2\\big]\\) plus une constante. Pour une coordonnée, les conditions d'optimalité donnent : \\(b_j = 0\\) si \\(\\lvert z_j \\rvert \\le \\lambda\\alpha\\) ; sinon \\(z_j - b_j - \\lambda(1 - \\alpha)b_j = \\lambda\\alpha\\,\\mathrm{signe}(b_j)\\), soit \\(b_j = (z_j - \\lambda\\alpha\\,\\mathrm{signe}(z_j))/(1 + \\lambda(1 - \\alpha))\\).\n\n**Exemple.** \\(\\mathbf{z} = (3{,}0 ; -0{,}5 ; 1{,}2)\\), \\(\\lambda = 1\\), \\(\\alpha = \\tfrac12\\) : seuil \\(0{,}5\\), diviseur \\(1{,}5\\), solution \\((1{,}667 ; 0{,}000 ; 0{,}467)\\). Lasso (\\(\\alpha = 1\\)) : \\((2{,}0 ; 0{,}0 ; 0{,}2)\\). Ridge (\\(\\alpha = 0\\)) : \\((1{,}50 ; -0{,}25 ; 0{,}60)\\), aucun zéro. Le script retrouve ces trois solutions par minimisation numérique.\n\n```python\nfrom sklearn.linear_model import ElasticNet, Lasso, Ridge\n\nrng = np.random.default_rng(9)\nn, p = 60, 300\nX = rng.normal(size=(n, p))\nfacteurs = rng.normal(size=(n, 3))\nfor g in range(3):                                         # trois groupes de 5 variables presque identiques\n    X[:, 5 * g:5 * g + 5] = facteurs[:, [g]] + 0.05 * rng.normal(size=(n, 5))\nX = (X - X.mean(axis=0)) / X.std(axis=0)\ny = X[:, :15].dot(np.r_[np.full(5, 1.0), np.full(5, -1.0), np.full(5, 0.5)]) + rng.normal(size=n)\ny = y - y.mean()\nmodeles = {\"Lasso\": Lasso(alpha=0.3, max_iter=100000), \"Ridge\": Ridge(alpha=10.0), \"Elastic net\": ElasticNet(alpha=0.6, l1_ratio=0.5, max_iter=100000)}\nfor nom, m in modeles.items():\n    c = m.fit(X, y).coef_\n    print(f\"{nom:12s}: {np.sum(c != 0):3d} coefficients non nuls sur {p} ; dans chaque groupe utile : {[int(np.sum(c[5 * g:5 * g + 5] != 0)) for g in range(3)]} ; ailleurs : {int(np.sum(c[15:] != 0))}\")\nx = rng.normal(size=n)\nX2, y2 = np.column_stack([x, x]), 2 * x + 0.1 * rng.normal(size=n)\nprint(\"deux colonnes identiques : Lasso\", Lasso(alpha=0.1, fit_intercept=False).fit(X2, y2).coef_.round(3),\n      \"; Ridge\", Ridge(alpha=1.0, fit_intercept=False).fit(X2, y2).coef_.round(3),\n      \"; elastic net\", ElasticNet(alpha=0.1, l1_ratio=0.5, fit_intercept=False, tol=1e-12, max_iter=100000).fit(X2, y2).coef_.round(3))\nQm, _ = np.linalg.qr(rng.normal(size=(n, 3)))              # trois colonnes orthonormées\nz = np.array([3.0, -0.5, 1.2])\nyo = Qm.dot(z)                                             # alors Qm^T yo = z\nlam, alpha = 1.0, 0.5\nen = ElasticNet(alpha=lam / n, l1_ratio=alpha, fit_intercept=False, tol=1e-12, max_iter=100000).fit(Qm, yo).coef_\nprint(\"colonnes orthonormées : scikit-learn\", en.round(4) + 0.0, \"; seuillage doux puis division\", (np.sign(z) * np.maximum(np.abs(z) - lam * alpha, 0) / (1 + lam * (1 - alpha))).round(4) + 0.0)\n```\n\n```sortie\nLasso       :  12 coefficients non nuls sur 300 ; dans chaque groupe utile : [3, 3, 3] ; ailleurs : 3\nRidge       : 300 coefficients non nuls sur 300 ; dans chaque groupe utile : [5, 5, 5] ; ailleurs : 285\nElastic net :  31 coefficients non nuls sur 300 ; dans chaque groupe utile : [5, 5, 5] ; ailleurs : 16\ndeux colonnes identiques : Lasso [1.942 0.   ] ; Ridge [0.999 0.999] ; elastic net [0.971 0.971]\ncolonnes orthonormées : scikit-learn [1.6667 0.     0.4667] ; seuillage doux puis division [1.6667 0.     0.4667]\n```\n\nLecture : Ridge garde les 300 variables ; le Lasso en garde peu, mais seulement une partie de chaque groupe de variables presque identiques ; l'elastic net garde les groupes entiers, au prix de plus de variables retenues. Sur deux colonnes identiques : le Lasso de scikit-learn charge une seule colonne, Ridge et l'elastic net partagent. La dernière ligne établit la correspondance avec scikit-learn 1.1.1 : `ElasticNet(alpha=a, l1_ratio=u)` correspond à \\(\\lambda = n\\,a\\) et \\(\\alpha = u\\) dans le critère de cette leçon.\n\n**Réponse à la question.** Pour un modèle lisible en grande dimension : une pénalité qui annule des coefficients, donc L1, ou l'elastic net si des variables corrélées doivent être retenues ou écartées ensemble. L2 seule stabilise mais ne sélectionne rien. Conditions à rappeler : les variables sont standardisées et la constante non pénalisée (séance de ML 1) ; \\(\\lambda\\) se choisit par validation ; la sélection suppose que peu de variables comptent vraiment, et l'ensemble retenu peut changer d'un échantillon à l'autre quand les variables sont corrélées.\n\n### 5.6 Remèdes au surapprentissage\n\nLe surapprentissage est une forte variance (partie 3) : erreur d'apprentissage faible, erreur de validation nettement plus élevée. Tout remède réduit la sensibilité du modèle à son échantillon :\n\n- plus de données, ou des données augmentées par des transformations qui ne changent pas l'étiquette (pour des images : retournements, petites translations) ;\n- une régularisation plus forte : pénalité L1 ou L2 (séance de ML 1), dropout et décroissance des poids (séance de ML 4), arbres moins profonds ou feuilles plus grandes (séance de ML 2) ;\n- un modèle plus simple : moins de variables, moins de paramètres ;\n- l'arrêt précoce : on arrête l'entraînement quand l'erreur de validation cesse de baisser (boosting : séance de ML 2, partie 4) ;\n- la moyenne de modèles : bagging, forêt aléatoire (séance de ML 2, parties 2 et 3).\n\nCe qui l'aggrave dans le régime classique : ajouter des couches, des variables ou de la profondeur ; baisser \\(\\lambda\\) ; entraîner plus longtemps sans surveiller la validation. Ce sont les remèdes du **sous**-apprentissage. Et ce qui n'y change rien : la stratification (elle agit sur l'évaluation, partie 2.6), le choix de la métrique.\n\n[[controle:affirmations]]\n\n## Réflexes en 30 secondes\n\n| Indice dans l'énoncé | Premier geste |\n|---|---|\n| forme après une convolution ou un pooling | par axe : \\(\\lfloor (n + 2p - d(k - 1) - 1)/s \\rfloor + 1\\) ; « same » : \\(\\lceil n/s \\rceil\\) ; canaux = nombre de filtres ; pooling : canaux inchangés |\n| nombre de paramètres d'une convolution | \\(f(k^2 c + 1)\\), indépendant de la taille de l'image ; pooling : 0 |\n| concaténer, additionner | concaténer : mêmes dimensions spatiales, canaux additionnés ; additionner : même forme |\n| champ réceptif avec des pas | \\(r_l = r_{l-1} + d_l(k_l - 1)\\,j_{l-1}\\), \\(j_l = j_{l-1}s_l\\) |\n| convolution transposée | \\((n - 1)s - 2p + d(k - 1) + 1\\) |\n| pas par époque | \\(\\lceil n_{\\text{app}}/B \\rceil\\), avec la taille d'**apprentissage** ; mises à jour = époques fois pas |\n| pas d'apprentissage | échelle \\(1/L\\) ; défauts de bibliothèque entre 0,001 et 0,01 ; trop grand : la perte monte |\n| perte et sortie | régression : quadratique, linéaire ; binaire : entropie croisée, sigmoïde ; \\(K\\) classes : entropie croisée, softmax ; multi-étiquette : \\(K\\) sigmoïdes ; segmentation : par pixel |\n| Dice, IoU | \\(\\mathrm{IoU} = \\mathrm{VP}/(\\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN})\\) ; \\(\\mathrm{Dice} = 2\\,\\mathrm{IoU}/(1 + \\mathrm{IoU}) = \\mathrm{F1}\\) |\n| classe rare | stratifier le découpage ; pondérer : cote multipliée par \\(w\\) ; juger par précision, rappel, Dice ; rééquilibrer l'apprentissage seul |\n| cible biais-variance | centre du nuage : biais ; dispersion : variance ; écart apprentissage-validation : variance |\n| retour, valeur | \\(G_t = R_{t+1} + \\gamma G_{t+1}\\) ; \\(v = r + \\gamma \\sum p\\,v\\) ; optimalité : maximum sur les actions |\n| Q-learning | cible \\(r + \\gamma \\max_{a'} Q(s', a')\\), hors politique ; SARSA : action suivie, sur politique |\n| gradient de politique | \\(\\mathbb{E}[(G_t - b)\\,\\nabla \\ln \\pi]\\) ; pas de modèle ; ligne de base : même espérance, moins de variance |\n| exploration | gloutonne : blocage possible ; epsilon constant : regret linéaire ; UCB : \\(\\bar x_i + \\sqrt{2\\ln t/n_i}\\) |\n| « la racine de l'arbre » | meilleure réduction d'impureté en une coupure, une variable à la fois ; pas « la plus importante » |\n| importance d'une variable | impureté : biais, apprentissage ; permutation : corrélations ; coefficient : unité |\n| ACP | orthogonales, non corrélées ; combinaisons de toutes les variables ; dépend de l'échelle ; non supervisée |\n| grande dimension, modèle lisible | L1 ; elastic net si groupes corrélés ; L2 ne sélectionne pas |\n| surapprentissage | régulariser, simplifier, plus de données, arrêt précoce ; jamais plus de complexité |\n\nContrôles de vraisemblance en 5 secondes :\n\n- une taille de sortie est un entier, au plus \\(\\lceil (n + 2p)/s \\rceil\\) ; après concaténation, le nombre de canaux est la somme ;\n- \\(0 \\le \\mathrm{IoU} \\le \\mathrm{Dice} \\le 1\\) ;\n- une valeur d'état est comprise entre \\(-r_{\\max}/(1 - \\gamma)\\) et \\(r_{\\max}/(1 - \\gamma)\\), et \\(v^* \\ge v_\\pi\\) pour toute politique ;\n- une part de variance expliquée est entre 0 et 1, et les parts somment à 1.\n\n## À savoir refaire sans notes\n\n- (C1) par le compte des poses ; le nombre de paramètres (C2) ; l'exemple à deux branches, concaténation puis pooling, et pourquoi « valid » l'empêche.\n- (C4) par récurrence sur un exemple à deux poolings ; la taille (C5) d'une convolution transposée.\n- (E1) par la division euclidienne ; (P1) par Taylor.\n- Le gradient \\(p_j - I_{\\{j = y\\}}\\) du softmax ; le softmax à deux classes égal à une sigmoïde ; le lien entre Dice et IoU.\n- (St1) par les indicatrices et leur covariance ; (W1) par la dérivée.\n- La lecture des quatre cibles et le tableau des remèdes.\n- (Be1) par conditionnement ; la contraction de (Be2) ; l'exemple à deux états résolu à la main.\n- La mise à jour du Q-learning et ce qui la distingue de SARSA.\n- (PG1) par l'astuce du logarithme ; (PG2) par \\(\\nabla \\sum_a \\pi = \\mathbf{0}\\) ; l'exemple à deux actions avec et sans ligne de base.\n- Le blocage de la stratégie gloutonne (X1).\n- Le contre-exemple de l'ou exclusif pour la racine d'un arbre ; (Co1) ; (EN1) et (EN3).\n",
+   "controles": {
+    "forme": {
+     "question": "Une carte de forme \\(60 \\times 60 \\times 8\\) entre dans deux branches. Branche A : convolution \\(5 \\times 5\\), 12 filtres, remplissage 2, pas 2. Branche B : max-pooling \\(2 \\times 2\\) de pas 2, sans remplissage. On concatène les deux sorties selon les canaux. Quelle est la forme du résultat ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "\\(30 \\times 30 \\times 20\\)",
+       "correcte": true,
+       "explication": "Oui : A donne \\(\\lfloor (60 + 4 - 5)/2 \\rfloor + 1 = 30\\) et 12 canaux ; B donne \\(\\lfloor 60/2 \\rfloor = 30\\) et garde ses 8 canaux ; les canaux s'additionnent."
+      },
+      {
+       "id": "b",
+       "texte": "\\(30 \\times 30 \\times 12\\)",
+       "correcte": false,
+       "explication": "Les 8 canaux de la branche B ont été oubliés : le pooling ne supprime pas les canaux, et la concaténation les ajoute aux 12 de la branche A."
+      },
+      {
+       "id": "c",
+       "texte": "\\(28 \\times 28 \\times 20\\)",
+       "correcte": false,
+       "explication": "C'est la taille de A **sans** remplissage, \\(\\lfloor (60 - 5)/2 \\rfloor + 1\\). Avec cette taille, la concaténation avec B, de taille \\(30\\), serait d'ailleurs impossible."
+      },
+      {
+       "id": "d",
+       "texte": "\\(30 \\times 30 \\times 96\\)",
+       "correcte": false,
+       "explication": "Les nombres de canaux ont été multipliés. Concaténer met les canaux bout à bout : \\(12 + 8\\), pas \\(12 \\times 8\\)."
+      }
+     ]
+    },
+    "pas": {
+     "question": "Un jeu de 5000 images est découpé en 80 % d'apprentissage, 10 % de validation et 10 % de test. On entraîne avec des lots de 64 images, en gardant le dernier lot incomplet. Combien d'itérations compte une époque ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "63",
+       "correcte": true,
+       "explication": "Oui : \\(4000 = 62 \\times 64 + 32\\), donc \\(62\\) lots complets et un lot de \\(32\\) images : \\(\\lceil 4000/64 \\rceil\\)."
+      },
+      {
+       "id": "b",
+       "texte": "62",
+       "correcte": false,
+       "explication": "C'est la partie entière : elle écarte le dernier lot de \\(32\\) images, alors que l'énoncé dit qu'on le garde."
+      },
+      {
+       "id": "c",
+       "texte": "79",
+       "correcte": false,
+       "explication": "C'est \\(\\lceil 5000/64 \\rceil\\) : la taille totale a été utilisée, alors que seules les images d'apprentissage servent aux mises à jour."
+      },
+      {
+       "id": "d",
+       "texte": "4000",
+       "correcte": false,
+       "explication": "C'est le nombre d'images d'apprentissage : il y aurait une itération par image seulement avec des lots de taille 1."
+      }
+     ]
+    },
+    "cible": {
+     "question": "Un modèle a une erreur d'apprentissage très faible et une erreur de validation nettement plus élevée, les deux ensembles venant de la même loi. Quelle cible lui correspond, et quel remède ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Impacts dispersés autour du centre ; régulariser davantage ou ajouter des données d'apprentissage.",
+       "correcte": true,
+       "explication": "Oui : le modèle suit le bruit de son échantillon, donc ses prédictions changent beaucoup d'un échantillon à l'autre (forte variance). Régularisation et données supplémentaires resserrent le nuage."
+      },
+      {
+       "id": "b",
+       "texte": "Impacts groupés loin du centre ; rendre le modèle plus complexe.",
+       "correcte": false,
+       "explication": "C'est le fort biais, qui se lit sur deux erreurs élevées et proches : le modèle n'ajusterait même pas ses données d'apprentissage. Ici l'erreur d'apprentissage est très faible."
+      },
+      {
+       "id": "c",
+       "texte": "Impacts dispersés autour du centre ; rendre le modèle plus complexe.",
+       "correcte": false,
+       "explication": "La cible est la bonne, le remède est à l'envers : plus de complexité augmente encore la variance dans le régime classique. C'est le remède du sous-apprentissage."
+      },
+      {
+       "id": "d",
+       "texte": "Impacts groupés au centre ; il n'y a rien à corriger.",
+       "correcte": false,
+       "explication": "Ce serait le cas si l'erreur de validation était proche de l'erreur d'apprentissage et du bruit irréductible. L'écart entre les deux erreurs signale au contraire une forte variance."
+      }
+     ]
+    },
+    "rl": {
+     "question": "Après avoir observé une transition (état \\(s\\), action \\(a\\), récompense \\(r\\), état suivant \\(s'\\)), vers quelle cible le Q-learning déplace-t-il \\(Q(s, a)\\) ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "\\(r + \\gamma \\max_{a'} Q(s', a')\\)",
+       "correcte": true,
+       "explication": "Oui : c'est une estimation à un tirage du membre de droite de l'équation de Bellman d'optimalité. Le maximum ne dépend pas de l'action que l'agent fera en \\(s'\\) : la méthode est hors politique."
+      },
+      {
+       "id": "b",
+       "texte": "\\(r + \\gamma\\,Q(s', a')\\), où \\(a'\\) est l'action que l'agent choisit réellement en \\(s'\\)",
+       "correcte": false,
+       "explication": "C'est la cible de SARSA, méthode sur politique : elle estime la valeur de la politique suivie, exploration comprise, et non la valeur optimale."
+      },
+      {
+       "id": "c",
+       "texte": "Le retour complet \\(G_t\\) observé jusqu'à la fin de l'épisode",
+       "correcte": false,
+       "explication": "C'est une cible de Monte-Carlo, celle qu'utilise REINFORCE. Le Q-learning n'attend pas la fin de l'épisode : il s'appuie sur sa propre estimation en \\(s'\\)."
+      },
+      {
+       "id": "d",
+       "texte": "La récompense \\(r\\) seule",
+       "correcte": false,
+       "explication": "Ce serait le cas \\(\\gamma = 0\\), un agent myope. Pour \\(\\gamma > 0\\), la cible doit contenir la valeur actualisée de l'état suivant."
+      }
+     ]
+    },
+    "affirmations": {
+     "question": "Laquelle de ces affirmations est vraie sans condition supplémentaire ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Les directions principales d'une ACP sont deux à deux orthogonales.",
+       "correcte": true,
+       "explication": "Oui : ce sont des vecteurs propres orthonormés d'une matrice symétrique (théorème spectral), que les données soient standardisées ou non."
+      },
+      {
+       "id": "b",
+       "texte": "La première composante principale explique toujours plus de la moitié de la variance totale.",
+       "correcte": false,
+       "explication": "Un contre-exemple suffit : pour des variables non corrélées de même variance, toutes les valeurs propres sont égales et la part de la première est un sur le nombre de variables."
+      },
+      {
+       "id": "c",
+       "texte": "La variable testée à la racine d'un arbre de décision est toujours celle dont l'importance par permutation est la plus grande.",
+       "correcte": false,
+       "explication": "La racine maximise la réduction d'impureté d'une seule coupure, une variable à la fois. Dans l'exemple de l'ou exclusif, elle teste la variable la moins utile au sens de la permutation."
+      },
+      {
+       "id": "d",
+       "texte": "Parmi des variables presque identiques, le Lasso retient toujours tout le groupe.",
+       "correcte": false,
+       "explication": "C'est le comportement de l'elastic net. Le Lasso n'en garde qu'une partie, et son choix peut changer d'un échantillon à l'autre ; avec des colonnes identiques, sa solution n'est même pas unique."
+      }
+     ]
+    }
+   },
+   "cellules_initiales": [
+    "import numpy as np\nnp.set_printoptions(precision=4, suppress=True)\n\n# Essaie ici les formules de la leçon, en les modifiant.\ndef taille(n, k, p=0, s=1, d=1):\n    return (n + 2 * p - d * (k - 1) - 1) // s + 1\n\nfor k, p, s in [(3, 0, 1), (3, 1, 1), (5, 2, 2), (2, 0, 2)]:\n    print(k, p, s, taille(96, k, p, s))"
+   ],
+   "verif": {
+    "script": "verif/seance_ml_5.py"
+   }
+  },
+  {
+   "id": "ML5-01",
+   "section": "mla",
+   "theme": "Réseau convolutif : forme après deux branches, concaténation et pooling",
+   "difficulte": 2,
+   "temps_cible_s": 90,
+   "enonce": "Une image de forme \\(128 \\times 128 \\times 3\\) (hauteur, largeur, canaux) entre dans deux branches, qui lisent toutes deux l'image :\n\n- branche A : convolution \\(5 \\times 5\\) à 12 filtres, pas 2, remplissage de 2 zéros de chaque côté ;\n- branche B : max-pooling \\(3 \\times 3\\) de pas 2 avec un remplissage de 1 de chaque côté, suivi d'une convolution \\(1 \\times 1\\) à 20 filtres, de pas 1, sans remplissage.\n\nLes deux sorties sont concaténées selon l'axe des canaux, puis on applique un max-pooling \\(2 \\times 2\\) de pas 2 sans remplissage.\n\nQuelle est la forme du tenseur final ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(32 \\times 32 \\times 32\\)",
+     "correcte": true,
+     "explication": "Oui : chaque branche sort en \\(64 \\times 64\\), avec 12 et 20 canaux ; la concaténation additionne les canaux, et le dernier pooling divise la taille spatiale par 2 sans toucher aux canaux."
+    },
+    {
+     "id": "b",
+     "texte": "\\(64 \\times 64 \\times 32\\)",
+     "correcte": false,
+     "explication": "C'est la forme après la concaténation : le dernier max-pooling \\(2 \\times 2\\) de pas 2 a été oublié. Il ramène la taille spatiale à \\(\\lfloor 64/2 \\rfloor\\)."
+    },
+    {
+     "id": "c",
+     "texte": "\\(32 \\times 32 \\times 240\\)",
+     "correcte": false,
+     "explication": "Les nombres de canaux ont été multipliés (\\(12 \\times 20\\)). Concaténer met les canaux bout à bout : \\(12 + 20\\)."
+    },
+    {
+     "id": "d",
+     "texte": "\\(32 \\times 32 \\times 35\\)",
+     "correcte": false,
+     "explication": "Les 3 canaux de l'image ont été ajoutés aux 12 et aux 20. Or la sortie d'une convolution a autant de canaux que de filtres, quels que soient les canaux d'entrée, et l'image elle-même n'est pas concaténée."
+    }
+   ],
+   "solution": "Réponse : \\(32 \\times 32 \\times 32\\).\n\nFormule par axe (leçon, partie 1.1, C1) : \\(\\lfloor (n + 2p - k)/s \\rfloor + 1\\) pour une taille \\(n\\), un noyau \\(k\\), un remplissage \\(p\\), un pas \\(s\\) (dilatation 1).\n\nÉtape 1, branche A : \\(\\lfloor (128 + 4 - 5)/2 \\rfloor + 1 = 63 + 1 = 64\\) ; 12 filtres, donc \\(64 \\times 64 \\times 12\\).\n\nÉtape 2, branche B : pooling \\(\\lfloor (128 + 2 - 3)/2 \\rfloor + 1 = 64\\), canaux inchangés (3) ; la convolution \\(1 \\times 1\\) garde la taille et sort 20 canaux : \\(64 \\times 64 \\times 20\\).\n\nÉtape 3 : mêmes dimensions spatiales, la concaténation est possible : \\(64 \\times 64 \\times 32\\) (C3).\n\nÉtape 4 : max-pooling \\(2 \\times 2\\) de pas 2 : \\(\\lfloor 64/2 \\rfloor = 32\\), canaux inchangés.\n\nLe script refait l'enchaînement par une vraie convolution numpy sur une image huit fois plus petite.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\(32 \\times 32 \\times 32\\)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q01_brancheA",
+     "Q01_brancheB",
+     "Q01_canaux",
+     "Q01_d_entree",
+     "Q01_d_produit",
+     "Q01_sortie"
+    ]
+   }
+  },
+  {
+   "id": "ML5-02",
+   "section": "mla",
+   "theme": "Réseau convolutif : quand peut-on concaténer ou additionner",
+   "difficulte": 4,
+   "temps_cible_s": 120,
+   "correctes": [
+    "a",
+    "c"
+   ],
+   "enonce": "Une carte d'activations de forme \\(64 \\times 64 \\times 16\\) (hauteur, largeur, canaux) entre dans plusieurs couches, chacune lisant directement cette carte. Toutes les convolutions ont une dilatation de 1 ; « remplissage \\(p\\) » signifie \\(p\\) zéros ajoutés de chaque côté. Aucun rognage ni complément n'est appliqué aux sorties.\n\nLesquelles de ces affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Les sorties d'une convolution \\(3 \\times 3\\) à 32 filtres (pas 1, remplissage 1) et d'une convolution \\(5 \\times 5\\) à 8 filtres (pas 1, remplissage 2) peuvent être concaténées selon les canaux, et le résultat a la forme \\(64 \\times 64 \\times 40\\).",
+     "correcte": true,
+     "explication": "Vrai : \\(64 + 2 - 3 + 1 = 64\\) et \\(64 + 4 - 5 + 1 = 64\\), mêmes dimensions spatiales ; les canaux s'additionnent, \\(32 + 8\\)."
+    },
+    {
+     "id": "b",
+     "texte": "Les deux sorties de l'affirmation précédente peuvent aussi être additionnées terme à terme, comme dans une connexion résiduelle.",
+     "correcte": false,
+     "explication": "Faux : l'addition terme à terme exige la même forme, canaux compris ; ici 32 canaux d'un côté et 8 de l'autre. C'est la différence entre concaténer et additionner."
+    },
+    {
+     "id": "c",
+     "texte": "Les sorties d'une convolution \\(3 \\times 3\\) à 32 filtres (pas 2, remplissage 1) et d'un max-pooling \\(2 \\times 2\\) de pas 2 sans remplissage peuvent être concaténées selon les canaux, et le résultat a la forme \\(32 \\times 32 \\times 48\\).",
+     "correcte": true,
+     "explication": "Vrai : \\(\\lfloor (64 + 2 - 3)/2 \\rfloor + 1 = 32\\) pour la convolution, \\(\\lfloor 64/2 \\rfloor = 32\\) pour le pooling, qui garde ses 16 canaux : \\(32 + 16\\) canaux."
+    },
+    {
+     "id": "d",
+     "texte": "Les sorties d'une convolution \\(3 \\times 3\\) à 16 filtres et d'une convolution \\(5 \\times 5\\) à 16 filtres, toutes deux de pas 1 et sans remplissage, peuvent être concaténées selon les canaux, puisqu'elles ont le même nombre de filtres.",
+     "correcte": false,
+     "explication": "Faux : sans remplissage, les tailles spatiales valent \\(62\\) et \\(60\\). La concaténation selon les canaux demande les mêmes dimensions spatiales ; le nombre de filtres, lui, est libre."
+    }
+   ],
+   "solution": "Réponse : les affirmations sur les convolutions remplies \\(3 \\times 3\\) et \\(5 \\times 5\\) (forme \\(64 \\times 64 \\times 40\\)) et sur la convolution de pas 2 avec le max-pooling (forme \\(32 \\times 32 \\times 48\\)) sont justes ; les deux autres sont fausses.\n\nRègle (leçon, partie 1.3, C3) : concaténer selon les canaux exige les mêmes dimensions spatiales, et les canaux s'additionnent ; additionner exige la même forme complète.\n\nÉtape 1 : tailles par (C1). Remplissage 1 et noyau 3, pas 1 : \\(64\\). Remplissage 2 et noyau 5, pas 1 : \\(64\\). Noyau 3, pas 2, remplissage 1 : \\(32\\). Pooling 2 de pas 2 : \\(32\\). Sans remplissage, noyaux 3 et 5 : \\(62\\) et \\(60\\).\n\nÉtape 2 : les deux premières paires ont des dimensions spatiales égales, donc se concatènent ; la dernière non.\n\nÉtape 3 : l'addition des sorties à 32 et 8 canaux est impossible, puisque \\(32 \\ne 8\\).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Les sorties d'une convolution \\(3 \\times 3\\) à 32 filtres (pas 1, remplissage 1) et d'une convolution \\(5 \\times 5\\) à 8 filtres (pas 1, remplissage 2) peuvent être concaténées selon les canaux, et le résultat a la forme \\(64 \\times 64 \\times 40\\). ; Les sorties d'une convolution \\(3 \\times 3\\) à 32 filtres (pas 2, remplissage 1) et d'un max-pooling \\(2 \\times 2\\) de pas 2 sans remplissage peuvent être concaténées selon les canaux, et le résultat a la forme \\(32 \\times 32 \\times 48\\).",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q02_a1",
+     "Q02_a2",
+     "Q02_a_canaux",
+     "Q02_c1",
+     "Q02_c2",
+     "Q02_c_canaux",
+     "Q02_d1",
+     "Q02_d2"
+    ]
+   }
+  },
+  {
+   "id": "ML5-03",
+   "section": "mlf",
+   "theme": "Entraînement : époques, lots et nombre de mises à jour",
+   "difficulte": 2,
+   "temps_cible_s": 75,
+   "enonce": "Un jeu de 2400 paires (image, masque) est découpé au hasard en 75 % pour l'apprentissage, 15 % pour la validation et 10 % pour le test. On entraîne pendant 25 époques avec des lots de 48 paires ; à chaque époque, toutes les paires d'apprentissage sont utilisées une fois, et le dernier lot, s'il est incomplet, est conservé.\n\nCombien de mises à jour des poids (itérations) l'entraînement compte-t-il au total ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "950",
+     "correcte": true,
+     "explication": "Oui : \\(1800\\) paires d'apprentissage, \\(\\lceil 1800/48 \\rceil = 38\\) itérations par époque (\\(37\\) lots complets et un lot de \\(24\\)), fois 25 époques."
+    },
+    {
+     "id": "b",
+     "texte": "925",
+     "correcte": false,
+     "explication": "C'est \\(25 \\times \\lfloor 1800/48 \\rfloor\\) : le dernier lot, incomplet, a été écarté, alors que l'énoncé dit qu'il est conservé."
+    },
+    {
+     "id": "c",
+     "texte": "1250",
+     "correcte": false,
+     "explication": "C'est \\(25 \\times 2400/48\\) : la taille totale du jeu a été utilisée. Seules les paires d'apprentissage servent aux mises à jour ; la validation et le test ne modifient pas les poids."
+    },
+    {
+     "id": "d",
+     "texte": "38",
+     "correcte": false,
+     "explication": "C'est le nombre d'itérations d'**une** époque. La question porte sur les 25 époques."
+    }
+   ],
+   "solution": "Réponse : \\(950\\) mises à jour.\n\nÉtape 1 : tailles des ensembles : \\(1800\\) paires d'apprentissage, \\(360\\) de validation, \\(240\\) de test (leur somme vaut bien 2400).\n\nÉtape 2 : itérations par époque (leçon, partie 2.2, E1) : \\(1800 = 37 \\times 48 + 24\\), donc \\(37\\) lots complets et un lot incomplet : \\(\\lceil 1800/48 \\rceil = 38\\).\n\nÉtape 3 : \\(25 \\times 38 = 950\\).",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "950",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q03_app",
+     "Q03_d_epoque",
+     "Q03_d_plancher",
+     "Q03_d_total",
+     "Q03_exact",
+     "Q03_pas",
+     "Q03_quotient",
+     "Q03_reste",
+     "Q03_test",
+     "Q03_val"
+    ]
+   }
+  },
+  {
+   "id": "ML5-04",
+   "section": "mla",
+   "theme": "Segmentation à deux classes : sortie, perte et métrique",
+   "difficulte": 3,
+   "temps_cible_s": 100,
+   "correctes": [
+    "a",
+    "b",
+    "d"
+   ],
+   "enonce": "On entraîne un réseau de segmentation à deux classes (objet, fond) sur des paires (image, masque). Dans les masques, 4 % des pixels sont de la classe « objet ». L'**exactitude par pixel** est la proportion de pixels bien classés. Le **coefficient de Dice** de la classe « objet » est le double du nombre de pixels « objet » à la fois dans la prédiction et dans le vrai masque, divisé par la somme des nombres de pixels « objet » de la prédiction et du vrai masque.\n\nLesquelles de ces affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Une carte de sortie à un canal suivie d'une sigmoïde, entraînée avec l'entropie croisée binaire moyennée sur les pixels, est un choix cohérent.",
+     "correcte": true,
+     "explication": "Vrai : chaque pixel est une classification binaire, modélisée par une loi de Bernoulli de paramètre \\(\\mathrm{sig}(z)\\), dont l'opposé de la log-vraisemblance est l'entropie croisée binaire."
+    },
+    {
+     "id": "b",
+     "texte": "Une carte de sortie à deux canaux suivie d'un softmax, entraînée avec l'entropie croisée catégorielle par pixel, décrit la même famille de modèles que le choix précédent.",
+     "correcte": true,
+     "explication": "Vrai : avec deux logits \\(z_0\\) et \\(z_1\\), le softmax donne \\(\\mathrm{sig}(z_1 - z_0)\\) pour la classe 1 ; les deux écritures donnent les mêmes probabilités et la même perte."
+    },
+    {
+     "id": "c",
+     "texte": "Un modèle dont l'exactitude par pixel atteint \\(0{,}96\\) segmente nécessairement bien l'objet.",
+     "correcte": false,
+     "explication": "Faux : le masque « tout en fond » classe bien les 96 % de pixels de fond et obtient exactement cette exactitude, avec un rappel et un Dice nuls sur l'objet."
+    },
+    {
+     "id": "d",
+     "texte": "Le coefficient de Dice de la classe « objet » ne dépend pas du nombre de pixels de fond correctement classés.",
+     "correcte": true,
+     "explication": "Vrai : il vaut \\(2\\,\\mathrm{VP}/(2\\,\\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN})\\) ; les vrais négatifs, c'est-à-dire les pixels de fond bien classés, n'y figurent pas. C'est ce qui le rend utile quand l'objet est rare."
+    }
+   ],
+   "solution": "Réponse : trois affirmations sont justes : les deux sur la sortie et la perte (un canal avec sigmoïde et entropie croisée binaire ; deux canaux avec softmax et entropie croisée catégorielle, équivalents) et celle sur le coefficient de Dice, qui ignore les pixels de fond bien classés. Celle sur l'exactitude par pixel est fausse.\n\nÉtape 1 : la segmentation est une classification par pixel ; la perte est l'opposé de la log-vraisemblance du modèle de sortie (leçon, partie 2.4, V1).\n\nÉtape 2 : le softmax à deux classes vaut \\(e^{z_1}/(e^{z_0} + e^{z_1}) = \\mathrm{sig}(z_1 - z_0)\\) (V3) : même famille de modèles.\n\nÉtape 3 : un masque entièrement « fond » a une exactitude de \\(1 - 0{,}04 = 0{,}96\\) : l'exactitude par pixel ne suffit pas quand l'objet est rare.\n\nÉtape 4 : avec VP, FP et FN les nombres de vrais positifs, faux positifs et faux négatifs de la classe « objet », le Dice vaut \\(2\\,\\mathrm{VP}/(2\\,\\mathrm{VP} + \\mathrm{FP} + \\mathrm{FN})\\) : les vrais négatifs n'y entrent pas (partie 2.5).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Une carte de sortie à un canal suivie d'une sigmoïde, entraînée avec l'entropie croisée binaire moyennée sur les pixels, est un choix cohérent. ; Une carte de sortie à deux canaux suivie d'un softmax, entraînée avec l'entropie croisée catégorielle par pixel, décrit la même famille de modèles que le choix précédent. ; Le coefficient de Dice de la classe « objet » ne dépend pas du nombre de pixels de fond correctement classés.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q04_fond"
+    ]
+   }
+  },
+  {
+   "id": "ML5-05",
+   "section": "mla",
+   "theme": "Segmentation : coefficient de Dice et IoU",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "enonce": "Sur une image, un modèle de segmentation prédit « objet » pour 50 pixels. Le vrai masque contient 70 pixels « objet », et 40 pixels sont « objet » à la fois dans la prédiction et dans le vrai masque.\n\nQue valent le coefficient de Dice et l'IoU (intersection sur union) de cette prédiction ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Dice \\(= \\tfrac{2}{3}\\) et IoU \\(= \\tfrac{1}{2}\\)",
+     "correcte": true,
+     "explication": "Oui : Dice \\(= 2 \\times 40/(50 + 70)\\) et IoU \\(= 40/(50 + 70 - 40)\\) ; on retrouve Dice \\(= 2\\,\\mathrm{IoU}/(1 + \\mathrm{IoU})\\)."
+    },
+    {
+     "id": "b",
+     "texte": "Dice \\(= \\tfrac{1}{2}\\) et IoU \\(= \\tfrac{2}{3}\\)",
+     "correcte": false,
+     "explication": "Les deux mesures ont été échangées. Un contrôle rapide : le Dice est toujours supérieur ou égal à l'IoU, avec égalité seulement en 0 et en 1."
+    },
+    {
+     "id": "c",
+     "texte": "Dice \\(= \\tfrac{1}{3}\\) et IoU \\(= \\tfrac{1}{2}\\)",
+     "correcte": false,
+     "explication": "Le facteur 2 du Dice a été oublié : \\(40/(50 + 70)\\). Sans lui, une prédiction parfaite aurait un Dice de \\(\\tfrac12\\) au lieu de 1."
+    },
+    {
+     "id": "d",
+     "texte": "Dice \\(= \\tfrac{2}{3}\\) et IoU \\(= \\tfrac{1}{3}\\)",
+     "correcte": false,
+     "explication": "L'union a été prise égale à \\(50 + 70\\), ce qui compte deux fois les 40 pixels communs. L'union contient \\(50 + 70 - 40 = 80\\) pixels."
+    }
+   ],
+   "solution": "Réponse : Dice \\(= \\tfrac{2}{3}\\) et IoU \\(= \\tfrac{1}{2}\\).\n\nNotations : \\(A\\) est l'ensemble des pixels prédits « objet », \\(B_0\\) celui des pixels réellement « objet », \\(\\lvert \\cdot \\rvert\\) le nombre de pixels.\n\nÉtape 1 : \\(\\lvert A \\cup B_0 \\rvert = \\lvert A \\rvert + \\lvert B_0 \\rvert - \\lvert A \\cap B_0 \\rvert = 50 + 70 - 40 = 80\\), donc IoU \\(= 40/80 = \\tfrac{1}{2}\\).\n\nÉtape 2 : Dice \\(= 2\\,\\lvert A \\cap B_0 \\rvert/(\\lvert A \\rvert + \\lvert B_0 \\rvert) = 80/120 = \\tfrac{2}{3}\\).\n\nContrôle (leçon, partie 2.5, S1) : \\(2\\,\\mathrm{IoU}/(1 + \\mathrm{IoU}) = 1/1{,}5 = \\tfrac{2}{3}\\). Le Dice est aussi le score F1 de la classe « objet » : précision \\(\\tfrac{4}{5}\\), rappel \\(\\tfrac{4}{7}\\).",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "Dice \\(= \\tfrac{2}{3}\\) et IoU \\(= \\tfrac{1}{2}\\)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q05_d_sans2_den",
+     "Q05_d_sans2_num",
+     "Q05_d_union_den",
+     "Q05_d_union_num",
+     "Q05_dice_den",
+     "Q05_dice_num",
+     "Q05_iou_den",
+     "Q05_iou_num",
+     "Q05_precision_den",
+     "Q05_precision_num",
+     "Q05_rappel_den",
+     "Q05_rappel_num",
+     "Q05_union"
+    ]
+   }
+  },
+  {
+   "id": "ML5-06",
+   "section": "mlf",
+   "theme": "Classes déséquilibrées : stratification, pondération, fuite",
+   "difficulte": 4,
+   "temps_cible_s": 150,
+   "correctes": [
+    "a",
+    "c"
+   ],
+   "enonce": "Un jeu de 500 observations indépendantes contient 20 positifs et 480 négatifs. On l'évalue par validation croisée à 5 plis de 100 observations.\n\nLesquelles de ces affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Si les plis sont formés au hasard sans stratification, le nombre de positifs d'un pli donné est aléatoire, de moyenne \\(4\\) et d'écart-type environ \\(1{,}75\\) ; avec des plis stratifiés, il vaut exactement \\(4\\).",
+     "correcte": true,
+     "explication": "Vrai : tirage sans remise de 100 observations parmi 500 dont 20 positives, de variance \\(100 \\times 0{,}04 \\times 0{,}96 \\times \\tfrac{400}{499} \\approx 3{,}078\\) ; la stratification tire séparément 4 positifs parmi les 20."
+    },
+    {
+     "id": "b",
+     "texte": "La stratification réduit le biais du modèle ajusté : c'est une forme de régularisation.",
+     "correcte": false,
+     "explication": "Faux : la stratification fixe la composition des plis. Elle stabilise l'évaluation (variance de la métrique d'un découpage à l'autre) et ne change ni la famille de modèles ni sa pénalité."
+    },
+    {
+     "id": "c",
+     "texte": "Si l'on multiplie par 3 le poids des positifs dans l'entropie croisée, la prévision qui minimise la perte espérée en un point où la probabilité vraie d'être positif vaut \\(\\tfrac14\\) est \\(\\tfrac{1}{2}\\), et non \\(\\tfrac14\\).",
+     "correcte": true,
+     "explication": "Vrai : le minimiseur est \\(wq/(wq + 1 - q) = 0{,}75/(0{,}75 + 0{,}75)\\) ; la cote est multipliée par le poids, donc les probabilités prédites ne sont plus calibrées."
+    },
+    {
+     "id": "d",
+     "texte": "Pour que les plis de validation soient équilibrés, il faut dupliquer les positifs dans tout le jeu avant de former les plis.",
+     "correcte": false,
+     "explication": "Faux : des copies d'une même observation se retrouvent alors dans l'apprentissage et dans la validation d'un même tour (fuite), et la validation ne mesure plus la performance à la vraie proportion de positifs."
+    }
+   ],
+   "solution": "Réponse : les affirmations sur le nombre de positifs par pli (moyenne \\(4\\), écart-type \\(1{,}75\\) sans stratification, exactement \\(4\\) avec) et sur l'effet de la pondération (prévision \\(\\tfrac{1}{2}\\)) sont justes ; les deux autres sont fausses.\n\nÉtape 1 (leçon, partie 2.6, St1) : le nombre \\(X\\) de positifs d'un pli de \\(n = 100\\) tiré sans remise dans \\(N = 500\\) observations de proportion \\(q = 0{,}04\\) vérifie \\(\\mathbb{E}[X] = nq = 4\\) et \\(\\mathrm{Var}(X) = nq(1 - q)\\tfrac{N - n}{N - 1} = 3{,}078\\), d'écart-type \\(1{,}75\\). La probabilité d'un pli à 1 positif ou moins vaut \\(0{,}065\\) (calcul exact ; simulation 0,065, erreur standard 0,000).\n\nÉtape 2 : la stratification agit sur la variance de l'évaluation, pas sur le modèle.\n\nÉtape 3 (W1) : \\(h(r) = -3q \\ln r - (1 - q)\\ln(1 - r)\\) est minimale en \\(r^* = 3q/(3q + 1 - q)\\) ; pour \\(q = \\tfrac14\\), \\(r^* = \\tfrac{1}{2}\\).\n\nÉtape 4 : tout rééquilibrage se fait sur l'apprentissage de chaque tour, après le découpage.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Si les plis sont formés au hasard sans stratification, le nombre de positifs d'un pli donné est aléatoire, de moyenne \\(4\\) et d'écart-type environ \\(1{,}75\\) ; avec des plis stratifiés, il vaut exactement \\(4\\). ; Si l'on multiplie par 3 le poids des positifs dans l'entropie croisée, la prévision qui minimise la perte espérée en un point où la probabilité vraie d'être positif vaut \\(\\tfrac14\\) est \\(\\tfrac{1}{2}\\), et non \\(\\tfrac14\\).",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q06_cote_den",
+     "Q06_cote_num",
+     "Q06_moy",
+     "Q06_p1",
+     "Q06_p1_mc",
+     "Q06_p1_se",
+     "Q06_sd",
+     "Q06_var"
+    ]
+   }
+  },
+  {
+   "id": "ML5-07",
+   "section": "mlf",
+   "theme": "Biais et variance : lecture d'une cible et remèdes",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "conceptuelle": true,
+   "correctes": [
+    "a",
+    "b"
+   ],
+   "enonce": "Sur une cible de tir, le centre représente la vraie valeur à prédire en un point fixé, et chaque impact la prédiction, en ce point, d'un modèle entraîné sur un jeu d'apprentissage différent, tous les jeux étant tirés de la même loi et de même taille.\n\nLesquelles de ces affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Des impacts groupés mais loin du centre correspondent à un fort biais et à une faible variance ; ajouter des données d'apprentissage de la même loi resserre encore le groupe sans le ramener au centre.",
+     "correcte": true,
+     "explication": "Vrai : le biais est l'écart entre le centre du nuage et le centre de la cible, la variance la dispersion du nuage ; plus de données réduit la dispersion, pas l'écart dû à un modèle trop rigide."
+    },
+    {
+     "id": "b",
+     "texte": "Des impacts dispersés dont le centre de gravité est le centre de la cible correspondent à un faible biais et à une forte variance ; une régularisation plus forte réduit la dispersion, au prix d'un biais qui peut augmenter.",
+     "correcte": true,
+     "explication": "Vrai : c'est l'arbitrage démontré pour Ridge, dont chaque variance décroît et chaque biais croît en valeur absolue quand la pénalité augmente."
+    },
+    {
+     "id": "c",
+     "texte": "Une forte variance se reconnaît à une erreur d'apprentissage et une erreur de validation toutes deux élevées et proches l'une de l'autre.",
+     "correcte": false,
+     "explication": "Faux : deux erreurs élevées et proches signalent un fort biais (le modèle n'ajuste même pas ses données). Une forte variance donne une erreur d'apprentissage faible et une erreur de validation nettement plus élevée."
+    },
+    {
+     "id": "d",
+     "texte": "Augmenter la complexité du modèle est un remède à une forte variance.",
+     "correcte": false,
+     "explication": "Faux : dans le régime classique, plus de complexité réduit le biais et augmente la variance. C'est le remède du sous-apprentissage ; contre la variance, on régularise, on simplifie ou on ajoute des données."
+    }
+   ],
+   "solution": "Réponse : les deux affirmations qui décrivent les cibles (impacts groupés loin du centre : fort biais, faible variance ; impacts dispersés autour du centre : faible biais, forte variance) avec leur remède sont justes ; les deux autres sont fausses.\n\nÉtape 1 : biais \\(= \\mathbb{E}[\\hat Y_0] - m_0\\), écart entre le centre du nuage et le centre de la cible ; variance \\(= \\mathrm{Var}(\\hat Y_0)\\), dispersion du nuage (leçon, partie 3.1).\n\nÉtape 2 : plus de données réduit la variance et laisse le biais ; plus de régularisation réduit la variance et augmente le biais ; plus de complexité fait l'inverse (partie 3.2, tableau des remèdes et expérience des polynômes).\n\nÉtape 3 : la lecture des deux erreurs : élevées et proches pour le biais, écart entre apprentissage et validation pour la variance.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Des impacts groupés mais loin du centre correspondent à un fort biais et à une faible variance ; ajouter des données d'apprentissage de la même loi resserre encore le groupe sans le ramener au centre. ; Des impacts dispersés dont le centre de gravité est le centre de la cible correspondent à un faible biais et à une forte variance ; une régularisation plus forte réduit la dispersion, au prix d'un biais qui peut augmenter.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": []
+   }
+  },
+  {
+   "id": "ML5-08",
+   "section": "mla",
+   "theme": "Apprentissage par renforcement : équation de Bellman d'optimalité",
+   "difficulte": 4,
+   "temps_cible_s": 150,
+   "enonce": "Un processus de décision markovien a deux états, 1 et 2, et un facteur d'actualisation \\(\\gamma = 0{,}8\\). Le retour est la somme des récompenses futures, la récompense reçue \\(i\\) pas après la première étant multipliée par \\(\\gamma^i\\).\n\n- Dans l'état 1, deux actions : « garder » rapporte 2 et laisse dans l'état 1 ; « changer » rapporte 0 et mène dans l'état 2.\n- Dans l'état 2, une seule action : elle rapporte 4, puis l'état suivant est 1 avec probabilité \\(\\tfrac12\\) et 2 avec probabilité \\(\\tfrac12\\).\n\nQuelle est la valeur optimale de l'état 1, c'est-à-dire le plus grand retour espéré que l'on puisse obtenir en partant de l'état 1 ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(\\tfrac{80}{7} \\approx 11{,}43\\)",
+     "correcte": true,
+     "explication": "Oui : avec « changer », \\(v(1) = 0{,}8\\,v(2)\\) et \\(v(2) = 4 + 0{,}4\\,v(1) + 0{,}4\\,v(2)\\), d'où \\(v(1) = \\tfrac{80}{7}\\), ce qui dépasse la valeur de « garder »."
+    },
+    {
+     "id": "b",
+     "texte": "\\(10\\)",
+     "correcte": false,
+     "explication": "C'est \\(2/(1 - 0{,}8)\\), la valeur de la politique qui garde toujours. Elle prend la meilleure récompense immédiate, mais l'état 2 rapporte 4 par pas : accepter une récompense nulle pour y aller vaut plus."
+    },
+    {
+     "id": "c",
+     "texte": "\\(\\tfrac{100}{7} \\approx 14{,}29\\)",
+     "correcte": false,
+     "explication": "C'est la valeur optimale de l'état **2**. Celle de l'état 1 s'en déduit par \\(v(1) = 0 + 0{,}8\\,v(2)\\) : il faut un pas, à récompense nulle, pour y arriver."
+    },
+    {
+     "id": "d",
+     "texte": "\\(\\tfrac{78}{7} \\approx 11{,}14\\)",
+     "correcte": false,
+     "explication": "C'est \\(2 + 0{,}8 \\times \\tfrac{80}{7}\\) : la valeur de « garder » une fois puis d'agir au mieux. La valeur optimale est le **maximum** sur les actions, atteint par « changer »."
+    }
+   ],
+   "solution": "Réponse : \\(\\tfrac{80}{7} \\approx 11{,}43\\), obtenue en choisissant « changer » dans l'état 1.\n\nÉtape 1 : état 2 (une seule action), équation de Bellman : \\(v(2) = 4 + 0{,}8\\,\\big(\\tfrac12 v(1) + \\tfrac12 v(2)\\big)\\), soit \\(0{,}6\\,v(2) = 4 + 0{,}4\\,v(1)\\).\n\nÉtape 2 : on essaie « changer » en 1 : \\(v(1) = 0 + 0{,}8\\,v(2)\\). En reportant : \\(0{,}6\\,v(2) = 4 + 0{,}32\\,v(2)\\), donc \\(v(2) = 4/0{,}28 = \\tfrac{100}{7}\\) et \\(v(1) = \\tfrac{80}{7}\\).\n\nÉtape 3 : on vérifie l'équation d'optimalité en 1 (leçon, partie 4.2, Be2) : « garder » vaudrait \\(2 + 0{,}8 \\times \\tfrac{80}{7} = \\tfrac{78}{7} < \\tfrac{80}{7}\\). Le maximum est bien atteint par « changer » : ces valeurs sont le point fixe, donc les valeurs optimales.\n\nÀ comparer : garder toujours donne \\(2/(1 - 0{,}8) = 10\\). Le script résout les deux politiques en fractions, retrouve la valeur par itération sur la valeur et par simulation (11,437, erreur standard 0,007).",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\(\\tfrac{80}{7} \\approx 11{,}43\\)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q08_d_garder_toujours",
+     "Q08_d_q_garder",
+     "Q08_d_q_garder_den",
+     "Q08_d_q_garder_num",
+     "Q08_exact",
+     "Q08_exact_den",
+     "Q08_exact_mc",
+     "Q08_exact_num",
+     "Q08_exact_se",
+     "Q08_v2",
+     "Q08_v2_den",
+     "Q08_v2_num"
+    ]
+   }
+  },
+  {
+   "id": "ML5-09",
+   "section": "mla",
+   "theme": "Apprentissage par renforcement : Q-learning, gradient de politique, exploration",
+   "difficulte": 3,
+   "temps_cible_s": 100,
+   "conceptuelle": true,
+   "correctes": [
+    "a",
+    "b",
+    "c"
+   ],
+   "enonce": "On considère un agent qui apprend par renforcement dans un processus de décision markovien à états et actions en nombre fini, dont il ne connaît ni les probabilités de transition ni la fonction de récompense.\n\nLesquelles de ces affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Le Q-learning est une méthode hors politique : sa cible utilise le maximum des valeurs estimées dans l'état suivant, quelle que soit l'action que l'agent y choisira réellement.",
+     "correcte": true,
+     "explication": "Vrai : la cible est la récompense plus la valeur actualisée de la meilleure action estimée dans l'état suivant ; l'agent peut explorer autrement tout en apprenant les valeurs optimales. SARSA, qui utilise l'action réellement choisie, est sur politique."
+    },
+    {
+     "id": "b",
+     "texte": "Une méthode de gradient de politique peut estimer le gradient du retour espéré sans connaître les probabilités de transition : seul le logarithme de la politique est dérivé par rapport aux paramètres.",
+     "correcte": true,
+     "explication": "Vrai : le logarithme de la probabilité d'une trajectoire est une somme, et seuls les termes de la politique dépendent des paramètres ; les transitions disparaissent du gradient, qui s'estime sur des trajectoires jouées."
+    },
+    {
+     "id": "c",
+     "texte": "Dans REINFORCE, retrancher du retour une ligne de base qui ne dépend que de l'état ne change pas l'espérance du gradient estimé, et peut réduire sa variance.",
+     "correcte": true,
+     "explication": "Vrai : l'espérance du gradient du logarithme de la politique, sachant l'état, est nulle (les probabilités des actions somment à un), donc le terme retranché est d'espérance nulle."
+    },
+    {
+     "id": "d",
+     "texte": "Un agent qui choisit toujours l'action de meilleure valeur estimée, sans jamais explorer, finit nécessairement par identifier la meilleure action, puisque ses estimations s'améliorent à chaque essai.",
+     "correcte": false,
+     "explication": "Faux : seule l'estimation de l'action essayée s'améliore. Une bonne action sous-estimée au départ n'est plus jamais choisie, et son estimation n'est jamais corrigée."
+    }
+   ],
+   "solution": "Réponse : trois affirmations sont justes : celle sur le Q-learning (hors politique, cible avec le maximum), celle sur le gradient de politique (aucun besoin des probabilités de transition) et celle sur la ligne de base de REINFORCE (même espérance, variance réduite). Celle sur l'agent qui n'explore jamais est fausse.\n\nÉtape 1 : cible du Q-learning, \\(r + \\gamma \\max_{a'} Q(s', a')\\), indépendante de l'action suivie (leçon, partie 4.3).\n\nÉtape 2 : \\(\\nabla J(\\boldsymbol{\\theta}) = \\mathbb{E}\\big[g(\\tau)\\sum_t \\nabla \\ln \\pi_{\\boldsymbol{\\theta}}(A_t \\mid S_t)\\big]\\) : ni les transitions ni la récompense ne sont dérivées (partie 4.4, PG1).\n\nÉtape 3 : \\(\\sum_a \\pi_{\\boldsymbol{\\theta}}(a \\mid s)\\,\\nabla \\ln \\pi_{\\boldsymbol{\\theta}}(a \\mid s) = \\nabla \\sum_a \\pi_{\\boldsymbol{\\theta}}(a \\mid s) = \\mathbf{0}\\) : une ligne de base \\(b(s)\\) ne biaise pas (PG2, PG3).\n\nÉtape 4 : la stratégie sans exploration peut rester bloquée sur un bras moins bon, avec une probabilité strictement positive (partie 4.5, X1).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Le Q-learning est une méthode hors politique : sa cible utilise le maximum des valeurs estimées dans l'état suivant, quelle que soit l'action que l'agent y choisira réellement. ; Une méthode de gradient de politique peut estimer le gradient du retour espéré sans connaître les probabilités de transition : seul le logarithme de la politique est dérivé par rapport aux paramètres. ; Dans REINFORCE, retrancher du retour une ligne de base qui ne dépend que de l'état ne change pas l'espérance du gradient estimé, et peut réduire sa variance.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": []
+   }
+  },
+  {
+   "id": "ML5-10",
+   "section": "mla",
+   "theme": "Gradient de politique : espérance et variance de l'estimateur REINFORCE",
+   "difficulte": 5,
+   "temps_cible_s": 150,
+   "enonce": "Un agent choisit une seule fois entre deux actions. Il choisit l'action 1 avec probabilité \\(\\pi = \\mathrm{sig}(\\theta)\\), où \\(\\mathrm{sig}(\\theta) = 1/(1 + e^{-\\theta})\\), et l'action 0 sinon ; le paramètre \\(\\theta\\) est tel que \\(\\pi = \\tfrac15\\). L'action 1 rapporte la récompense 6, l'action 0 la récompense 1 (sans aléa). On note \\(A\\) l'action choisie, \\(R\\) la récompense reçue, et l'on estime la dérivée du gain espéré par rapport à \\(\\theta\\) par\n\n\\(\\displaystyle \\hat g_b = (R - b)\\,\\frac{d}{d\\theta}\\ln \\mathbb{P}_\\theta(A),\\)\n\noù \\(\\mathbb{P}_\\theta(A)\\) est la probabilité que la politique donnait à l'action choisie et \\(b\\) une constante (ligne de base).\n\nQue valent l'espérance et la variance de \\(\\hat g_b\\), pour \\(b = 0\\) puis pour \\(b = 2\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Espérance \\(0{,}8\\) dans les deux cas ; variance \\(4\\) pour \\(b = 0\\) et \\(1{,}44\\) pour \\(b = 2\\).",
+     "correcte": true,
+     "explication": "Oui : \\(\\hat g_b\\) vaut \\((6 - b) \\times 0{,}8\\) avec probabilité \\(\\tfrac15\\) et \\(-(1 - b) \\times 0{,}2\\) sinon ; l'espérance ne dépend pas de \\(b\\), la variance \\(\\pi(1 - \\pi)\\) fois le carré de l'écart entre les deux valeurs, si."
+    },
+    {
+     "id": "b",
+     "texte": "Espérance \\(0{,}8\\) pour \\(b = 0\\) et 0 pour \\(b = 2\\) ; variance \\(4\\) puis \\(1{,}44\\).",
+     "correcte": false,
+     "explication": "L'espérance ne s'annule pas : \\(b = 2\\) est bien la récompense moyenne, donc \\(\\mathbb{E}[R - b] = 0\\), mais \\(R - b\\) est multiplié par un facteur qui dépend de l'action. Le terme en \\(b\\) est d'espérance nulle à lui seul."
+    },
+    {
+     "id": "c",
+     "texte": "Espérance \\(0{,}8\\) et variance \\(4\\) dans les deux cas.",
+     "correcte": false,
+     "explication": "Retrancher \\(b\\) à \\(R\\) ne translate pas \\(\\hat g_b\\) d'une constante : le terme retranché, \\(b\\) fois la dérivée du logarithme, est aléatoire. La variance change donc, ici de \\(4\\) à \\(1{,}44\\)."
+    },
+    {
+     "id": "d",
+     "texte": "Espérance \\(0{,}8\\) dans les deux cas ; variance \\(4{,}64\\) pour \\(b = 0\\) et \\(2{,}08\\) pour \\(b = 2\\).",
+     "correcte": false,
+     "explication": "Ce sont les moments d'ordre 2, \\(\\mathbb{E}[\\hat g_b^2]\\) : il reste à retrancher le carré de l'espérance, \\(0{,}8^2\\)."
+    }
+   ],
+   "solution": "Réponse : espérance \\(0{,}8\\) dans les deux cas ; variance \\(4\\) pour \\(b = 0\\), \\(1{,}44\\) pour \\(b = 2\\).\n\nÉtape 1 : dérivées. \\(\\tfrac{d}{d\\theta}\\ln \\pi = 1 - \\pi = 0{,}8\\) (action 1) et \\(\\tfrac{d}{d\\theta}\\ln(1 - \\pi) = -\\pi = -0{,}2\\) (action 0), car \\(\\mathrm{sig}' = \\mathrm{sig}(1 - \\mathrm{sig})\\).\n\nÉtape 2, \\(b = 0\\) : \\(\\hat g_0\\) vaut \\(6 \\times 0{,}8 = 4{,}8\\) avec probabilité \\(\\tfrac15\\) et \\(1 \\times (-0{,}2) = -0{,}2\\) avec probabilité \\(\\tfrac45\\). Espérance \\(0{,}96 - 0{,}16 = 0{,}8\\), qui est bien \\(\\pi(1 - \\pi)(6 - 1)\\), la dérivée du gain espéré \\(6\\pi + (1 - \\pi)\\).\n\nÉtape 3 : une variable qui prend deux valeurs \\(u_1\\) et \\(u_0\\) avec probabilités \\(\\pi\\) et \\(1 - \\pi\\) a pour variance \\(\\pi(1 - \\pi)(u_1 - u_0)^2\\). Ici \\(0{,}16 \\times 5^2 = 4\\).\n\nÉtape 4, \\(b = 2\\) : valeurs \\(4 \\times 0{,}8 = 3{,}2\\) et \\(-(1 - 2) \\times 0{,}2 = 0{,}2\\) ; espérance \\(0{,}64 + 0{,}16 = 0{,}8\\), inchangée (leçon, partie 4.4, PG3) ; variance \\(0{,}16 \\times 3^2 = 1{,}44\\).\n\nComplément : la variance s'annule pour \\(b = 6 \\times 0{,}8 + 1 \\times 0{,}2 = 5\\), qui n'est pas la récompense moyenne \\(2\\). Simulation du script : variances 3,984 et 1,434.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "Espérance \\(0{,}8\\) dans les deux cas ; variance \\(4\\) pour \\(b = 0\\) et \\(1{,}44\\) pour \\(b = 2\\).",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q10_b_opt",
+     "Q10_d_m2_0",
+     "Q10_d_m2_b",
+     "Q10_esp",
+     "Q10_g0",
+     "Q10_g1",
+     "Q10_gb0",
+     "Q10_gb1",
+     "Q10_moyR",
+     "Q10_var0",
+     "Q10_var0_mc",
+     "Q10_var_b",
+     "Q10_var_b_mc"
+    ]
+   }
+  },
+  {
+   "id": "ML5-11",
+   "section": "mlf",
+   "theme": "Arbres de décision et importances de variables : affirmations",
+   "difficulte": 4,
+   "temps_cible_s": 120,
+   "conceptuelle": true,
+   "correctes": [
+    "a",
+    "c"
+   ],
+   "enonce": "On ajuste un arbre de décision de classification par l'algorithme CART (coupures binaires de la forme « variable inférieure ou égale à un seuil », critère de Gini), puis l'on s'intéresse à l'importance des variables.\n\nLesquelles de ces affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "À la racine, l'algorithme retient le couple (variable, seuil) qui réduit le plus l'impureté sur l'ensemble des observations d'apprentissage ; une variable qui n'est utile qu'en interaction avec une autre peut donc y avoir un gain nul.",
+     "correcte": true,
+     "explication": "Vrai : le critère évalue une coupure sur une variable à la fois. Dans un ou exclusif de deux variables binaires équiprobables, chacune prise seule laisse les proportions de classes inchangées : gain nul, alors qu'à deux elles déterminent la cible."
+    },
+    {
+     "id": "b",
+     "texte": "Une variable numérique continue doit être découpée en classes avant l'ajustement, car un nœud ne sait tester que l'égalité à une modalité.",
+     "correcte": false,
+     "explication": "Faux : un nœud compare la variable à un seuil, choisi parmi les milieux de valeurs observées consécutives. Aucune mise en classes préalable n'est nécessaire, et la même variable peut resservir plus bas avec un autre seuil."
+    },
+    {
+     "id": "c",
+     "texte": "L'importance par réduction d'impureté, calculée sur les données d'apprentissage, peut classer une variable continue de pur bruit devant une variable binaire réellement informative.",
+     "correcte": true,
+     "explication": "Vrai : une variable aux nombreuses valeurs offre beaucoup de coupures candidates, donc plus d'occasions d'un gain dû au hasard, et tout gain est positif ou nul. C'est le biais démontré dans la séance de ML 2."
+    },
+    {
+     "id": "d",
+     "texte": "Dans une régression linéaire sur des variables non standardisées, la variable dont le coefficient est le plus grand en valeur absolue est celle qui pèse le plus dans les prédictions.",
+     "correcte": false,
+     "explication": "Faux : changer l'unité d'une variable divise son coefficient par le facteur de conversion sans changer aucune prédiction. Il faut comparer les coefficients multipliés par l'écart-type de leur variable."
+    }
+   ],
+   "solution": "Réponse : les affirmations sur le choix de la racine (meilleure réduction d'impureté d'une coupure, une variable à la fois) et sur le biais de l'importance par impureté sont justes ; les deux autres sont fausses.\n\nÉtape 1 : le gain d'une coupure ne regarde qu'une variable ; dans l'ou exclusif, \\(\\mathbb{P}(Y = 1 \\mid X_1) = \\tfrac12\\) quelle que soit la valeur de \\(X_1\\), donc les enfants ont l'impureté du parent (leçon, partie 5.2, T1).\n\nÉtape 2 : les coupures d'une variable numérique sont des seuils entre valeurs observées consécutives (séance de ML 2, partie 1) : pas de mise en classes.\n\nÉtape 3 : l'importance par impureté est biaisée vers les variables offrant beaucoup de coupures (séance de ML 2, partie 7, I1).\n\nÉtape 4 : si \\(x_j\\) est remplacée par \\(c\\,x_j\\), le coefficient devient \\(\\hat b_j/c\\) et les prédictions ne changent pas (leçon, partie 5.3, Co1).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "À la racine, l'algorithme retient le couple (variable, seuil) qui réduit le plus l'impureté sur l'ensemble des observations d'apprentissage ; une variable qui n'est utile qu'en interaction avec une autre peut donc y avoir un gain nul. ; L'importance par réduction d'impureté, calculée sur les données d'apprentissage, peut classer une variable continue de pur bruit devant une variable binaire réellement informative.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": []
+   }
+  },
+  {
+   "id": "ML5-12",
+   "section": "mlf",
+   "theme": "ACP : affirmations et part de variance",
+   "difficulte": 3,
+   "temps_cible_s": 100,
+   "correctes": [
+    "a"
+   ],
+   "enonce": "On réalise une analyse en composantes principales sur quatre variables centrées et réduites (chacune de variance 1). Leur matrice de corrélation a pour valeurs propres 2,2 ; 1 ; 0,5 et 0,3.\n\nLesquelles de ces affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "La première composante principale explique \\(55\\) % de la variance totale, et les deux premières ensemble \\(80\\) %.",
+     "correcte": true,
+     "explication": "Vrai : la variance totale est la somme des valeurs propres, 4, égale au nombre de variables réduites ; les parts sont \\(2{,}2/4\\) et \\((2{,}2 + 1)/4\\)."
+    },
+    {
+     "id": "b",
+     "texte": "Quelle que soit la loi des données, les deux premières composantes principales sont des variables indépendantes l'une de l'autre.",
+     "correcte": false,
+     "explication": "Faux : elles sont toujours non corrélées, et leurs directions orthogonales, mais non corrélé n'implique indépendant que dans des cas particuliers, par exemple pour un vecteur gaussien."
+    },
+    {
+     "id": "c",
+     "texte": "Chaque composante principale est l'une des quatre variables d'origine : garder deux composantes revient à garder les deux variables de plus grande variance.",
+     "correcte": false,
+     "explication": "Faux : une composante est une combinaison linéaire de toutes les variables. L'ACP ne sélectionne pas de variables ; ici elles ont d'ailleurs toutes la même variance."
+    },
+    {
+     "id": "d",
+     "texte": "Garder les deux premières composantes garantit de conserver les deux directions les plus utiles pour prédire une variable cible.",
+     "correcte": false,
+     "explication": "Faux : l'ACP ne regarde pas la cible. Une cible peut dépendre surtout d'une direction de petite variance, que l'on écarterait en ne gardant que les premières composantes."
+    }
+   ],
+   "solution": "Réponse : une seule affirmation est juste, celle sur les parts de variance (\\(55\\) % puis \\(80\\) %) ; les trois autres sont fausses.\n\nÉtape 1 : la part de la composante \\(k\\) est \\(\\lambda_k/\\sum_i \\lambda_i\\), et la somme des valeurs propres d'une matrice de corrélation de 4 variables vaut 4 : \\(2{,}2/4 = 0{,}55\\) et \\(3{,}2/4 = 0{,}8\\) (séance d'algèbre linéaire, section 9).\n\nÉtape 2 : les composantes sont non corrélées et leurs directions orthogonales, toujours ; « indépendantes » demande une hypothèse de plus sur la loi (leçon, partie 5.4, fait 2).\n\nÉtape 3 : une composante est une combinaison linéaire de toutes les variables (fait 3) ; l'ACP est non supervisée (fait 6, et l'expérience où la cible est portée par la dernière composante).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "La première composante principale explique \\(55\\) % de la variance totale, et les deux premières ensemble \\(80\\) %.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q12_part1",
+     "Q12_part1_pct",
+     "Q12_part2",
+     "Q12_part2_pct"
+    ]
+   }
+  },
+  {
+   "id": "ML5-13",
+   "section": "mlf",
+   "theme": "Elastic net : solution à colonnes orthonormées",
+   "difficulte": 4,
+   "temps_cible_s": 120,
+   "enonce": "On ajuste un modèle linéaire sans constante par elastic net : on minimise sur \\(\\mathbf{b} \\in \\mathbb{R}^3\\)\n\n\\(\\displaystyle \\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\lambda\\Big[\\alpha\\,\\lVert \\mathbf{b} \\rVert_1 + \\tfrac{1 - \\alpha}{2}\\,\\lVert \\mathbf{b} \\rVert^2\\Big],\\)\n\noù \\(\\lVert \\mathbf{b} \\rVert_1\\) est la somme des valeurs absolues des coordonnées et \\(\\lVert \\mathbf{b} \\rVert\\) la norme euclidienne, avec \\(\\lambda = 2\\) et \\(\\alpha = \\tfrac12\\). Les trois colonnes de \\(\\mathbf{X}\\) sont orthonormées (\\(\\mathbf{X}^\\top \\mathbf{X} = \\mathbf{I}\\)) et \\(\\mathbf{X}^\\top \\mathbf{y} = (4 ; -1{,}5 ; 0{,}6)\\).\n\nQuelle est la solution \\(\\hat{\\mathbf{b}}\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\((1{,}50 ; -0{,}25 ; 0{,}00)\\)",
+     "correcte": true,
+     "explication": "Oui : seuillage doux au niveau \\(\\lambda\\alpha = 1\\), puis division par \\(1 + \\lambda(1 - \\alpha) = 2\\) ; la troisième coordonnée, sous le seuil, est exactement nulle."
+    },
+    {
+     "id": "b",
+     "texte": "\\((3{,}00 ; -0{,}50 ; 0{,}00)\\)",
+     "correcte": false,
+     "explication": "C'est le seuillage doux seul, la solution du Lasso de pénalité \\(\\lambda\\alpha\\). La part L2 de la pénalité divise encore chaque coordonnée par \\(1 + \\lambda(1 - \\alpha)\\)."
+    },
+    {
+     "id": "c",
+     "texte": "\\((2{,}00 ; -0{,}75 ; 0{,}30)\\)",
+     "correcte": false,
+     "explication": "C'est la division seule, la solution Ridge de pénalité \\(\\lambda(1 - \\alpha)\\) : aucun zéro. La part L1 retire d'abord \\(\\lambda\\alpha\\) à chaque valeur absolue, et annule la troisième coordonnée."
+    },
+    {
+     "id": "d",
+     "texte": "\\((1{,}00 ; 0{,}00 ; 0{,}00)\\)",
+     "correcte": false,
+     "explication": "Le seuil a été pris égal à \\(\\lambda = 2\\) au lieu de \\(\\lambda\\alpha = 1\\) : la deuxième coordonnée, de valeur absolue 1,5, a été annulée à tort."
+    }
+   ],
+   "solution": "Réponse : \\(\\hat{\\mathbf{b}} = (1{,}50 ; -0{,}25 ; 0{,}00)\\).\n\nÉtape 1 : avec des colonnes orthonormées et \\(\\mathbf{z} = \\mathbf{X}^\\top \\mathbf{y}\\), le critère vaut une constante plus \\(\\sum_j \\big[\\tfrac12(z_j - b_j)^2 + \\lambda\\alpha\\,\\lvert b_j \\rvert + \\tfrac{\\lambda(1 - \\alpha)}{2}\\,b_j^2\\big]\\) : il se découple coordonnée par coordonnée (leçon, partie 5.5, EN3).\n\nÉtape 2 : pour une coordonnée, \\(\\hat b_j = 0\\) si \\(\\lvert z_j \\rvert \\le \\lambda\\alpha\\) ; sinon la dérivée nulle donne \\(\\hat b_j = (z_j - \\lambda\\alpha\\,\\mathrm{signe}(z_j))/(1 + \\lambda(1 - \\alpha))\\).\n\nÉtape 3 : \\(\\lambda\\alpha = 1\\) et \\(1 + \\lambda(1 - \\alpha) = 2\\). Donc \\((4 - 1)/2\\), \\((-1{,}5 + 1)/2\\) et 0 (car \\(0{,}6 \\le 1\\)) : \\((1{,}50 ; -0{,}25 ; 0{,}00)\\).\n\nLe script retrouve cette solution par minimisation numérique du critère.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\((1{,}50 ; -0{,}25 ; 0{,}00)\\)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": [
+     "Q13_d_sans_div",
+     "Q13_d_sans_seuil",
+     "Q13_d_seuil_lambda",
+     "Q13_div",
+     "Q13_exact",
+     "Q13_seuil"
+    ]
+   }
+  },
+  {
+   "id": "ML5-14",
+   "section": "mlf",
+   "theme": "Pénalités en grande dimension et remèdes au surapprentissage : affirmations",
+   "difficulte": 3,
+   "temps_cible_s": 100,
+   "conceptuelle": true,
+   "correctes": [
+    "a",
+    "b",
+    "c"
+   ],
+   "enonce": "On ajuste une régression linéaire pénalisée sur des données qui comptent beaucoup plus de variables que d'observations ; les variables sont standardisées. On souhaite un modèle que l'on puisse lire, c'est-à-dire qui retienne peu de variables.\n\nLesquelles de ces affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Avec une pénalité L1 assez forte, des coefficients sont exactement nuls : le modèle retient un sous-ensemble de variables.",
+     "correcte": true,
+     "explication": "Vrai : un coefficient du Lasso reste nul tant que la corrélation de sa variable avec le résidu ne dépasse pas la pénalité en valeur absolue ; au-delà d'un seuil de pénalité, tous sont nuls."
+    },
+    {
+     "id": "b",
+     "texte": "Avec une pénalité L2 seule, la solution est unique même quand il y a plus de variables que d'observations, mais elle ne met aucun coefficient exactement à zéro, sauf cas de probabilité nulle.",
+     "correcte": true,
+     "explication": "Vrai : la matrice du système Ridge est définie positive pour toute pénalité strictement positive, d'où l'unicité ; et un coefficient Ridge ne s'annule que sur un ensemble de données de probabilité nulle."
+    },
+    {
+     "id": "c",
+     "texte": "Si deux variables sont exactement identiques, l'elastic net, dont la pénalité contient une part L2 non nulle, leur donne le même coefficient, alors que le problème L1 seul n'a pas toujours une solution unique.",
+     "correcte": true,
+     "explication": "Vrai : la part L2 rend le critère strictement convexe, donc la solution unique ; échanger les deux coefficients donne une solution, qui est donc la même. Avec L1 seule, tout partage d'un même total entre les deux copies, à signes égaux, a le même critère."
+    },
+    {
+     "id": "d",
+     "texte": "Si l'erreur d'apprentissage est très inférieure à l'erreur de validation, il faut diminuer la pénalité ou ajouter des variables construites à partir des premières.",
+     "correcte": false,
+     "explication": "Faux : cet écart signale une forte variance. Diminuer la pénalité ou ajouter des variables augmente la complexité, donc l'aggrave ; il faut au contraire régulariser davantage ou simplifier."
+    }
+   ],
+   "solution": "Réponse : trois affirmations sont justes : celle sur la pénalité L1 (coefficients exactement nuls, sélection de variables), celle sur la pénalité L2 (solution unique, aucun zéro exact) et celle sur l'elastic net (même coefficient pour deux variables identiques). Celle qui propose de diminuer la pénalité ou d'ajouter des variables est fausse.\n\nÉtape 1 : conditions d'optimalité du Lasso, avec \\(g_j\\) le produit scalaire de la colonne \\(j\\) et du résidu, et \\(\\lambda\\) la pénalité : un coefficient non nul exige \\(\\lvert g_j \\rvert = \\lambda\\), un coefficient nul vérifie \\(\\lvert g_j \\rvert \\le \\lambda\\) ; au-delà d'un seuil de \\(\\lambda\\), tous sont nuls (séance de ML 1, partie 5).\n\nÉtape 2 : Ridge : \\(\\mathbf{X}^\\top \\mathbf{X} + \\lambda\\mathbf{I}\\) est définie positive, la solution est unique quel que soit le rang, sans zéro exact hors cas de probabilité nulle (séance de ML 1, partie 4).\n\nÉtape 3 : entre variables presque identiques, le Lasso choisit de façon instable ; l'elastic net, strictement convexe, donne le même coefficient à deux colonnes identiques (leçon, partie 5.5, EN1).\n\nÉtape 4 : un écart entre erreur d'apprentissage et erreur de validation se traite en réduisant la variance : plus de pénalité, moins de variables, plus de données (partie 5.6).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Avec une pénalité L1 assez forte, des coefficients sont exactement nuls : le modèle retient un sous-ensemble de variables. ; Avec une pénalité L2 seule, la solution est unique même quand il y a plus de variables que d'observations, mais elle ne met aucun coefficient exactement à zéro, sauf cas de probabilité nulle. ; Si deux variables sont exactement identiques, l'elastic net, dont la pénalité contient une part L2 non nulle, leur donne le même coefficient, alors que le problème L1 seul n'a pas toujours une solution unique.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_5.py",
+    "cles": []
+   }
+  }
+ ]
+}

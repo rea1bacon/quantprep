@@ -1,0 +1,53 @@
+Formules fermées de h et d conformes au système linéaire pour n de 2 à 8 et 5 valeurs de p.
+La_pf_esp_n10            exact=1.000000  MC=0.997622  se=0.001580  z=-1.50
+La_pf_e2_n10             exact=2.000000  MC=1.993578  se=0.005248  z=-1.22
+La_motif_esp             exact=2.250000  MC=2.246812  se=0.002589  z=-1.23
+La_motif_joint           exact=0.125000  MC=0.124548  se=0.000523  z=-0.87
+Ca                       exact=22.000000  MC=22.005942  se=0.007415  z=+0.80
+Lb_sym_h                 exact=0.400000  MC=0.400695  se=0.001095  z=+0.63
+Lb_sym_d                 exact=6.000000  MC=6.004905  se=0.010509  z=+0.47
+Lb_h                     exact=0.774194  MC=0.776205  se=0.000935  z=+2.15
+Lb_d                     exact=5.612903  MC=5.617865  se=0.008307  z=+0.60
+Lb_wald                  exact=0.000000  MC=0.008403  se=0.004986  z=+1.69
+Lb_ruine_inf             exact=0.250000  MC=0.248690  se=0.000968  z=-1.35
+Lb_pf                    exact=4.000000  MC=4.004295  se=0.004464  z=+0.96
+Cb_h                     exact=0.883636  MC=0.883370  se=0.000717  z=-0.37
+E[U_(k)] = k/(n+1) vérifié pour 1 <= k <= n <= 8 par deux intégrations exactes ; intégrale bêta vérifiée pour a, b <= 5.
+Lc_k2                    exact=0.333333  MC=0.333763  se=0.000282  z=+1.52
+Lc_max                   exact=0.833333  MC=0.833262  se=0.000223  z=-0.32
+Lc_min                   exact=0.166667  MC=0.166774  se=0.000223  z=+0.48
+Lc_etendue               exact=0.666667  MC=0.666488  se=0.000282  z=-0.63
+Lc_ecart                 exact=0.166667  MC=0.166478  se=0.000223  z=-0.85
+Lc_p_max                 exact=0.590490  MC=0.590690  se=0.000778  z=+0.26
+Lc_deux                  exact=0.333333  MC=0.332648  se=0.000372  z=-1.84
+Lc_exp_max               exact=1.500000  MC=1.498170  se=0.001768  z=-1.03
+Lc_exp_min               exact=0.500000  MC=0.499480  se=0.000790  z=-0.66
+Cc                       exact=0.750000  MC=0.750318  se=0.000228  z=+1.39
+Ld_exact                 exact=0.923055  MC=0.924120  se=0.000596  z=+1.79
+Ld_fwer_bonf             exact=0.048794  MC=0.049275  se=0.000482  z=+1.00
+Encadrement de 1 - (1-p)^m et inégalités de la preuve vérifiés sur une grille.
+Cd_fwer_sans             exact=0.401263  MC=0.401075  se=0.001096  z=-0.17
+S1M-01 : P(au moins une occurrence) exacte = 0.736084, calcul sous indépendance supposée = 0.736924
+Q01                      exact=1.250000  MC=1.250617  se=0.001634  z=+0.38
+Q02                      exact=8.025261  MC=8.023015  se=0.001642  z=-1.37
+Q02_d_uniques            exact=6.302494  MC=6.300215  se=0.002907  z=-0.78
+Q03                      exact=1.000000  MC=0.998120  se=0.002732  z=-0.69
+Q04                      exact=20.000000  MC=20.030830  se=0.036075  z=+0.85
+Q05                      exact=0.228571  MC=0.227708  se=0.000664  z=-1.30
+Q06                      exact=8.142857  MC=8.139345  se=0.009576  z=-0.37
+Q06_d_une_barriere       exact=15.000000  MC=15.035710  se=0.042992  z=+0.83
+Q07                      exact=6.000000  MC=6.017107  se=0.007451  z=+2.30
+Q08                      exact=0.666667  MC=0.666695  se=0.000282  z=+0.10
+Q09                      exact=1.428571  MC=1.428911  se=0.000504  z=+0.67
+Q10                      exact=0.240100  MC=0.239487  se=0.000675  z=-0.91
+Q11                      exact=0.633042  MC=0.633270  se=0.001078  z=+0.21
+Q12_disjoint_sidak_marg1 exact=0.002050  MC=0.001998  se=0.000072  z=-0.73
+Q12_disjoint_sidak_marg25 exact=0.002050  MC=0.002073  se=0.000072  z=+0.32
+Q12_disjoint_sidak       exact=0.051241  MC=0.051100  se=0.000349  z=-0.40
+Q12_disjoint_bonf_marg1  exact=0.002000  MC=0.001922  se=0.000071  z=-1.10
+Q12_disjoint_bonf_marg25 exact=0.002000  MC=0.002070  se=0.000071  z=+0.99
+Q12_disjoint_bonf        exact=0.050000  MC=0.049910  se=0.000345  z=-0.26
+Q12_indep_005            exact=0.722610  MC=0.722120  se=0.001001  z=-0.49
+Q12_indep_sidak          exact=0.050000  MC=0.049775  se=0.000487  z=-0.46
+358 valeurs exportées dans verif/seance_math_1.out.json.
+Toutes les vérifications passent.

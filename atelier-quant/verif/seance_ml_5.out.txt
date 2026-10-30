@@ -1,0 +1,22 @@
+(C1) forme de sortie : 300 configurations concordent avec une vraie convolution numpy.
+Convention same : le remplissage total indiqué donne bien plafond(n / s).
+(C3) champ réceptif avec pas : formule contrôlée par perturbation sur 41 réseaux ; exemple [3, 4, 8, 10, 18].
+Convolution transposée : forme (n - 1) s + k et identité d'adjonction contrôlées sur 100 cas.
+Pertes : gradient p - y du softmax (différences finies) et softmax à deux classes = sigmoïde de la différence.
+(S1) Dice = 2 IoU / (1 + IoU), Dice >= IoU avec égalité en 0 et 1 seulement : contrôlé sur des masques tirés au hasard.
+LSt_p2                   exact=0.041945  MC=0.041548  se=0.000316  z=-1.26
+LSt_var                  exact=4.660661  MC=4.638875  se=0.010391  z=-2.10
+Q06_var                  exact=3.078156  MC=3.085690  se=0.006890  z=+1.09
+Q06_p1                   exact=0.065332  MC=0.065170  se=0.000390  z=-0.42
+RL_v1                    exact=16.363636  MC=16.376010  se=0.010621  z=+1.17
+Q08_exact                exact=11.428571  MC=11.436778  se=0.006655  z=+1.23
+PG_esp                   exact=0.250000  MC=0.247795  se=0.008301  z=-0.27
+Q10_esp0                 exact=0.800000  MC=0.794763  se=0.003156  z=-1.66
+Q10_var0                 exact=4.000000  MC=3.984288  se=0.009468  z=-1.66
+Q10_esp_b                exact=0.800000  MC=0.796857  se=0.001894  z=-1.66
+Q10_var_b                exact=1.440000  MC=1.434343  se=0.003409  z=-1.66
+BD_blocage               exact=0.100000  MC=0.097100  se=0.002094  z=-1.39
+Elastic net, colonnes orthonormées : seuillage doux puis division, retrouvé par minimisation numérique (200 cas).
+ACP : une matrice de corrélation 4 x 4 de valeurs propres 2,2 ; 1 ; 0,5 ; 0,3 existe (construite explicitement).
+323 valeurs exportées dans verif/seance_ml_5.out.json.
+Toutes les vérifications passent.

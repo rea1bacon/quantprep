@@ -1,0 +1,18 @@
+M1   exact=0.162393  MC=0.162279  se=0.000539  z=-0.21
+M2   exact=21.000000  MC=20.975540  se=0.044167  z=-0.55
+M3   exact=3.588735  MC=3.589618  se=0.000740  z=+1.19
+M4   valeurs propres : {2*rho + 1: 1, 1 - rho: 2}  SDP ssi rho dans Interval(-1/2, 1)
+M5   exact=2.777778  MC=2.777375  se=0.006209  z=-0.06
+M6   exact=0.600000  MC=0.600338  se=0.000200  z=+1.69
+M7   exact=0.641514  MC=0.641410  se=0.000480  z=-0.22
+M8   poids actif 1 = 0.200000  (optimisation numérique 0.200000)
+F1   lasso = [2. 0.]  ridge = [1.5  0.25]
+F2   sur 2000 essais : R² baisse 0 fois, R² ajusté baisse 1308 fois
+F3   précision=0.6, rappel=0.75, F1=0.666667
+F4   exact=0.370000  MC=0.369961  se=0.000524  z=-0.07
+A1   poids optimal = 1.5  (optimisation numérique 1.50000000)
+A2   longueur de sortie = 48  (PyTorch : 48)
+A3   dL/dw1 = -6, dL/dw2 = 0
+A4   premier pas d'Adam = -0.0100000000  (PyTorch : -0.009999998845160007)
+A5   t = 2.0  (scipy 2.0000000000), p bilatérale = 0.0458
+A6   rang de la covariance empirique 500x500 avec 250 observations = 249

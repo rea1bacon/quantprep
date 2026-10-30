@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier quant</title>
+<style>
+:root { --fond:#f5f6f8; --carte:#ffffff; --texte:#1f2328; --doux:#646b75; --trait:#e3e6ea; --trait-fort:#cdd2d8; --accent:#2f5bd3; --accent-doux:#eef2fc; --bon:#1f7a4d; --bon-doux:#eaf6ef; --faux:#c0392b; --faux-doux:#fcecea; --alerte:#9a5a08; --alerte-doux:#fdf3e4; --code:#f6f8fa; --ombre:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06); }
+@media (prefers-color-scheme: dark) { :root { --fond:#0f1115; --carte:#171a20; --texte:#e6e8eb; --doux:#9aa1ab; --trait:#262b33; --trait-fort:#363c46; --accent:#86a8ff; --accent-doux:#1a2135; --bon:#5cc98f; --bon-doux:#13251c; --faux:#f08479; --faux-doux:#2b1716; --alerte:#e2a54f; --alerte-doux:#2a2013; --code:#12151a; --ombre:none; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--fond); color:var(--texte); font:15.5px/1.6 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:var(--accent); }
+
+/* Barre supérieure */
+header { position:sticky; top:0; z-index:10; background:var(--carte); border-bottom:1px solid var(--trait); height:56px; padding:0 20px; display:flex; gap:14px; align-items:center; }
+#lienAccueil { display:flex; align-items:center; gap:8px; color:var(--texte); font-weight:650; font-size:15px; text-decoration:none; white-space:nowrap; padding-right:14px; border-right:1px solid var(--trait); }
+#lienAccueil::before { content:""; width:22px; height:22px; border-radius:6px; background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #7b4bd6)); }
+#lienAccueil[hidden] { display:none; }
+header h1 { font-size:14.5px; font-weight:600; margin:0; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#position { font-size:13px; color:var(--doux); white-space:nowrap; }
+#progression { position:absolute; left:0; right:0; bottom:-1px; height:2px; background:transparent; }
+#progression > span { display:block; height:100%; width:0; background:var(--accent); transition:width .3s; }
+#chrono { font:600 15px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric:tabular-nums; background:var(--fond); border:1px solid var(--trait); border-radius:999px; padding:7px 12px; }
+#chrono.depasse { color:var(--faux); border-color:var(--faux); }
+@media (max-width:720px) { #position { display:none; } header { padding:0 12px; gap:8px; } }
+
+/* Mise en page */
+main { padding:28px 24px 96px; }
+main > .carte, main > .fiche, main > .tableau-bord { max-width:880px; margin-left:auto; margin-right:auto; }
+.cadre { display:grid; grid-template-columns:250px minmax(0, 1fr); gap:32px; max-width:1180px; margin:0 auto; align-items:start; }
+main.large .cadre { max-width:none; }
+.contenu { min-width:0; max-width:820px; }
+main.lecture .contenu { max-width:880px; }
+main.large .contenu { max-width:none; }
+@media (max-width:1000px) { .cadre { grid-template-columns:1fr; gap:16px; } }
+
+/* Plan de la séance (colonne gauche) */
+.plan { scrollbar-width:thin; scrollbar-color:var(--trait-fort) transparent; position:sticky; top:84px; max-height:calc(100vh - 104px); overflow-y:auto; font-size:13.5px; }
+.plan .groupe { font-size:11.5px; font-weight:650; letter-spacing:.06em; text-transform:uppercase; color:var(--doux); margin:16px 0 6px 10px; }
+.plan .groupe:first-child { margin-top:0; }
+#pastilles { display:flex; flex-direction:column; gap:2px; }
+.pastille { display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:none; border-radius:8px; padding:6px 10px; font-size:13.5px; color:var(--texte); }
+.pastille:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 9%, transparent); }
+.pastille .etat { flex:none; width:18px; height:18px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:10px; color:#fff; }
+.pastille.faite .etat { background:var(--accent); border-color:var(--accent); }
+.pastille.faite .etat::after { content:"✓"; }
+.pastille .libelle { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pastille.courante { background:var(--accent-doux); color:var(--accent); font-weight:600; }
+.pastille.courante .etat { border-color:var(--accent); }
+@media (max-width:1000px) { .plan { position:static; max-height:none; } #pastilles { flex-direction:row; flex-wrap:wrap; } .pastille { width:auto; } .pastille .libelle { display:none; } .plan .groupe { display:none; } }
+
+/* Cartes */
+.carte { background:var(--carte); border:1px solid var(--trait); border-radius:12px; padding:22px 26px; margin-bottom:18px; box-shadow:var(--ombre); }
+h2 { font-size:21px; font-weight:650; letter-spacing:-.01em; margin:0 0 10px; }
+h3 { font-size:17px; font-weight:650; margin:20px 0 6px; }
+h4 { font-size:15px; font-weight:650; margin:16px 0 4px; }
+.meta { color:var(--doux); font-size:13.5px; }
+.surtitre { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:14px; font-size:13px; color:var(--doux); }
+.surtitre .rang { font-weight:650; color:var(--texte); }
+.chip { display:inline-block; max-width:420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; font-size:12px; font-weight:550; padding:2px 10px; border-radius:999px; background:var(--accent-doux); color:var(--accent); }
+.note { background:var(--alerte-doux); border-radius:10px; padding:10px 14px; color:var(--texte); font-size:14px; margin:12px 0; }
+.note p { margin:4px 0; }
+.consigne { font-size:13px; color:var(--doux); margin:18px 0 8px; }
+
+/* Boutons */
+button { font:inherit; font-size:14px; font-weight:550; padding:8px 14px; border-radius:8px; border:1px solid var(--trait-fort); background:var(--carte); color:var(--texte); cursor:pointer; transition:background .15s, border-color .15s; }
+button:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 8%, var(--carte)); }
+button.principal { background:var(--accent); border-color:var(--accent); color:#fff; }
+button.principal:hover:not(:disabled) { background:color-mix(in srgb, var(--accent) 88%, #000); }
+@media (prefers-color-scheme: dark) { button.principal { color:#0d1220; } }
+button:disabled { opacity:.45; cursor:default; }
+header button { padding:6px 12px; font-size:13px; }
+.barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:16px; }
+.navigation { border-top:1px solid var(--trait); margin-top:26px; padding-top:18px; }
+.navigation #prec { margin-right:auto; }
+.navigation #finir { order:1; }
+.navigation #suiv { order:2; }
+
+/* Options d'une question */
+.option { display:flex; gap:14px; align-items:flex-start; border:1px solid var(--trait-fort); border-radius:10px; padding:13px 16px; margin:10px 0; cursor:pointer; background:var(--carte); transition:border-color .12s, background .12s; }
+.option:hover { border-color:var(--accent); }
+.option .lettre { flex:none; width:26px; height:26px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:12.5px; font-weight:650; color:var(--doux); margin-top:-1px; }
+.option .lettre.carre { border-radius:6px; }
+.option p { margin:0; }
+.option.choisie { border-color:var(--accent); background:var(--accent-doux); }
+.option.choisie .lettre { background:var(--accent); border-color:var(--accent); color:#fff; }
+.option.juste { border-color:var(--bon); }
+.option.fausse { border-color:var(--trait); }
+.explication { font-size:14px; color:var(--doux); margin-top:6px; }
+.etiquette { font-size:13px; font-weight:600; }
+.bon { color:var(--bon); } .faux { color:var(--faux); }
+
+/* Code, tableaux */
+pre { background:var(--code); border:1px solid var(--trait); border-radius:8px; padding:12px 14px; overflow-x:auto; font:13px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+code { font:13px ui-monospace, "Cascadia Mono", Consolas, monospace; background:var(--code); border:1px solid var(--trait); padding:0 4px; border-radius:4px; }
+pre code { background:none; border:0; padding:0; }
+.defile { overflow-x:auto; }
+table { border-collapse:collapse; width:100%; font-size:14px; margin:10px 0; }
+th { font-size:12px; font-weight:650; letter-spacing:.04em; text-transform:uppercase; color:var(--doux); }
+th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--trait); vertical-align:top; }
+td.nombre, th.nombre { text-align:right; font-variant-numeric:tabular-nums; }
+textarea.json { width:100%; min-height:140px; font:12.5px ui-monospace, Consolas, monospace; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px; }
+details { margin-top:10px; } summary { cursor:pointer; color:var(--accent); font-weight:550; }
+
+/* Question de code : énoncé à gauche, notebook à droite */
+.deux { display:grid; grid-template-columns:minmax(300px, 38%) 1fr; gap:18px; align-items:start; }
+.deux > .carte { margin:0; }
+.deux .enonce { position:sticky; top:76px; max-height:calc(100vh - 96px); overflow-y:auto; }
+@media (max-width:1100px) { .deux { grid-template-columns:1fr; } .deux .enonce { position:static; max-height:none; } }
+.notebook-barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--trait); padding-bottom:12px; margin-bottom:12px; }
+.notebook-barre button { font-size:13px; padding:6px 11px; }
+.notebook-barre #versions { margin-left:auto; }
+.notebook-barre .meta { font-size:12.5px; }
+.cellule { display:grid; grid-template-columns:48px 1fr; gap:6px; margin:12px 0; }
+.cellule .numero { font:12px ui-monospace, Consolas, monospace; color:var(--doux); text-align:right; padding-top:9px; }
+.cellule .editeur { border:1px solid var(--trait); border-radius:8px; overflow:hidden; background:var(--code); }
+.cellule.active .editeur { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-doux); }
+.cellule .editeur textarea { border:none; border-radius:0; }
+.cellule textarea { width:100%; resize:none; overflow:hidden; min-height:44px; font:13.5px/1.5 ui-monospace, Consolas, monospace; tab-size:4; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px 10px; white-space:pre; overflow-x:auto; }
+.cellule .actions { display:flex; gap:6px; margin-top:4px; }
+.cellule .actions button { font-size:12px; padding:2px 8px; font-weight:500; }
+.cellule pre.sortie { margin:4px 0 0; max-height:420px; overflow:auto; }
+.cellule pre.sortie:empty { display:none; }
+pre .erreur { color:var(--faux); }
+.resultats-tests { margin-top:12px; }
+#voile { position:fixed; inset:0; z-index:20; background:color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:16px; }
+#voile[hidden] { display:none; }
+#voile .carte { max-width:480px; text-align:center; }
+#voile .barre { justify-content:center; }
+.deux.lecon { grid-template-columns:minmax(320px, 56%) 1fr; }
+.deux.lecon .enonce { max-height:calc(100vh - 96px); }
+pre.sortie-lecon { margin-top:-6px; border-style:dashed; color:var(--doux); }
+
+/* Leçons : colonne de lecture, une partie à la fois, onglets */
+main.lecture .carte.enonce { padding:26px 40px 30px; }
+.lecon-corps { font-size:16px; line-height:1.72; max-width:74ch; margin:0 auto; }
+.lecon-corps p { margin:0.75em 0; }
+.lecon-corps li { margin:0.4em 0; padding-left:2px; }
+.lecon-corps ol, .lecon-corps ul { padding-left:1.4em; }
+.lecon-corps ol > li::marker { font-weight:650; color:var(--doux); }
+.lecon-corps h3 { font-size:23px; font-weight:700; letter-spacing:-.015em; line-height:1.3; margin:8px 0 16px; }
+.lecon-corps table { font-size:14.5px; line-height:1.55; }
+.lecon-corps mjx-container { font-size:102% !important; }
+.lecon-corps mjx-container[display="true"], .lecon-corps p.formule > mjx-container { display:block; text-align:center; margin:0.7em 0; overflow-x:auto; overflow-y:hidden; }
+.sommaire { display:flex; flex-wrap:wrap; gap:0 2px; margin:0 0 24px; border-bottom:1px solid var(--trait); }
+.sommaire button { flex:none; font-size:13px; font-weight:550; padding:10px 12px; border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--doux); margin-bottom:-1px; }
+.sommaire button:hover:not(:disabled) { background:none; color:var(--texte); }
+.sommaire button.active { color:var(--accent); border-bottom-color:var(--accent); }
+.partie[hidden] { display:none; }
+.pied-partie { display:flex; gap:10px; align-items:center; justify-content:space-between; margin:28px 0 4px; padding-top:18px; border-top:1px solid var(--trait); }
+.pied-partie .meta { flex:1; text-align:center; }
+.bloc { --teinte:var(--doux); border:1px solid var(--trait); border-radius:10px; padding:6px 20px 10px; margin:18px 0; background:var(--carte); }
+.bloc > h4, .bloc > summary { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--teinte); margin:10px 0 2px; }
+.bloc.enonce-bloc { --teinte:var(--accent); background:var(--accent-doux); border-color:transparent; }
+.bloc.exemple { --teinte:var(--bon); } .bloc.pieges { --teinte:var(--faux); } .bloc.limites { --teinte:var(--alerte); }
+.bloc.preuve { background:var(--fond); }
+details.bloc > summary { cursor:pointer; list-style:revert; padding:6px 0; }
+details.bloc > summary .meta { text-transform:none; letter-spacing:0; font-weight:400; margin-left:6px; }
+details.bloc[open] > summary { margin-bottom:6px; }
+.controle { border:1px solid var(--trait-fort); border-radius:12px; padding:14px 18px; margin:22px 0; background:var(--fond); }
+.controle .titre-controle { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accent); margin:0 0 6px; }
+.controle .option { background:var(--carte); }
+
+/* Fiche de question : débrief et bilan */
+.fiche { background:var(--carte); border:1px solid var(--trait); border-radius:12px; margin:0 0 20px; overflow:hidden; font-size:15px; line-height:1.65; box-shadow:var(--ombre); }
+.lecon-corps .fiche { margin:24px 0; }
+.fiche-tete { display:flex; align-items:center; flex-wrap:wrap; gap:6px 14px; padding:14px 22px; border-bottom:1px solid var(--trait); }
+.fiche-tete .num { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); white-space:nowrap; }
+.fiche-tete .titre { flex:1; min-width:200px; font-weight:650; font-size:16px; }
+.fiche-tete .temps { font-size:12.5px; color:var(--doux); white-space:nowrap; }
+.verdict { font-size:12px; font-weight:650; padding:3px 10px; border-radius:999px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.v-juste .verdict { color:var(--bon); background:var(--bon-doux); } .v-fausse .verdict { color:var(--faux); background:var(--faux-doux); } .v-incomplete .verdict { color:var(--alerte); background:var(--alerte-doux); }
+.fiche-corps { padding:4px 22px 20px; }
+.fiche h5 { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin:22px 0 8px; }
+.fiche-corps > h5:first-child { margin-top:16px; }
+.fiche p { margin:0.6em 0; }
+.fiche li { margin:0.35em 0; }
+.fiche-reponses { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:18px 0 6px; }
+.fiche-reponses > div { background:var(--fond); border-radius:10px; padding:10px 14px; }
+.fiche-reponses .lab { display:block; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin-bottom:2px; }
+.fiche ul.choix { list-style:none; padding:0; margin:8px 0; }
+.fiche ul.choix > li { border:1px solid var(--trait); border-radius:10px; padding:9px 14px; margin:8px 0; }
+.fiche ul.choix > li > strong:first-child { display:inline-block; min-width:1.8em; color:var(--doux); }
+.fiche .retenir { border-radius:10px; padding:12px 16px; margin-top:20px; background:var(--accent-doux); }
+.fiche .retenir h5 { margin:0 0 2px; color:var(--accent); }
+.fiche .retenir p { margin:0.3em 0 0; }
+.fiche .revoir { font-size:13.5px; color:var(--doux); margin:14px 0 0; }
+.fiche .option { cursor:default; }
+.fiche .option:hover { border-color:var(--trait); }
+.fiche .option p { margin:0; }
+.fiche .option .explication p { margin:3px 0 0; }
+.fiche .option.juste { border-color:color-mix(in srgb, var(--bon) 45%, var(--trait)); background:var(--bon-doux); }
+.fiche .option.choisie:not(.juste) { border-color:color-mix(in srgb, var(--faux) 45%, var(--trait)); background:var(--faux-doux); }
+.fiche .option.choisie .lettre { background:none; color:var(--doux); border-color:var(--trait-fort); }
+.fiche .option > div { flex:1; }
+.puce { float:right; font-size:11px; font-weight:650; padding:2px 9px; border-radius:999px; margin-left:8px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.puce.bon { color:var(--bon); background:var(--carte); } .puce.faux { color:var(--faux); background:var(--carte); }
+.fiche details { margin-top:16px; border-top:1px solid var(--trait); padding-top:12px; }
+.fiche details > summary { cursor:pointer; font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); }
+
+/* Présentation d'une séance et bilan */
+.presentation h2 { font-size:26px; letter-spacing:-.02em; }
+.sections-liste { display:grid; gap:8px; margin:18px 0; }
+.sections-liste > div { display:flex; justify-content:space-between; gap:12px; background:var(--fond); border-radius:10px; padding:10px 14px; font-size:14px; }
+.score-total { display:flex; align-items:baseline; gap:10px; margin:4px 0 14px; }
+.score-total strong { font-size:34px; font-weight:700; letter-spacing:-.02em; }
+</style>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  options: { ignoreHtmlClass: 'sans-math', skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+};
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+</head>
+<body>
+<header>
+  <a id="lienAccueil" href="/" hidden>Atelier quant</a>
+  <h1 id="titre"></h1>
+  <span class="meta" id="position"></span>
+  <button id="recommencerHaut" hidden>Recommencer</button>
+  <button id="pause" hidden>Pause</button>
+  <span id="chrono">00:00</span>
+  <div id="progression"><span></span></div>
+</header>
+<div id="voile" hidden><div class="carte"><h2>En pause</h2><p>Le chronomètre est arrêté et le contenu masqué : le temps de pause n'est compté ni dans la durée de la séance, ni dans le temps par question.</p><div class="barre"><button class="principal" id="reprendre">Reprendre</button></div></div></div>
+<main id="page"></main>
+<script type="application/json" id="donnees">{"id": "seance-math-3", "titre": "Séance de mathématiques 3 : statistique et inégalités", "duree_minutes": 45, "options": {"pause": true, "je_ne_sais_pas": true, "retour_arriere": true, "penalite": 0}, "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.", "presentation": "D'abord une leçon express de 20 à 25 minutes : biais et erreur quadratique moyenne, maximum de vraisemblance, intervalles de confiance, tests et p-values, tests multiples (Bonferroni, Benjamini-Hochberg), inégalités de Markov, Tchebychev, Jensen et Cauchy-Schwarz. Cinq points de contrôle sont corrigés immédiatement, et le notebook permet de relancer les simulations de couverture et de p-values. Ensuite 8 questions à choix multiple, dont la moitié de difficulté 4 ou 5.\n\nObjectif de vitesse : chaque question se résout dans son temps cible (1 à 2 minutes et demie) avec la leçon. Au-delà du double du temps cible affiché, choisis « Je ne sais pas » et passe à la suivante : c'est la règle d'abandon à suivre dans un test chronométré.", "avertissements": ["Les questions de mathématiques sont présentées ici en choix multiple à une seule bonne réponse. Cherche la réponse avant de lire les options, pour t'entraîner aussi au format à réponse numérique.", "Ici le retour en arrière est permis et il n'y a pas de pénalité : ce sont les règles de cette plateforme, pas celles de tout test en ligne."], "sections": [{"id": "lecon", "nom": "Leçon", "budget_min": 25, "questions": [{"id": "L-MATH-3", "type": "lecon", "section": "lecon", "theme": "Leçon statistique : estimateurs, vraisemblance, intervalles, tests, tests multiples, inégalités", "difficulte": 3, "temps_cible_s": 1500, "dossier": "coding/lecons", "contenu": "## Leçon express : statistique et inégalités\n\nDurée visée : 20 à 25 minutes. Six parties courtes : biais et erreur quadratique, maximum de vraisemblance, intervalles de confiance, tests et p-values, tests multiples, quatre inégalités. Chaque partie donne l'énoncé précis, une preuve courte et complète, un exemple calculé et les pièges. Les parties « Réflexes en 30 secondes » et « À savoir refaire » sont à relire juste avant un test ou un entretien.\n\nConventions de notation. Une majuscule désigne une variable aléatoire, une minuscule une valeur observée ou un paramètre fixe : \\(X_i\\) est aléatoire, \\(x_i\\) sa valeur observée. Exceptions d'usage, déclarées ici : les paramètres grecs \\(\\theta\\), \\(\\mu\\), \\(\\sigma^2\\), \\(\\lambda\\) sont fixes et inconnus ; un estimateur, noté avec un chapeau (\\(\\hat{\\theta}\\)) ou un tilde (\\(\\tilde{\\theta}\\)), est une fonction des \\(X_i\\), donc **aléatoire** ; la moyenne empirique \\(\\bar{X}\\) est aléatoire et \\(\\bar{x}\\) est sa valeur observée. \\(\\mathbb{P}\\), \\(\\mathbb{E}\\), \\(\\mathrm{Var}\\), \\(\\mathrm{Cov}\\) désignent probabilité, espérance, variance, covariance. Pour un événement \\(A\\), \\(I_A\\) est son indicatrice : la variable aléatoire qui vaut 1 si \\(A\\) se produit et 0 sinon. \\(\\Phi\\) est la fonction de répartition de la loi normale \\(\\mathcal{N}(0, 1)\\), et \\(z_u\\) son quantile d'ordre \\(u\\) : \\(\\Phi(z_u) = u\\). Tous les nombres hors des sorties de code sont calculés par `verif/seance_math_3.py`, qui contrôle chaque probabilité par un calcul exact et une simulation.\n\nCadre commun : \\(n \\ge 2\\) est un entier, \\(X_1, \\dots, X_n\\) sont des variables aléatoires réelles indépendantes et de même loi (on dit i.i.d.), d'espérance \\(\\mu\\) et de variance \\(\\sigma^2\\) finies. \\(\\bar{X} = \\tfrac1n \\sum_{i=1}^n X_i\\) et \\(Q = \\sum_{i=1}^n (X_i - \\bar{X})^2\\), la somme des carrés des écarts à la moyenne empirique, sont aléatoires.\n\n```python\nimport numpy as np\nfrom scipy import stats\nrng = np.random.default_rng(3)\nprint(\"prêt\")\n```\n\n```sortie\nprêt\n```\n\n## Partie 1 : biais, variance, erreur quadratique moyenne\n\n### Le problème et les définitions\n\nUn estimateur \\(\\hat{\\theta}\\) d'un paramètre \\(\\theta\\) se trompe d'un échantillon à l'autre. Pour le juger, on sépare l'erreur systématique de la dispersion. Pour \\(\\hat{\\theta}\\) de carré intégrable (\\(\\mathbb{E}[\\hat{\\theta}^2] < \\infty\\)) :\n\n- le **biais** est le nombre \\(b = \\mathbb{E}[\\hat{\\theta}] - \\theta\\) ; l'estimateur est sans biais si \\(b = 0\\) pour toute valeur possible de \\(\\theta\\) ;\n- l'**erreur quadratique moyenne** (EQM ; MSE, mean squared error) est \\(\\mathrm{EQM}(\\hat{\\theta}) = \\mathbb{E}[(\\hat{\\theta} - \\theta)^2]\\).\n\n### L'énoncé\n\n1. \\(\\mathrm{EQM}(\\hat{\\theta}) = \\mathrm{Var}(\\hat{\\theta}) + b^2\\).\n2. \\(\\mathrm{Var}(\\bar{X}) = \\sigma^2/n\\), et \\(\\mathbb{E}[Q] = (n - 1)\\,\\sigma^2\\). Donc \\(S^2 = Q/(n-1)\\) est sans biais pour \\(\\sigma^2\\), et \\(Q/n\\) a le biais \\(-\\sigma^2/n\\). Aucune normalité n'est requise.\n3. Si de plus les \\(X_i\\) sont de loi normale, pour tout réel \\(c > 0\\), avec \\(k = n - 1\\) : \\(\\mathrm{EQM}(c\\,Q) = \\sigma^4 \\big(c^2 (2k + k^2) - 2ck + 1\\big)\\). En particulier \\(\\mathrm{EQM}(Q/(n-1)) = 2\\sigma^4/(n-1)\\) et \\(\\mathrm{EQM}(Q/n) = (2n - 1)\\,\\sigma^4/n^2\\), plus petite.\n\n### La preuve\n\n1. **Décomposition.** On écrit \\(\\hat{\\theta} - \\theta = (\\hat{\\theta} - \\mathbb{E}\\hat{\\theta}) + b\\). Le carré vaut \\((\\hat{\\theta} - \\mathbb{E}\\hat{\\theta})^2 + 2b\\,(\\hat{\\theta} - \\mathbb{E}\\hat{\\theta}) + b^2\\). Le terme croisé a une espérance nulle, car \\(b\\) est un nombre et \\(\\mathbb{E}[\\hat{\\theta} - \\mathbb{E}\\hat{\\theta}] = 0\\). Il reste \\(\\mathrm{Var}(\\hat{\\theta}) + b^2\\).\n2. **Variance d'une somme.** \\(\\mathrm{Var}(\\sum_i X_i) = \\sum_i \\sum_j \\mathrm{Cov}(X_i, X_j)\\) par bilinéarité de la covariance ; pour \\(i \\ne j\\), \\(\\mathrm{Cov}(X_i, X_j) = 0\\) par indépendance. Donc \\(\\mathrm{Var}(\\sum_i X_i) = n\\sigma^2\\) et \\(\\mathrm{Var}(\\bar{X}) = n\\sigma^2/n^2 = \\sigma^2/n\\).\n3. **Identité de Huygens.** En écrivant \\(X_i - \\mu = (X_i - \\bar{X}) + (\\bar{X} - \\mu)\\) et en développant, le terme croisé \\(2(\\bar{X} - \\mu) \\sum_i (X_i - \\bar{X})\\) est nul car \\(\\sum_i (X_i - \\bar{X}) = 0\\). D'où \\(\\sum_i (X_i - \\mu)^2 = Q + n\\,(\\bar{X} - \\mu)^2\\).\n4. **Espérance de \\(Q\\).** En prenant l'espérance de l'identité : \\(n\\sigma^2 = \\mathbb{E}[Q] + n\\,\\mathrm{Var}(\\bar{X}) = \\mathbb{E}[Q] + \\sigma^2\\), d'où \\(\\mathbb{E}[Q] = (n-1)\\,\\sigma^2\\). Le biais de \\(Q/n\\) vaut \\(\\tfrac{n-1}{n}\\sigma^2 - \\sigma^2 = -\\sigma^2/n\\).\n5. **Cas normal.** On admet le théorème de Fisher (théorème général sur les vecteurs gaussiens) : si les \\(X_i\\) sont de loi \\(\\mathcal{N}(\\mu, \\sigma^2)\\), \\(W = Q/\\sigma^2\\) suit la loi du khi-deux à \\(k = n - 1\\) degrés de liberté, notée \\(\\chi^2_k\\), c'est-à-dire la loi de \\(Z_1^2 + \\dots + Z_k^2\\) pour \\(Z_1, \\dots, Z_k\\) indépendantes de loi \\(\\mathcal{N}(0, 1)\\) ; et \\(W\\) est indépendante de \\(\\bar{X}\\).\n6. **Moments du khi-deux.** Soit \\(Z\\) de loi \\(\\mathcal{N}(0, 1)\\), de densité \\(\\varphi\\), qui vérifie \\(\\varphi'(z) = -z\\,\\varphi(z)\\). Par intégration par parties, \\(\\mathbb{E}[Z^4] = \\int z^3 \\cdot z\\varphi(z)\\,dz = \\int z^3 (-\\varphi'(z))\\,dz = \\int 3z^2 \\varphi(z)\\,dz = 3\\) (le terme de bord \\(z^3 \\varphi(z)\\) tend vers 0 aux deux infinis). Donc \\(\\mathrm{Var}(Z^2) = 3 - 1 = 2\\), et par l'étape 2, \\(\\mathbb{E}[W] = k\\), \\(\\mathrm{Var}(W) = 2k\\), \\(\\mathbb{E}[W^2] = 2k + k^2\\).\n7. **EQM.** \\(\\mathrm{EQM}(c\\,Q) = \\mathbb{E}[(c\\sigma^2 W - \\sigma^2)^2] = \\sigma^4\\,\\mathbb{E}[c^2 W^2 - 2cW + 1] = \\sigma^4 \\big(c^2 (2k + k^2) - 2ck + 1\\big)\\). Avec \\(c = 1/k\\) : \\(\\sigma^4 (2/k + 1 - 2 + 1) = 2\\sigma^4/k\\). Avec \\(c = 1/(k+1)\\), en réduisant au dénominateur \\((k+1)^2\\) : \\(\\sigma^4 (2k + 1)/(k + 1)^2 = \\sigma^4 (2n - 1)/n^2\\). Enfin \\(\\tfrac{2}{n-1} - \\tfrac{2n-1}{n^2} = \\tfrac{3n - 1}{n^2 (n-1)} > 0\\).\n\n### Exemple calculé\n\n\\(n = 5\\) observations normales, \\(\\sigma^2 = 1\\). Biais de \\(Q/n\\) : \\(-0{,}2\\). EQM de \\(S^2 = Q/4\\) : \\(0{,}50\\) ; EQM de \\(Q/5\\) : \\(\\tfrac{9}{25} = 0{,}36\\) ; EQM de \\(Q/6\\) : \\(\\tfrac{1}{3}\\). Simulation du script : \\(0{,}499\\), \\(0{,}359\\), \\(0{,}333\\).\n\n### Pièges\n\n1. Sans biais ne veut pas dire meilleur : sous normalité, l'estimateur biaisé \\(Q/n\\) a une EQM plus petite que \\(S^2\\). La décomposition du point 1 dit qu'on peut échanger un peu de biais contre beaucoup de variance ; c'est le principe de la régularisation Ridge.\n2. Le point 2 ne demande ni normalité ni connaissance de \\(\\mu\\) ; le point 3 demande la normalité (avec une autre loi, \\(\\mathrm{Var}(W)\\) dépend du coefficient d'aplatissement).\n3. \\(S^2\\) sans biais n'implique pas \\(S = \\sqrt{S^2}\\) sans biais pour \\(\\sigma\\) (partie 6, Jensen).\n\n[[controle:biais]]\n\n## Partie 2 : maximum de vraisemblance\n\n### Le principe\n\nLe modèle est une famille de densités (ou de probabilités, pour une loi discrète) \\(f(x; \\theta)\\). Après observation de \\(x_1, \\dots, x_n\\), la **vraisemblance** est la fonction \\(L(\\theta) = \\prod_i f(x_i; \\theta)\\) du paramètre, et la log-vraisemblance \\(\\ell(\\theta) = \\sum_i \\ln f(x_i; \\theta)\\). L'estimateur du maximum de vraisemblance (EMV ; MLE en anglais) est la valeur \\(\\hat{\\theta}\\) qui maximise \\(L\\), donc \\(\\ell\\) (le logarithme est croissant) : le paramètre sous lequel les données observées étaient les plus probables.\n\n### Trois exemples\n\n1. **Bernoulli.** \\(f(x; \\theta) = \\theta^x (1 - \\theta)^{1-x}\\) pour \\(x \\in \\{0, 1\\}\\). Avec \\(k\\) succès sur \\(n\\) : \\(\\ell(\\theta) = k \\ln\\theta + (n - k)\\ln(1 - \\theta)\\), \\(\\ell'(\\theta) = k/\\theta - (n-k)/(1-\\theta)\\), qui s'annule en \\(\\theta = k/n\\), est positive avant et négative après : \\(\\hat{\\theta} = k/n\\). Si \\(k = 0\\) (ou \\(k = n\\)), \\(\\ell\\) est décroissante (croissante) et le maximum sur \\([0, 1]\\) est au bord, \\(\\hat{\\theta} = 0\\) (ou 1). Exemple : \\(7\\) succès sur \\(20\\), \\(\\hat{\\theta} = 0{,}35\\).\n2. **Normale.** \\(f(x; \\mu, v) = (2\\pi v)^{-1/2} e^{-(x - \\mu)^2/(2v)}\\), où \\(v = \\sigma^2\\). \\(\\ell(\\mu, v) = -\\tfrac{n}{2}\\ln(2\\pi v) - \\tfrac{1}{2v}\\sum_i (x_i - \\mu)^2\\). Par l'identité de Huygens (partie 1, étape 3, valable aussi pour des nombres), \\(\\sum_i (x_i - \\mu)^2 = q + n(\\bar{x} - \\mu)^2\\), où \\(q\\) est la valeur observée de \\(Q\\) : à \\(v\\) fixé, le maximum est en \\(\\mu = \\bar{x}\\). Ensuite \\(\\partial \\ell/\\partial v = -\\tfrac{n}{2v} + \\tfrac{q}{2v^2}\\), positive pour \\(v < q/n\\) et négative après (si \\(q > 0\\)) : \\(\\hat{v} = q/n\\). L'EMV de la variance est donc l'estimateur **biaisé** \\(Q/n\\). Exemple : données 2, 4, 4, 5, 10 ; \\(\\bar{x} = 5\\), \\(q = 36\\), \\(\\hat{v} = 7{,}2\\), alors que \\(s^2 = q/4 = 9\\).\n3. **Exponentielle.** \\(f(x; \\lambda) = \\lambda e^{-\\lambda x}\\) pour \\(x \\ge 0\\). \\(\\ell(\\lambda) = n\\ln\\lambda - \\lambda \\sum_i x_i\\), \\(\\ell'(\\lambda) = n/\\lambda - \\sum_i x_i\\), nulle en \\(\\hat{\\lambda} = n/\\sum_i x_i = 1/\\bar{x}\\), maximum car \\(\\ell'' = -n/\\lambda^2 < 0\\).\n\n### L'EMV peut être biaisé : calcul exact pour l'exponentielle\n\nÉnoncé : pour \\(n \\ge 2\\), \\(\\mathbb{E}[1/\\bar{X}] = \\tfrac{n}{n-1}\\lambda\\). Preuve, avec \\(T = \\sum_i X_i\\) :\n\n1. Pour \\(s > 0\\), \\(1/s = \\int_0^\\infty e^{-us}\\,du\\). Donc \\(\\mathbb{E}[1/T] = \\int_0^\\infty \\mathbb{E}[e^{-uT}]\\,du\\) (échange permis pour une fonction positive : Fubini-Tonelli, admis).\n2. \\(\\mathbb{E}[e^{-uX_1}] = \\int_0^\\infty \\lambda e^{-(\\lambda + u)x}\\,dx = \\lambda/(\\lambda + u)\\), et par indépendance \\(\\mathbb{E}[e^{-uT}] = (\\lambda/(\\lambda + u))^n\\).\n3. \\(\\int_0^\\infty \\lambda^n (\\lambda + u)^{-n}\\,du = \\lambda^n \\lambda^{1-n}/(n-1) = \\lambda/(n-1)\\). Donc \\(\\mathbb{E}[1/\\bar{X}] = n\\,\\mathbb{E}[1/T] = \\tfrac{n}{n-1}\\lambda\\).\n\nPour \\(n = 3\\) : \\(\\mathbb{E}[\\hat{\\lambda}] = 1{,}5\\,\\lambda\\) ; simulation avec \\(\\lambda = 1\\) : \\(1{,}506\\). La partie 6 (Jensen) explique le sens du biais sans calcul.\n\n**Invariance.** Si \\(g\\) est une bijection, l'EMV de \\(\\eta = g(\\theta)\\) est \\(g(\\hat{\\theta})\\) : la vraisemblance exprimée en \\(\\eta\\) est \\(L(g^{-1}(\\eta))\\), maximale quand \\(g^{-1}(\\eta) = \\hat{\\theta}\\). Ainsi l'EMV de la moyenne \\(1/\\lambda\\) de l'exponentielle est \\(\\bar{X}\\), sans biais, alors que \\(1/\\bar{X}\\) est biaisé : l'invariance ne conserve pas l'absence de biais.\n\n### Propriétés asymptotiques, énoncées et admises\n\nSous des conditions de régularité (modèle identifiable, support de \\(f\\) indépendant de \\(\\theta\\), \\(\\theta\\) intérieur à l'ensemble des paramètres, \\(\\ln f\\) deux fois dérivable en \\(\\theta\\) avec des conditions de domination), quand \\(n \\to \\infty\\) :\n\n- **convergence** : \\(\\hat{\\theta}_n\\) converge en probabilité vers \\(\\theta\\) ;\n- **normalité asymptotique** : \\(\\sqrt{n}\\,(\\hat{\\theta}_n - \\theta)\\) converge en loi vers \\(\\mathcal{N}(0, 1/\\mathcal{I}(\\theta))\\), où l'**information de Fisher** est \\(\\mathcal{I}(\\theta) = \\mathbb{E}\\big[(\\partial_\\theta \\ln f(X_1; \\theta))^2\\big] = -\\mathbb{E}\\big[\\partial_\\theta^2 \\ln f(X_1; \\theta)\\big]\\) ;\n- **efficacité asymptotique** : \\(1/\\mathcal{I}(\\theta)\\) est la plus petite variance asymptotique possible parmi les estimateurs réguliers (borne de Cramér-Rao).\n\nCe sont des énoncés **limites** : ils ne disent rien de garanti à \\(n\\) fixé. Exemples : Bernoulli, \\(\\mathcal{I}(\\theta) = 1/(\\theta(1-\\theta))\\), d'où l'erreur-type approchée \\(\\sqrt{\\hat{\\theta}(1 - \\hat{\\theta})/n} = 0{,}107\\) dans l'exemple ; exponentielle, \\(\\mathcal{I}(\\lambda) = 1/\\lambda^2\\).\n\nContre-exemple de régularité : loi uniforme sur \\([0, \\theta]\\). Le support dépend de \\(\\theta\\) ; l'EMV est le maximum des observations (\\(L(\\theta) = \\theta^{-n}\\) si \\(\\theta \\ge \\max_i x_i\\), 0 sinon), d'espérance \\(\\tfrac{n}{n+1}\\theta\\) (`outils/lecons_probas.py`, outil 3, après mise à l'échelle), et son erreur est d'ordre \\(1/n\\), pas \\(1/\\sqrt{n}\\).\n\n[[controle:asymptotique]]\n\n## Partie 3 : intervalles de confiance\n\n### Définition et interprétation\n\nUn intervalle de confiance de niveau \\(1 - \\alpha\\) est un intervalle \\([A, B]\\) dont les bornes sont des **fonctions des données**, donc aléatoires, tel que \\(\\mathbb{P}(A \\le \\theta \\le B) \\ge 1 - \\alpha\\) pour toute valeur de \\(\\theta\\) (avec égalité pour un intervalle exact). La probabilité porte sur la procédure : sur un grand nombre d'échantillons, environ \\(100(1-\\alpha)\\) % des intervalles produits contiennent \\(\\theta\\). Une fois les données observées, \\([a, b]\\) et \\(\\theta\\) sont des nombres fixes : \\(\\theta\\) est dedans ou non, et aucune probabilité fréquentiste n'y est attachée.\n\n### Construction exacte sous normalité\n\nLa **loi de Student** à \\(k\\) degrés de liberté est la loi de \\(Z/\\sqrt{W/k}\\), où \\(Z\\) suit \\(\\mathcal{N}(0, 1)\\) et \\(W\\) suit \\(\\chi^2_k\\), indépendantes. Elle est symétrique, et \\(t_{k; u}\\) désigne son quantile d'ordre \\(u\\).\n\nÉnoncé : si les \\(X_i\\) sont de loi \\(\\mathcal{N}(\\mu, \\sigma^2)\\) et \\(S = \\sqrt{Q/(n-1)}\\), alors \\(\\bar{X} \\pm t_{n-1; 1-\\alpha/2}\\,S/\\sqrt{n}\\) contient \\(\\mu\\) avec probabilité exactement \\(1 - \\alpha\\). Si \\(\\sigma\\) est connu, \\(\\bar{X} \\pm z_{1-\\alpha/2}\\,\\sigma/\\sqrt{n}\\) aussi.\n\n1. \\(\\bar{X}\\) suit \\(\\mathcal{N}(\\mu, \\sigma^2/n)\\) (une combinaison linéaire de normales indépendantes est normale, admis), donc \\(Z = \\sqrt{n}(\\bar{X} - \\mu)/\\sigma\\) suit \\(\\mathcal{N}(0, 1)\\).\n2. \\(T = \\sqrt{n}(\\bar{X} - \\mu)/S = Z / \\sqrt{W/(n-1)}\\) avec \\(W = Q/\\sigma^2\\) ; par le théorème de Fisher (partie 1, étape 5), \\(Z\\) et \\(W\\) sont indépendantes et \\(W\\) suit \\(\\chi^2_{n-1}\\) : \\(T\\) suit la loi de Student à \\(n - 1\\) degrés de liberté. Sa loi ne dépend d'aucun paramètre inconnu (c'est un **pivot**).\n3. Avec \\(t = t_{n-1; 1-\\alpha/2}\\) et par symétrie, \\(\\mathbb{P}(-t \\le T \\le t) = 1 - \\alpha\\). Et \\(-t \\le \\sqrt{n}(\\bar{X} - \\mu)/S \\le t\\) équivaut à \\(\\bar{X} - tS/\\sqrt{n} \\le \\mu \\le \\bar{X} + tS/\\sqrt{n}\\). Même raisonnement avec \\(Z\\) si \\(\\sigma\\) est connu.\n\nExemple : \\(n = 10\\), \\(\\bar{x} = 5{,}2\\), \\(s = 0{,}9\\). \\(t_{9; 0{,}975} = 2{,}262\\) (contre \\(z_{0{,}975} = 1{,}960\\)), demi-largeur \\(2{,}262 \\times 0{,}9/\\sqrt{10} = 0{,}644\\), intervalle \\([4{,}556 ; 5{,}844]\\). Le quantile de Student est plus grand que celui de la normale : il paie l'estimation de \\(\\sigma\\).\n\n### Intervalle asymptotique\n\nThéorème central limite (TCL, admis) : si les \\(X_i\\) sont i.i.d. de variance \\(\\sigma^2\\) finie et non nulle, \\(\\sqrt{n}(\\bar{X} - \\mu)/\\sigma\\) converge en loi vers \\(\\mathcal{N}(0, 1)\\). Le lemme de Slutsky (admis) permet d'y remplacer \\(\\sigma\\) par \\(S\\), qui converge en probabilité vers \\(\\sigma\\). Donc \\(\\mathbb{P}(\\bar{X} - z_{1-\\alpha/2} S/\\sqrt{n} \\le \\mu \\le \\bar{X} + z_{1-\\alpha/2} S/\\sqrt{n}) \\to 1 - \\alpha\\), pour **toute** loi de variance finie : la couverture n'est garantie qu'à la limite.\n\nExemple d'échec à \\(n\\) fini : proportion \\(\\hat{\\theta}\\) de succès, intervalle de Wald \\(\\hat{\\theta} \\pm z_{0{,}975}\\sqrt{\\hat{\\theta}(1 - \\hat{\\theta})/n}\\). Couverture exacte (somme sur la loi binomiale) pour \\(n = 20\\) : \\(0{,}959\\) si \\(\\theta = 0{,}5\\), mais \\(0{,}876\\) si \\(\\theta = 0{,}1\\). Une cause visible : avec probabilité \\(0{,}9^{20} \\approx 0{,}122\\), aucun succès, et l'intervalle se réduit au point 0.\n\nL'expérience suivante mesure la couverture de l'intervalle de Student à 95 % sur des données normales, où il est exact, et exponentielles, où il n'est qu'asymptotique.\n\n```python\ndef couverture_t(tirer, mu, n, nb=20000):\n    x = tirer((nb, n))\n    m = x.mean(axis=1)\n    s = x.std(axis=1, ddof=1)\n    demi = stats.t.ppf(0.975, n - 1) * s / np.sqrt(n)\n    return np.mean(np.abs(m - mu) <= demi)\n\nprint(\"erreur standard d'une couverture simulée proche de 0,95 :\", round(np.sqrt(0.95 * 0.05 / 20000), 4))\nfor n in [5, 10, 30, 100]:\n    c_norm = couverture_t(lambda t: rng.normal(1.0, 2.0, t), 1.0, n)\n    c_expo = couverture_t(lambda t: rng.exponential(1.0, t), 1.0, n)\n    print(\"n =\", n, \"; normale :\", round(c_norm, 4), \"; exponentielle :\", round(c_expo, 4))\n```\n\n```sortie\nerreur standard d'une couverture simulée proche de 0,95 : 0.0015\nn = 5 ; normale : 0.9503 ; exponentielle : 0.883\nn = 10 ; normale : 0.9494 ; exponentielle : 0.9033\nn = 30 ; normale : 0.9522 ; exponentielle : 0.928\nn = 100 ; normale : 0.9488 ; exponentielle : 0.9418\n```\n\n### Pièges\n\n1. Lire « \\(\\theta\\) a 95 % de chances d'être dans \\([a, b]\\) ».\n2. Utiliser \\(z\\) au lieu de \\(t\\) pour un petit échantillon : intervalle trop étroit.\n3. La demi-largeur est proportionnelle à \\(1/\\sqrt{n}\\) : la diviser par 2 demande 4 fois plus de données.\n\n[[controle:ic]]\n\n## Partie 4 : tests, p-values, puissance\n\n### Vocabulaire\n\nOn veut décider entre une hypothèse nulle \\(H_0\\) (par exemple \\(\\mu = \\mu_0\\)) et une alternative \\(H_1\\) (\\(\\mu \\ne \\mu_0\\)). Un test est une règle de rejet de \\(H_0\\), fonction des données. L'**erreur de première espèce** est de rejeter \\(H_0\\) vraie ; le test est **de niveau** \\(\\alpha\\) si sa probabilité est au plus \\(\\alpha\\) pour toute loi de \\(H_0\\). L'**erreur de seconde espèce** est de ne pas rejeter \\(H_0\\) fausse ; la **puissance** en un point de \\(H_1\\) est la probabilité de rejeter, soit 1 moins la probabilité d'erreur de seconde espèce. On fixe le niveau, puis on cherche la puissance la plus grande.\n\n### La p-value\n\nDéfinition : soit \\(D\\) une statistique de test dont les grandes valeurs témoignent contre \\(H_0\\) (par exemple \\(D = \\lvert T \\rvert\\)), de valeur observée \\(d\\). La p-value est \\(p = \\mathbb{P}_{H_0}(D \\ge d)\\) : la probabilité, **calculée en supposant \\(H_0\\) vraie**, d'obtenir une statistique au moins aussi extrême que celle observée. Rejeter quand \\(p \\le \\alpha\\) donne un test de niveau \\(\\alpha\\) ; l'énoncé suivant le démontre, avec égalité, dans le cas d'une statistique de loi continue.\n\nÉnoncé : si \\(H_0\\) fixe entièrement la loi de \\(D\\) et que sa fonction de répartition \\(G\\) est continue, la p-value aléatoire \\(P = 1 - G(D)\\) suit la loi uniforme sur \\([0, 1]\\) sous \\(H_0\\).\n\n1. Soit \\(u \\in ]0, 1[\\) et \\(c = \\inf\\{x : G(x) \\ge 1 - u\\}\\). \\(G\\) est continue à droite, donc \\(G(c) \\ge 1 - u\\) ; et \\(G(x) < 1 - u\\) pour \\(x < c\\), donc par continuité \\(G(c) \\le 1 - u\\). Ainsi \\(G(c) = 1 - u\\).\n2. \\(G\\) est croissante : si \\(D \\ge c\\), \\(G(D) \\ge 1 - u\\) ; si \\(D < c\\), \\(G(D) < 1 - u\\) par définition de \\(c\\). Donc \\(\\{P \\le u\\} = \\{G(D) \\ge 1 - u\\} = \\{D \\ge c\\}\\).\n3. \\(\\mathbb{P}(D \\ge c) = 1 - G(c) = u\\), la loi de \\(D\\) n'ayant pas d'atome. Donc \\(\\mathbb{P}(P \\le u) = u\\).\n\nUne statistique discrète (un comptage) ne donne pas une p-value uniforme : \\(P\\) n'y prend qu'un nombre dénombrable de valeurs.\n\n```python\ndef pvalues(effet, n=20, nb=20000):\n    x = rng.normal(effet, 1.0, (nb, n))\n    t = x.mean(axis=1) / (x.std(axis=1, ddof=1) / np.sqrt(n))\n    return 2 * stats.t.sf(np.abs(t), n - 1)\n\nbornes = np.linspace(0, 1, 11)\nfor effet in [0.0, 0.5]:\n    p = pvalues(effet)\n    print(\"effet\", effet, \": proportion de p-values <= 0,05 :\", round(np.mean(p <= 0.05), 4))\n    print(\"   effectifs par dixième de [0, 1] :\", np.histogram(p, bins=bornes)[0])\n```\n\n```sortie\neffet 0.0 : proportion de p-values <= 0,05 : 0.0514\n   effectifs par dixième de [0, 1] : [2044 2024 1921 2043 1961 1962 2005 2033 1988 2019]\neffet 0.5 : proportion de p-values <= 0,05 : 0.5644\n   effectifs par dixième de [0, 1] : [13939  2445  1225   684   535   348   273   201   174   176]\n```\n\nLecture : sous \\(H_0\\) (effet 0), chacun des dix effectifs a pour espérance 2000, un dixième des 20 000 tirages ; sous l'alternative, les p-values s'entassent près de 0, et la proportion sous 0,05 estime la puissance du test.\n\n### Lecture correcte et contresens\n\nLa p-value n'est **pas** la probabilité que \\(H_0\\) soit vraie : elle est calculée en supposant \\(H_0\\) vraie. Exemple : 10 % des signaux testés ont un effet réel, puissance 0,8, niveau 0,05. Par la formule de Bayes, \\(\\mathbb{P}(H_0 \\mid \\text{rejet}) = \\dfrac{0{,}9 \\times 0{,}05}{0{,}9 \\times 0{,}05 + 0{,}1 \\times 0{,}8} = \\dfrac{0{,}045}{0{,}125} = 0{,}36\\) : plus d'un rejet sur trois est une fausse découverte, bien que chaque test soit au niveau 5 %. Autres contresens : une petite p-value ne mesure pas la taille de l'effet (elle diminue avec \\(n\\) à effet fixé) ; \\(p > 0{,}05\\) ne prouve pas \\(H_0\\) (manque de puissance possible).\n\n### Le test t\n\nSous normalité, pour \\(H_0 : \\mu = \\mu_0\\), \\(T = \\sqrt{n}(\\bar{X} - \\mu_0)/S\\) suit sous \\(H_0\\) la loi de Student à \\(n - 1\\) degrés de liberté (partie 3). Test bilatéral de niveau \\(\\alpha\\) : rejet si \\(\\lvert T \\rvert > t_{n-1; 1-\\alpha/2}\\) ; p-value \\(2\\,\\mathbb{P}(T_{n-1} \\ge \\lvert t \\rvert)\\), où \\(T_{n-1}\\) suit la loi de Student.\n\n**Dualité.** \\(\\lvert T \\rvert \\le t_{n-1; 1-\\alpha/2}\\) équivaut à \\(\\mu_0 \\in [\\bar{X} \\pm t_{n-1; 1-\\alpha/2} S/\\sqrt{n}]\\) (même manipulation qu'en partie 3) : le test rejette exactement les \\(\\mu_0\\) hors de l'intervalle de confiance.\n\nExemple : \\(n = 16\\), \\(\\bar{x} = 0{,}5\\), \\(s = 1{,}2\\), \\(\\mu_0 = 0\\). \\(t = 0{,}5/(1{,}2/4) = \\tfrac{5}{3} \\approx 1{,}667\\), sous \\(t_{15; 0{,}975} = 2{,}131\\) : pas de rejet à 5 %, p-value \\(0{,}116\\). Avec la loi normale au lieu de Student, on trouverait \\(0{,}096\\), trop petit.\n\n### Puissance d'un test z unilatéral\n\n\\(\\sigma\\) connu, \\(H_0 : \\mu = 0\\) contre \\(H_1 : \\mu > 0\\), rejet si \\(\\sqrt{n}\\,\\bar{X}/\\sigma \\ge z_{1-\\alpha}\\). Si \\(\\mu = \\delta > 0\\), \\(\\sqrt{n}\\,\\bar{X}/\\sigma = \\sqrt{n}\\,\\delta/\\sigma + Z\\) avec \\(Z\\) de loi \\(\\mathcal{N}(0, 1)\\), donc la puissance vaut \\(\\mathbb{P}(Z \\ge z_{1-\\alpha} - \\sqrt{n}\\,\\delta/\\sigma) = \\Phi(\\sqrt{n}\\,\\delta/\\sigma - z_{1-\\alpha})\\). Exemple : \\(\\delta/\\sigma = 0{,}5\\), \\(n = 25\\), \\(\\alpha = 0{,}05\\) : \\(\\Phi(5 \\times 0{,}5 - 1{,}645) = \\Phi(0{,}855) \\approx 0{,}804\\).\n\n[[controle:pvalue]]\n\n## Partie 5 : tests multiples\n\n### Taux d'erreur familial\n\nOn réalise \\(m\\) tests ; \\(m_0\\) hypothèses nulles sont vraies. \\(V\\) est le nombre (aléatoire) de rejets à tort, \\(R\\) le nombre total de rejets. Le taux d'erreur familial est \\(\\mathrm{FWER} = \\mathbb{P}(V \\ge 1)\\). Bonferroni (chaque test au niveau \\(\\alpha/m\\)) garantit \\(\\mathrm{FWER} \\le \\alpha\\) pour toute dépendance, par la borne de Boole : énoncé, preuve et optimalité dans `outils/lecons_probas.py`, outil 4.\n\n### Proportion de fausses découvertes et Benjamini-Hochberg\n\nAvec beaucoup de tests, exiger zéro fausse découverte coûte trop de puissance. On contrôle plutôt la proportion de fausses découvertes \\(\\mathrm{FDP} = V/\\max(R, 1)\\) (nulle s'il n'y a aucun rejet), en moyenne : \\(\\mathrm{FDR} = \\mathbb{E}[\\mathrm{FDP}]\\) (false discovery rate).\n\n**Procédure de Benjamini-Hochberg (BH)** au niveau \\(q\\) : trier les p-values \\(p_{(1)} \\le \\dots \\le p_{(m)}\\) ; poser \\(k = \\max\\{i : p_{(i)} \\le i\\,q/m\\}\\) ; rejeter les \\(k\\) hypothèses de plus petites p-values (aucune si l'ensemble est vide). C'est une procédure **montante** : on cherche le **plus grand** \\(i\\) qui passe son seuil, et l'on rejette tout ce qui est en dessous, même des p-values qui dépassent leur propre seuil.\n\n**Garantie** (Benjamini et Hochberg, 1995, « Controlling the false discovery rate: a practical and powerful approach to multiple testing », Journal of the Royal Statistical Society, série B, 57(1), 289-300) : si les p-values des hypothèses nulles vraies sont indépendantes entre elles et des autres, et uniformes, alors \\(\\mathrm{FDR} \\le m_0\\,q/m \\le q\\). La preuve n'est pas donnée ici, faute de place : elle est **admise**. Benjamini et Yekutieli (2001, Annals of Statistics, 29(4), 1165-1188) étendent la garantie à une dépendance positive particulière, et donnent une variante valable pour toute dépendance, au prix d'un seuil divisé par \\(\\sum_{j=1}^m 1/j\\).\n\nConstaté par simulation dans le script (non démontré ici) : \\(m = 20\\), \\(m_0 = 15\\), \\(q = 0{,}1\\), p-values indépendantes : FDR simulée \\(0{,}0750\\), pour \\(m_0 q/m = 0{,}075\\). Dans la même expérience, le FWER de BH vaut \\(0{,}333\\), bien au-dessus de \\(q\\) : BH ne garantit pas le FWER au niveau \\(q\\).\n\n**Lien entre les deux**, démontré : \\(\\mathrm{FDP} \\le I_{\\{V \\ge 1\\}}\\), car \\(\\mathrm{FDP} = 0\\) si \\(V = 0\\) et \\(\\mathrm{FDP} \\le 1\\) sinon. En espérance, \\(\\mathrm{FDR} \\le \\mathrm{FWER}\\) : contrôler le FWER contrôle la FDR. Si toutes les nulles sont vraies (\\(m_0 = m\\)), \\(V = R\\), donc \\(\\mathrm{FDP} = I_{\\{V \\ge 1\\}}\\) et \\(\\mathrm{FDR} = \\mathrm{FWER}\\).\n\nExemple : \\(m = 5\\), \\(q = 0{,}05\\), p-values triées 0,004 ; 0,021 ; 0,028 ; 0,035 ; 0,5 ; seuils \\(i\\,q/m\\) : \\((0{,}01 ; 0{,}02 ; 0{,}03 ; 0{,}04 ; 0{,}05)\\). \\(p_{(2)} = 0{,}021 > 0{,}02\\) échoue, mais \\(p_{(4)} = 0{,}035 \\le 0{,}04\\) passe : \\(k = 4\\), et l'on rejette les quatre premières, \\(p_{(2)}\\) comprise. Bonferroni au seuil \\(0{,}05/5 = 0{,}01\\) n'en rejette que \\(1\\).\n\n```python\ndef benjamini_hochberg(p, q):\n    p = np.asarray(p, dtype=float)\n    m = len(p)\n    ordre = np.argsort(p)\n    ok = p[ordre] <= q * np.arange(1, m + 1) / m\n    k = np.nonzero(ok)[0].max() + 1 if ok.any() else 0\n    rejet = np.zeros(m, dtype=bool)\n    rejet[ordre[:k]] = True\n    return rejet\n\np = [0.004, 0.021, 0.028, 0.035, 0.5]\nprint(\"BH, q = 0,05       :\", benjamini_hochberg(p, 0.05))\nprint(\"Bonferroni, 0,01   :\", np.asarray(p) <= 0.05 / 5)\n```\n\n```sortie\nBH, q = 0,05       : [ True  True  True  True False]\nBonferroni, 0,01   : [ True False False False False]\n```\n\n### Pièges\n\n1. S'arrêter au premier échec (procédure descendante) au lieu de chercher le plus grand \\(i\\) qui passe.\n2. Comparer chaque p-value à \\(q\\), ou à \\(q/m\\) : ce sont le non-ajustement et Bonferroni.\n3. Croire que BH borne la probabilité d'au moins une fausse découverte.\n\n## Partie 6 : quatre inégalités\n\n### Markov\n\nÉnoncé : si \\(X \\ge 0\\) et \\(a > 0\\), \\(\\mathbb{P}(X \\ge a) \\le \\mathbb{E}[X]/a\\). Preuve : \\(a\\,I_{\\{X \\ge a\\}} \\le X\\) en tout point (si \\(X \\ge a\\), le membre de gauche vaut \\(a \\le X\\) ; sinon il vaut \\(0 \\le X\\)) ; on prend l'espérance. Égalité si \\(X\\) ne prend que les valeurs 0 et \\(a\\). Exemple : \\(X \\ge 0\\) de moyenne 2 : \\(\\mathbb{P}(X \\ge 10) \\le 0{,}2\\) ; pour une exponentielle de moyenne 2, la vraie valeur est \\(e^{-5} \\approx 0{,}0067\\) : la borne est valable pour toute loi positive, donc grossière pour une loi donnée.\n\n### Tchebychev\n\nÉnoncé : si \\(\\mathrm{Var}(X)\\) est finie et \\(a > 0\\), \\(\\mathbb{P}(\\lvert X - \\mathbb{E}X \\rvert \\ge a) \\le \\mathrm{Var}(X)/a^2\\). Preuve : Markov appliquée à \\((X - \\mathbb{E}X)^2 \\ge 0\\) et \\(a^2\\), car \\(\\{\\lvert X - \\mathbb{E}X \\rvert \\ge a\\} = \\{(X - \\mathbb{E}X)^2 \\ge a^2\\}\\). Usage : avec \\(\\bar{X}\\), \\(\\mathbb{P}(\\lvert \\bar{X} - \\mu \\rvert \\ge \\varepsilon) \\le \\sigma^2/(n\\varepsilon^2)\\), qui tend vers 0 (loi faible des grands nombres). Exemple : proportion de Bernoulli, \\(\\sigma^2 = \\theta(1 - \\theta) \\le 1/4\\) ; pour garantir \\(\\mathbb{P}(\\lvert \\bar{X} - \\theta \\rvert \\ge 0{,}1) \\le 0{,}05\\) quel que soit \\(\\theta\\), il suffit de \\(n \\ge \\tfrac{1/4}{0{,}1^2 \\times 0{,}05} = 500\\). L'approximation du TCL donnerait \\(n \\ge (z_{0{,}975} \\times 0{,}5/0{,}1)^2 \\approx 96{,}04\\), soit \\(97\\), mais ce n'est qu'une approximation, pas une garantie.\n\n### Jensen\n\nÉnoncé : si \\(\\varphi\\) est convexe sur un intervalle contenant les valeurs de \\(X\\), et si \\(X\\) et \\(\\varphi(X)\\) sont intégrables, \\(\\varphi(\\mathbb{E}X) \\le \\mathbb{E}[\\varphi(X)]\\). Si \\(\\varphi\\) est strictement convexe, l'égalité impose \\(X\\) constante avec probabilité 1.\n\n1. Soit \\(m = \\mathbb{E}X\\), supposé intérieur à l'intervalle, et \\(\\varphi\\) dérivable en \\(m\\) (cas de \\(x^2\\), \\(e^x\\), \\(1/x\\) et \\(-\\ln x\\) sur \\(]0, \\infty[\\) ; le cas général remplace \\(\\varphi'(m)\\) par la dérivée à droite, admis). Par convexité, pour \\(t \\in ]0, 1]\\), \\(\\varphi(m + t(x - m)) \\le \\varphi(m) + t\\,(\\varphi(x) - \\varphi(m))\\). On divise par \\(t\\) et on fait tendre \\(t\\) vers 0 : \\(\\varphi'(m)(x - m) \\le \\varphi(x) - \\varphi(m)\\). La courbe est au-dessus de sa tangente en \\(m\\).\n2. Avec \\(x = X\\) et en prenant l'espérance : \\(\\mathbb{E}[\\varphi(X)] \\ge \\varphi(m) + \\varphi'(m)\\,\\mathbb{E}[X - m] = \\varphi(m)\\).\n3. Égalité : la variable \\(\\varphi(X) - \\varphi(m) - \\varphi'(m)(X - m)\\) est positive d'espérance nulle, donc nulle avec probabilité 1. Si \\(\\varphi\\) est strictement convexe, elle ne s'annule qu'en \\(x = m\\) : si elle s'annulait en \\(x \\ne m\\), au milieu \\(y = (x + m)/2\\) la stricte convexité donnerait \\(\\varphi(y) < \\tfrac12(\\varphi(x) + \\varphi(m)) = \\varphi(m) + \\varphi'(m)(y - m)\\), contraire à l'étape 1.\n\nUsages : \\(\\varphi(x) = x^2\\) donne \\(\\mathrm{Var}(X) \\ge 0\\) ; \\(\\varphi(x) = 1/x\\) donne \\(\\mathbb{E}[1/\\bar{X}] > 1/\\mathbb{E}[\\bar{X}] = \\lambda\\) pour l'exponentielle (partie 2) : l'EMV \\(\\hat{\\lambda}\\) surestime \\(\\lambda\\) en moyenne ; \\(\\varphi = -\\sqrt{\\cdot}\\), convexe, donne \\(\\mathbb{E}[S] \\le \\sqrt{\\mathbb{E}[S^2]} = \\sigma\\), strictement si \\(S\\) n'est pas constante. Pour \\(n = 2\\) et des observations normales de variance 1, \\(\\mathbb{E}[S] = \\sqrt{2/\\pi} \\approx 0{,}798\\) (simulation \\(0{,}799\\)). De même \\(\\mathbb{E}[\\ln Y] \\le \\ln \\mathbb{E}[Y]\\) pour \\(Y > 0\\) : la croissance logarithmique moyenne est inférieure au logarithme de la croissance moyenne.\n\n### Cauchy-Schwarz\n\nÉnoncé : si \\(\\mathbb{E}[X^2]\\) et \\(\\mathbb{E}[Y^2]\\) sont finies, \\(\\mathbb{E}[XY]^2 \\le \\mathbb{E}[X^2]\\,\\mathbb{E}[Y^2]\\), avec égalité si et seulement si \\(X\\) et \\(Y\\) sont proportionnelles avec probabilité 1.\n\n1. Si \\(\\mathbb{E}[Y^2] = 0\\), \\(Y = 0\\) avec probabilité 1 (Markov appliquée à \\(Y^2\\) : \\(\\mathbb{P}(Y^2 \\ge a) = 0\\) pour tout \\(a > 0\\)), et les deux membres sont nuls.\n2. Sinon, pour tout réel \\(t\\), \\(0 \\le \\mathbb{E}[(X - tY)^2] = \\mathbb{E}[X^2] - 2t\\,\\mathbb{E}[XY] + t^2\\,\\mathbb{E}[Y^2]\\). Ce trinôme en \\(t\\) est positif, donc son discriminant est négatif ou nul : \\(4\\,\\mathbb{E}[XY]^2 - 4\\,\\mathbb{E}[X^2]\\,\\mathbb{E}[Y^2] \\le 0\\).\n3. Égalité : le discriminant est nul, le trinôme s'annule en un \\(t_0\\), donc \\(\\mathbb{E}[(X - t_0 Y)^2] = 0\\) et \\(X = t_0 Y\\) avec probabilité 1.\n\nUsage : appliquée à \\(X - \\mathbb{E}X\\) et \\(Y - \\mathbb{E}Y\\), elle donne \\(\\lvert \\mathrm{Cov}(X, Y) \\rvert \\le \\sqrt{\\mathrm{Var}(X)\\,\\mathrm{Var}(Y)}\\), donc une corrélation entre -1 et 1. Exemple : \\(\\mathrm{Var}(X) = 4\\), \\(\\mathrm{Var}(Y) = 9\\) imposent \\(\\lvert \\mathrm{Cov}(X, Y) \\rvert \\le 6\\), atteint pour \\(Y = 1{,}5\\,X\\) plus une constante.\n\n[[controle:jensen]]\n\n## Réflexes en 30 secondes\n\n| Indice dans l'énoncé | Premier geste |\n|---|---|\n| « biais », « erreur quadratique », « quel estimateur est meilleur » | EQM = variance + biais au carré ; calculer les deux séparément |\n| variance empirique, « n ou n − 1 » | \\(\\mathbb{E}[Q] = (n-1)\\sigma^2\\) ; sous normalité \\(Q/\\sigma^2\\) suit \\(\\chi^2_{n-1}\\), de variance \\(2(n-1)\\) |\n| « maximum de vraisemblance » | écrire \\(\\ell\\), dériver, vérifier le signe ; regarder les bords ; Bernoulli \\(k/n\\), normale \\((\\bar{x}, q/n)\\), exponentielle \\(1/\\bar{x}\\) |\n| « intervalle de confiance », petit \\(n\\), \\(\\sigma\\) inconnu | \\(\\bar{x} \\pm t_{n-1; 1-\\alpha/2}\\,s/\\sqrt{n}\\), avec \\(n - 1\\) degrés de liberté |\n| « p-value », « probabilité que l'hypothèse soit vraie » | p-value calculée sous \\(H_0\\) ; pour \\(\\mathbb{P}(H_0 \\mid \\text{rejet})\\), formule de Bayes avec la proportion de vrais effets et la puissance |\n| « puissance », « taille d'échantillon » | \\(\\Phi(\\sqrt{n}\\,\\delta/\\sigma - z_{1-\\alpha})\\) en unilatéral |\n| plusieurs tests, « fausses découvertes » | FWER : Bonferroni \\(\\alpha/m\\) ; FDR : BH, trier, seuils \\(i\\,q/m\\), plus grand \\(i\\) qui passe |\n| « borne », « au plus », loi inconnue | Markov (positive, moyenne), Tchebychev (variance), Jensen (fonction convexe d'une espérance), Cauchy-Schwarz (produit, covariance) |\n\nContrôles de vraisemblance en 5 secondes : une EQM est au moins égale à la variance ; un quantile de Student dépasse celui de la normale au même ordre (au-dessus de 1/2) ; une p-value est uniforme sous \\(H_0\\) continue ; BH rejette au moins autant que Bonferroni au même niveau ; \\(\\mathbb{E}[1/X] \\ge 1/\\mathbb{E}[X]\\) pour \\(X > 0\\).\n\n## À savoir refaire sans notes\n\n- La décomposition EQM = variance + biais au carré, et \\(\\mathbb{E}[Q] = (n-1)\\sigma^2\\) par l'identité de Huygens.\n- L'EMV de Bernoulli, de la normale (avec le biais de \\(Q/n\\)) et de l'exponentielle, et \\(\\mathbb{E}[1/\\bar{X}] = \\tfrac{n}{n-1}\\lambda\\) par la transformée de Laplace.\n- L'intervalle de Student par le pivot \\(T\\), et sa dualité avec le test t.\n- L'uniformité de la p-value sous \\(H_0\\), et le calcul de \\(\\mathbb{P}(H_0 \\mid \\text{rejet})\\) par Bayes.\n- La procédure de Benjamini-Hochberg sur une liste, et \\(\\mathrm{FDR} \\le \\mathrm{FWER}\\).\n- Les preuves de Markov, Tchebychev, Jensen (tangente) et Cauchy-Schwarz (discriminant).\n", "controles": {"biais": {"question": "Soient \\(X_1, \\dots, X_n\\) i.i.d. de variance \\(\\sigma^2\\), avec \\(n \\ge 2\\), et \\(Q = \\sum_i (X_i - \\bar{X})^2\\). Quel est le biais de \\(Q/n\\) comme estimateur de \\(\\sigma^2\\) ?", "options": [{"id": "a", "texte": "\\(-\\sigma^2/n\\)", "correcte": true, "explication": "Oui : \\(\\mathbb{E}[Q] = (n-1)\\sigma^2\\), donc \\(\\mathbb{E}[Q/n] - \\sigma^2 = \\tfrac{n-1}{n}\\sigma^2 - \\sigma^2 = -\\sigma^2/n\\)."}, {"id": "b", "texte": "0, car \\(\\bar{X}\\) est sans biais pour \\(\\mu\\).", "correcte": false, "explication": "Centrer sur \\(\\bar{X}\\) au lieu de \\(\\mu\\) fait perdre le terme \\(n(\\bar{X} - \\mu)^2\\) de l'identité de Huygens, d'espérance \\(\\sigma^2\\) : \\(Q\\) est en moyenne plus petit que \\(\\sum_i (X_i - \\mu)^2\\)."}, {"id": "c", "texte": "\\(+\\sigma^2/n\\)", "correcte": false, "explication": "Erreur de signe : \\(Q \\le \\sum_i (X_i - \\mu)^2\\) en tout point, car \\(\\bar{X}\\) minimise \\(\\sum_i (X_i - c)^2\\) en \\(c\\). \\(Q/n\\) sous-estime donc \\(\\sigma^2\\) en moyenne."}, {"id": "d", "texte": "\\(-\\sigma^2/(n-1)\\)", "correcte": false, "explication": "Le biais se calcule à partir de \\(\\mathbb{E}[Q/n] = \\tfrac{n-1}{n}\\sigma^2\\) : la différence avec \\(\\sigma^2\\) a pour dénominateur \\(n\\), pas \\(n - 1\\)."}]}, "asymptotique": {"question": "On observe \\(n = 3\\) durées i.i.d. de loi exponentielle de paramètre \\(\\lambda\\), et l'on estime \\(\\lambda\\) par l'EMV \\(\\hat{\\lambda} = 1/\\bar{X}\\). Que garantit le théorème de normalité asymptotique de l'EMV pour cet échantillon ?", "options": [{"id": "a", "texte": "Rien à \\(n = 3\\) : c'est un énoncé sur la limite quand \\(n \\to \\infty\\). Ici \\(\\hat{\\lambda}\\) a même un biais de 50 %.", "correcte": true, "explication": "Oui : \\(\\mathbb{E}[\\hat{\\lambda}] = \\tfrac{n}{n-1}\\lambda = 1{,}5\\,\\lambda\\) pour \\(n = 3\\). Le théorème dit seulement que \\(\\sqrt{n}(\\hat{\\lambda}_n - \\lambda)\\) se rapproche en loi de \\(\\mathcal{N}(0, \\lambda^2)\\) quand \\(n\\) grandit."}, {"id": "b", "texte": "Que \\(\\hat{\\lambda}\\) est sans biais.", "correcte": false, "explication": "Aucun énoncé asymptotique ne donne l'absence de biais à \\(n\\) fixé, et ici le calcul exact donne \\(\\mathbb{E}[\\hat{\\lambda}] = \\tfrac{3}{2}\\lambda\\)."}, {"id": "c", "texte": "Que \\(\\hat{\\lambda}\\) suit exactement la loi \\(\\mathcal{N}(\\lambda, \\lambda^2/3)\\).", "correcte": false, "explication": "C'est l'approximation suggérée par le théorème avec \\(\\mathcal{I}(\\lambda) = 1/\\lambda^2\\), pas une loi exacte : \\(\\hat{\\lambda}\\) est positif et sa loi est asymétrique, alors qu'une normale charge les négatifs."}, {"id": "d", "texte": "Que \\(\\hat{\\lambda}\\) a la plus petite variance parmi tous les estimateurs de \\(\\lambda\\).", "correcte": false, "explication": "L'efficacité est asymptotique et concerne les estimateurs réguliers ; à \\(n\\) fixé, l'estimateur constant \\(\\tilde{\\lambda} = 1\\) a une variance nulle, plus petite, sans être un bon estimateur."}]}, "ic": {"question": "Sur un échantillon normal de taille 10, on obtient l'intervalle de Student à 95 % \\([4{,}556 ; 5{,}844]\\) pour \\(\\mu\\). Quelle phrase est juste ?", "options": [{"id": "a", "texte": "La méthode qui produit cet intervalle capture \\(\\mu\\) pour 95 % des échantillons ; cet intervalle-ci contient \\(\\mu\\) ou non, sans probabilité attachée.", "correcte": true, "explication": "Oui : la probabilité 0,95 porte sur les bornes aléatoires \\(A\\) et \\(B\\), avant observation. Après, tout est fixé."}, {"id": "b", "texte": "\\(\\mathbb{P}(4{,}556 \\le \\mu \\le 5{,}844) = 0{,}95\\).", "correcte": false, "explication": "\\(\\mu\\) est un paramètre fixe et les bornes sont des nombres : cette probabilité vaut 0 ou 1. Lui donner un sens demanderait un modèle bayésien, avec une loi a priori sur \\(\\mu\\)."}, {"id": "c", "texte": "95 % des observations de l'échantillon sont dans l'intervalle.", "correcte": false, "explication": "L'intervalle porte sur la moyenne \\(\\mu\\) ; sa largeur décroît en \\(1/\\sqrt{n}\\), alors que la dispersion des observations ne décroît pas avec \\(n\\)."}, {"id": "d", "texte": "Un nouvel échantillon de même taille aura sa moyenne dans cet intervalle avec probabilité 0,95.", "correcte": false, "explication": "Cette probabilité dépend de la position de \\(\\mu\\), inconnue, par rapport à cet intervalle-ci. Avant observation, elle est même inférieure à 0,95 : la différence des deux moyennes a pour variance \\(2\\sigma^2/n\\), le double de celle d'une seule moyenne."}]}, "pvalue": {"question": "Un test t bilatéral de \\(H_0 : \\mu = 0\\) donne une p-value de 0,03. Quelle lecture est juste ?", "options": [{"id": "a", "texte": "Si \\(H_0\\) était vraie, une statistique au moins aussi extrême que celle observée aurait une probabilité de 0,03.", "correcte": true, "explication": "Oui : c'est la définition, \\(p = \\mathbb{P}_{H_0}(\\lvert T \\rvert \\ge \\lvert t \\rvert)\\). On rejette \\(H_0\\) au niveau 5 %, pas au niveau 1 %."}, {"id": "b", "texte": "La probabilité que \\(H_0\\) soit vraie vaut 0,03.", "correcte": false, "explication": "La p-value est calculée en supposant \\(H_0\\) vraie. \\(\\mathbb{P}(H_0 \\mid \\text{données})\\) demande une loi a priori : dans l'exemple de la leçon, \\(\\mathbb{P}(H_0 \\mid \\text{rejet}) = 0{,}36\\) pour des tests au niveau 0,05."}, {"id": "c", "texte": "L'effet est grand.", "correcte": false, "explication": "À effet fixé, la statistique \\(T\\) croît comme \\(\\sqrt{n}\\) : un effet minuscule donne une p-value aussi petite qu'on veut si \\(n\\) est assez grand. La taille de l'effet se lit sur \\(\\bar{x} - \\mu_0\\) et son intervalle."}, {"id": "d", "texte": "L'effet est réel avec probabilité 0,97.", "correcte": false, "explication": "C'est le même contresens que \\(\\mathbb{P}(H_0) = 0{,}03\\), pris au complémentaire : la p-value n'est pas une probabilité sur les hypothèses."}]}, "jensen": {"question": "Soient \\(X_1, \\dots, X_n\\) i.i.d. normales de variance \\(\\sigma^2 > 0\\), \\(n \\ge 2\\), et \\(S = \\sqrt{Q/(n-1)}\\), où \\(S^2 = Q/(n-1)\\) est sans biais pour \\(\\sigma^2\\). Que vaut \\(\\mathbb{E}[S]\\) ?", "options": [{"id": "a", "texte": "Strictement moins que \\(\\sigma\\).", "correcte": true, "explication": "Oui : \\(-\\sqrt{\\cdot}\\) est strictement convexe et \\(S^2\\) n'est pas constante, donc Jensen donne \\(\\mathbb{E}[S] < \\sqrt{\\mathbb{E}[S^2]} = \\sigma\\). Pour \\(n = 2\\), \\(\\mathbb{E}[S] = \\sqrt{2/\\pi}\\,\\sigma \\approx 0{,}798\\,\\sigma\\)."}, {"id": "b", "texte": "Exactement \\(\\sigma\\), puisque \\(S^2\\) est sans biais.", "correcte": false, "explication": "L'espérance ne commute pas avec une fonction non affine : \\(\\mathbb{E}[\\sqrt{S^2}] \\ne \\sqrt{\\mathbb{E}[S^2]}\\) dès que \\(S^2\\) varie."}, {"id": "c", "texte": "Strictement plus que \\(\\sigma\\).", "correcte": false, "explication": "Sens inversé : la racine est concave, donc la moyenne des racines est sous la racine de la moyenne. Le sens « plus grand » vaut pour une fonction convexe, comme \\(1/x\\)."}, {"id": "d", "texte": "Cela dépend de \\(\\mu\\).", "correcte": false, "explication": "\\(Q\\) est inchangé si l'on ajoute une constante à tous les \\(X_i\\) : la loi de \\(S\\) ne dépend pas de \\(\\mu\\)."}]}}, "verif": {"script": "verif/seance_math_3.py"}}]}, {"id": "math", "nom": "Mathématiques", "budget_min": 20, "questions": [{"id": "M3-01", "section": "math", "theme": "Estimateurs, décomposition de l'erreur quadratique moyenne", "difficulte": 2, "temps_cible_s": 75, "enonce": "Soient \\(X_1, \\dots, X_9\\) neuf variables aléatoires indépendantes et de même loi, d'espérance \\(\\mu = 2\\) et de variance \\(\\sigma^2 = 4\\). On estime \\(\\mu\\) par \\(\\tilde{\\mu} = \\tfrac{1}{10}(X_1 + \\dots + X_9)\\) : la somme est divisée par 10, et non par 9.\n\nQue vaut l'erreur quadratique moyenne \\(\\mathbb{E}[(\\tilde{\\mu} - \\mu)^2]\\), arrondie à deux décimales ?", "options": [{"id": "a", "texte": "0,40", "correcte": true, "explication": "Oui : variance \\(0{,}36\\) plus biais au carré \\((-0{,}2)^2 = 0{,}04\\)."}, {"id": "b", "texte": "0,44", "correcte": false, "explication": "C'est \\(\\sigma^2/9\\), l'erreur quadratique de la moyenne empirique \\(\\bar{X}\\), sans biais. L'estimateur demandé divise par 10 : sa variance et son biais changent tous les deux."}, {"id": "c", "texte": "0,36", "correcte": false, "explication": "C'est la variance seule, \\(9\\sigma^2/100\\). L'estimateur est biaisé (\\(\\mathbb{E}[\\tilde{\\mu}] = 0{,}9\\,\\mu\\)) : il faut ajouter le carré du biais."}, {"id": "d", "texte": "0,32", "correcte": false, "explication": "Le carré du biais a été soustrait au lieu d'être ajouté. Les deux termes de la décomposition sont positifs : l'erreur quadratique est au moins égale à la variance."}], "solution": "Réponse : \\(0{,}40\\).\n\nÉtape 1, biais : \\(\\mathbb{E}[\\tilde{\\mu}] = \\tfrac{9}{10}\\mu = 1{,}8\\), donc le biais vaut \\(1{,}8 - 2 = -0{,}2\\).\n\nÉtape 2, variance : les \\(X_i\\) étant indépendantes, \\(\\mathrm{Var}(X_1 + \\dots + X_9) = 9\\sigma^2 = 36\\), donc \\(\\mathrm{Var}(\\tilde{\\mu}) = 36/100 = 0{,}36\\).\n\nÉtape 3 : erreur quadratique moyenne = variance + biais au carré (leçon, partie 1) \\(= 0{,}36 + 0{,}04 = 0{,}40\\).\n\nRemarque : \\(\\bar{X}\\) a une erreur quadratique de \\(4/9 \\approx 0{,}444\\), plus grande. Mais l'erreur de \\(\\tilde{\\mu}\\), égale à \\(0{,}36 + \\mu^2/100\\), dépend de \\(\\mu\\) inconnu : \\(\\tilde{\\mu}\\) ne bat \\(\\bar{X}\\) que si \\(\\mu^2 < \\tfrac{76}{9}\\). Simulation (script, loi normale) : 0,400.", "type": "qcm", "multiple": false, "reponse": "0,40", "fiche": null, "verif": {"script": "verif/seance_math_3.py", "cles": ["Q01_biais", "Q01_biais_carre", "Q01_d_moins", "Q01_d_xbar", "Q01_exact", "Q01_mc", "Q01_mu2_seuil_den", "Q01_mu2_seuil_num", "Q01_var"]}}, {"id": "M3-02", "section": "math", "theme": "Maximum de vraisemblance, loi exponentielle", "difficulte": 2, "temps_cible_s": 60, "enonce": "On observe six durées entre événements, en minutes, modélisées comme des réalisations de variables indépendantes de loi exponentielle de paramètre \\(\\lambda > 0\\), de densité \\(\\lambda e^{-\\lambda x}\\) pour \\(x \\ge 0\\) : 0,2 ; 0,5 ; 0,6 ; 0,9 ; 1,1 ; 1,5.\n\nQuelle est l'estimation du maximum de vraisemblance de \\(\\lambda\\), en événements par minute, arrondie à trois décimales ?", "options": [{"id": "a", "texte": "1,250", "correcte": true, "explication": "Oui : \\(\\hat{\\lambda} = n/\\sum_i x_i = 6/4{,}8\\)."}, {"id": "b", "texte": "0,800", "correcte": false, "explication": "C'est la moyenne \\(\\bar{x}\\), estimation du maximum de vraisemblance de l'espérance \\(1/\\lambda\\), pas de \\(\\lambda\\). Par invariance, l'estimation de \\(\\lambda\\) est son inverse."}, {"id": "c", "texte": "1,042", "correcte": false, "explication": "C'est \\((n-1)/\\sum_i x_i = 5/4{,}8\\), l'estimateur **sans biais** de \\(\\lambda\\) (leçon, partie 2 : \\(\\mathbb{E}[1/T] = \\lambda/(n-1)\\)). Ce n'est pas le maximum de la vraisemblance, atteint en \\(n/\\sum_i x_i\\)."}, {"id": "d", "texte": "0,924", "correcte": false, "explication": "C'est \\(\\ln 2\\) divisé par la médiane empirique \\(0{,}75\\) : un estimateur fondé sur la médiane de la loi exponentielle, \\(\\ln 2/\\lambda\\). Il est raisonnable, mais ce n'est pas le maximum de vraisemblance."}], "solution": "Réponse : \\(\\hat{\\lambda} = 6/4{,}8 = 1{,}250\\) par minute.\n\nÉtape 1 : la log-vraisemblance vaut \\(\\ell(\\lambda) = \\sum_i \\ln(\\lambda e^{-\\lambda x_i}) = 6\\ln\\lambda - \\lambda \\sum_i x_i\\), avec \\(\\sum_i x_i = 4{,}8\\).\n\nÉtape 2 : \\(\\ell'(\\lambda) = 6/\\lambda - 4{,}8\\), positive pour \\(\\lambda < 6/4{,}8\\) et négative après : le maximum est en \\(\\hat{\\lambda} = 6/4{,}8 = 1{,}250\\) (et \\(\\ell''(\\lambda) = -6/\\lambda^2 < 0\\)).\n\nContrôle : la durée moyenne observée est \\(0{,}8\\) minute, et \\(1/0{,}8 = 1{,}25\\) événement par minute.", "type": "qcm", "multiple": false, "reponse": "1,250", "fiche": null, "verif": {"script": "verif/seance_math_3.py", "cles": ["Q02_d_mediane", "Q02_d_sans_biais", "Q02_exact", "Q02_mediane", "Q02_moy", "Q02_somme"]}}, {"id": "M3-03", "section": "math", "theme": "Biais de l'estimateur du maximum de vraisemblance, Jensen", "difficulte": 4, "temps_cible_s": 120, "enonce": "Soient \\(X_1, \\dots, X_5\\) cinq variables aléatoires indépendantes de loi exponentielle de paramètre \\(\\lambda = 2\\) (densité \\(2e^{-2x}\\) pour \\(x \\ge 0\\), espérance \\(1/2\\)). On note \\(\\bar{X} = \\tfrac15 (X_1 + \\dots + X_5)\\) et \\(\\hat{\\lambda} = 1/\\bar{X}\\), l'estimateur du maximum de vraisemblance de \\(\\lambda\\).\n\nQue vaut \\(\\mathbb{E}[\\hat{\\lambda}]\\) ?", "options": [{"id": "a", "texte": "2,5", "correcte": true, "explication": "Oui : \\(\\mathbb{E}[1/\\bar{X}] = \\tfrac{n}{n-1}\\lambda = \\tfrac54 \\times 2\\)."}, {"id": "b", "texte": "2", "correcte": false, "explication": "Ce serait vrai si \\(\\mathbb{E}[1/\\bar{X}] = 1/\\mathbb{E}[\\bar{X}]\\). Or \\(x \\mapsto 1/x\\) est strictement convexe sur \\(]0, \\infty[\\) et \\(\\bar{X}\\) n'est pas constante : par Jensen, \\(\\mathbb{E}[1/\\bar{X}] > 1/\\mathbb{E}[\\bar{X}] = 2\\)."}, {"id": "c", "texte": "1,6", "correcte": false, "explication": "C'est \\(\\tfrac{n-1}{n}\\lambda\\) : le facteur est inversé. Jensen impose une espérance **supérieure** à 2, ce qui élimine cette option sans calcul."}, {"id": "d", "texte": "0,5", "correcte": false, "explication": "C'est \\(\\mathbb{E}[\\bar{X}] = 1/\\lambda\\), l'espérance de la moyenne des durées, pas celle de son inverse."}], "solution": "Réponse : \\(\\mathbb{E}[\\hat{\\lambda}] = \\tfrac54 \\times 2 = 2{,}5\\).\n\nNotations : \\(T = X_1 + \\dots + X_5\\), de sorte que \\(\\hat{\\lambda} = 5/T\\).\n\nÉtape 1 : pour \\(s > 0\\), \\(1/s = \\int_0^\\infty e^{-us}\\,du\\) ; par Fubini-Tonelli (intégrande positive), \\(\\mathbb{E}[1/T] = \\int_0^\\infty \\mathbb{E}[e^{-uT}]\\,du\\).\n\nÉtape 2 : \\(\\mathbb{E}[e^{-uX_1}] = \\lambda/(\\lambda + u)\\), et par indépendance \\(\\mathbb{E}[e^{-uT}] = (\\lambda/(\\lambda + u))^5\\).\n\nÉtape 3 : \\(\\int_0^\\infty \\lambda^5 (\\lambda + u)^{-5}\\,du = \\lambda^5 \\cdot \\lambda^{-4}/4 = \\lambda/4\\). Donc \\(\\mathbb{E}[\\hat{\\lambda}] = 5\\lambda/4 = 2{,}5\\) (leçon, partie 2).\n\nContrôle de sens : Jensen avec \\(1/x\\), strictement convexe, impose \\(\\mathbb{E}[\\hat{\\lambda}] > 2\\). Simulation (script) : 2,499.", "type": "qcm", "multiple": false, "reponse": "2,5", "fiche": null, "verif": {"script": "verif/seance_math_3.py", "cles": ["Q03_d_inverse", "Q03_d_moyenne", "Q03_exact", "Q03_mc"]}}, {"id": "M3-04", "section": "math", "theme": "Intervalle de confiance de Student", "difficulte": 3, "temps_cible_s": 90, "enonce": "On dispose de 9 mesures modélisées comme indépendantes de loi normale \\(\\mathcal{N}(\\mu, \\sigma^2)\\), avec \\(\\mu\\) et \\(\\sigma\\) inconnus. La moyenne observée est 10,4 et l'écart-type empirique, calculé avec le diviseur \\(n - 1 = 8\\), vaut \\(s = 1{,}5\\).\n\nQuantiles utiles, arrondis à trois décimales : \\(z_{0{,}975} = 1{,}960\\), \\(z_{0{,}95} = 1{,}645\\) (loi normale centrée réduite) ; \\(t_{8; 0{,}975} = 2{,}306\\), \\(t_{9; 0{,}975} = 2{,}262\\), \\(t_{8; 0{,}95} = 1{,}860\\) (loi de Student, le premier indice étant le nombre de degrés de liberté).\n\nQuelle est la demi-largeur de l'intervalle de confiance bilatéral exact de niveau 95 % pour \\(\\mu\\), arrondie à trois décimales ?", "options": [{"id": "a", "texte": "1,153", "correcte": true, "explication": "Oui : \\(t_{8; 0{,}975} \\times s/\\sqrt{9} = 2{,}306 \\times 0{,}5\\)."}, {"id": "b", "texte": "0,980", "correcte": false, "explication": "C'est le quantile normal \\(z_{0{,}975}\\), valable si \\(\\sigma\\) est connu. Avec \\(\\sigma\\) estimé, le pivot suit une loi de Student ; avec \\(z\\), la couverture réelle n'est que \\(0{,}914\\) pour \\(n = 9\\) (script)."}, {"id": "c", "texte": "1,131", "correcte": false, "explication": "Mauvais nombre de degrés de liberté : \\(n = 9\\) mesures donnent \\(n - 1 = 8\\) degrés de liberté, car les 9 écarts \\(x_i - \\bar{x}\\) sont liés par une contrainte : leur somme est nulle."}, {"id": "d", "texte": "0,930", "correcte": false, "explication": "C'est le quantile d'ordre 0,95, celui d'un intervalle **unilatéral**. Un intervalle bilatéral à 95 % laisse 2,5 % de chaque côté : quantile d'ordre 0,975."}], "solution": "Réponse : \\(2{,}306 \\times 1{,}5/3 = 1{,}153\\).\n\nÉtape 1 : sous normalité, \\(T = \\sqrt{n}(\\bar{X} - \\mu)/S\\) suit la loi de Student à \\(n - 1 = 8\\) degrés de liberté (leçon, partie 3).\n\nÉtape 2 : l'intervalle exact est \\(\\bar{x} \\pm t_{8; 0{,}975}\\,s/\\sqrt{n}\\), et l'erreur-type vaut \\(s/\\sqrt{9} = 1{,}5/3 = 0{,}5\\).\n\nÉtape 3 : demi-largeur \\(2{,}306 \\times 0{,}5 = 1{,}153\\) ; intervalle \\([9{,}247 ; 11{,}553]\\).\n\nVérification (script) : couverture simulée de cet intervalle, 0,950 pour 0,95.", "type": "qcm", "multiple": false, "reponse": "1,153", "fiche": null, "verif": {"script": "verif/seance_math_3.py", "cles": ["L3_z975", "L4_z95", "Q04_bas", "Q04_couv_mc", "Q04_couv_z", "Q04_d_t9", "Q04_d_unilat", "Q04_d_z", "Q04_erreur_type", "Q04_exact", "Q04_haut", "Q04_t8", "Q04_t8_unilat", "Q04_t9"]}}, {"id": "M3-05", "section": "math", "theme": "Tests : lecture d'un rejet, formule de Bayes", "difficulte": 4, "temps_cible_s": 120, "enonce": "Une équipe teste un grand nombre de signaux. Avant tout test, chaque signal a un effet réel avec probabilité 0,05. Chaque test rejette l'hypothèse « pas d'effet » avec probabilité exactement 0,05 quand le signal n'a pas d'effet (niveau), et avec probabilité 0,5 quand il en a un (puissance).\n\nOn choisit un signal au hasard ; son test vient de rejeter l'hypothèse « pas d'effet ». Quelle est la probabilité que ce signal n'ait en réalité aucun effet, arrondie à trois décimales ?", "options": [{"id": "a", "texte": "0,655", "correcte": true, "explication": "Oui : \\(\\dfrac{0{,}95 \\times 0{,}05}{0{,}95 \\times 0{,}05 + 0{,}05 \\times 0{,}5}\\)."}, {"id": "b", "texte": "0,050", "correcte": false, "explication": "C'est le niveau, \\(\\mathbb{P}(\\text{rejet} \\mid \\text{pas d'effet})\\). La question demande la probabilité inverse, \\(\\mathbb{P}(\\text{pas d'effet} \\mid \\text{rejet})\\), qui dépend aussi de la proportion de vrais effets et de la puissance."}, {"id": "c", "texte": "0,345", "correcte": false, "explication": "C'est \\(\\mathbb{P}(\\text{effet réel} \\mid \\text{rejet})\\), le complémentaire de la quantité demandée."}, {"id": "d", "texte": "0,0475", "correcte": false, "explication": "C'est la probabilité jointe \\(\\mathbb{P}(\\text{pas d'effet et rejet}) = 0{,}95 \\times 0{,}05\\). Il faut encore diviser par la probabilité de rejet, \\(0{,}0725\\)."}], "solution": "Réponse : \\(\\tfrac{19}{29} \\approx 0{,}655\\).\n\nNotations : \\(N\\) est l'événement « le signal n'a pas d'effet », \\(R\\) l'événement « le test rejette ».\n\nÉtape 1 : \\(\\mathbb{P}(N \\cap R) = 0{,}95 \\times 0{,}05 = 0{,}0475\\) et \\(\\mathbb{P}(N^c \\cap R) = 0{,}05 \\times 0{,}5 = 0{,}025\\).\n\nÉtape 2, probabilités totales : \\(\\mathbb{P}(R) = 0{,}0475 + 0{,}025 = 0{,}0725\\).\n\nÉtape 3, Bayes : \\(\\mathbb{P}(N \\mid R) = 0{,}0475/0{,}0725 = 0{,}655\\).\n\nLecture : avec peu de vrais effets et une puissance moyenne, près de deux rejets sur trois sont des fausses découvertes, bien que chaque test soit de niveau 5 % (leçon, partie 4). Simulation (script) : 0,655.", "type": "qcm", "multiple": false, "reponse": "0,655", "fiche": null, "verif": {"script": "verif/seance_math_3.py", "cles": ["Q05_d_complement", "Q05_den", "Q05_exact", "Q05_exact_den", "Q05_exact_num", "Q05_mc", "Q05_num", "Q05_vrais"]}}, {"id": "M3-06", "section": "math", "theme": "Tests multiples, procédure de Benjamini-Hochberg", "difficulte": 4, "temps_cible_s": 120, "enonce": "On teste 8 hypothèses nulles. Les p-values, dans l'ordre des tests, sont :\n\n0,20 ; 0,034 ; 0,80 ; 0,001 ; 0,070 ; 0,45 ; 0,048 ; 0,030.\n\nOn applique la procédure de Benjamini-Hochberg au niveau \\(q = 0{,}10\\) : on trie les p-values par ordre croissant, \\(p_{(1)} \\le \\dots \\le p_{(8)}\\), on cherche le plus grand \\(i\\) tel que \\(p_{(i)} \\le i\\,q/8\\), et l'on rejette les \\(i\\) hypothèses de plus petites p-values (aucune si un tel \\(i\\) n'existe pas).\n\nCombien d'hypothèses sont rejetées ?", "options": [{"id": "a", "texte": "4", "correcte": true, "explication": "Oui : \\(p_{(4)} = 0{,}048 \\le 4 \\times 0{,}0125 = 0{,}05\\), et aucun \\(i\\) plus grand ne passe."}, {"id": "b", "texte": "1", "correcte": false, "explication": "C'est le résultat si l'on s'arrête au premier échec, \\(p_{(2)} = 0{,}030 > 0{,}025\\) : procédure descendante, pas celle de Benjamini-Hochberg. C'est aussi le nombre de rejets de Bonferroni au seuil \\(0{,}10/8 = 0{,}0125\\)."}, {"id": "c", "texte": "3", "correcte": false, "explication": "On a rejeté seulement les p-values inférieures à leur propre seuil (\\(p_{(1)}\\), \\(p_{(3)}\\), \\(p_{(4)}\\)). La procédure est montante : une fois \\(k = 4\\) trouvé, on rejette les 4 plus petites, \\(p_{(2)}\\) comprise."}, {"id": "d", "texte": "5", "correcte": false, "explication": "C'est le nombre de p-values au plus égales à 0,10, sans aucune correction. \\(p_{(5)} = 0{,}070\\) dépasse son seuil \\(5 \\times 0{,}0125 = 0{,}0625\\)."}], "solution": "Réponse : 4 hypothèses rejetées.\n\nÉtape 1, tri : \\((0{,}001 ; 0{,}030 ; 0{,}034 ; 0{,}048 ; 0{,}070 ; 0{,}200 ; 0{,}450 ; 0{,}800)\\).\n\nÉtape 2, seuils \\(i\\,q/8 = 0{,}0125\\,i\\) : \\((0{,}0125 ; 0{,}0250 ; 0{,}0375 ; 0{,}0500 ; 0{,}0625 ; 0{,}0750 ; 0{,}0875 ; 0{,}1000)\\).\n\nÉtape 3, comparaison : \\(i = 1\\) passe (\\(0{,}001 \\le 0{,}0125\\)) ; \\(i = 2\\) échoue (\\(0{,}030 > 0{,}025\\)) ; \\(i = 3\\) passe (\\(0{,}034 \\le 0{,}0375\\)) ; \\(i = 4\\) passe (\\(0{,}048 \\le 0{,}05\\)) ; \\(i = 5\\) à 8 échouent (\\(0{,}070 > 0{,}0625\\), puis \\(0{,}20\\), \\(0{,}45\\), \\(0{,}80\\) au-dessus de leurs seuils, tous au plus 0,1).\n\nÉtape 4 : le plus grand \\(i\\) qui passe est \\(k = 4\\) ; on rejette les tests de p-values 0,001 ; 0,030 ; 0,034 ; 0,048, y compris celui dont la p-value dépasse son propre seuil (leçon, partie 5, piège 1).", "type": "qcm", "multiple": false, "reponse": "4", "fiche": null, "verif": {"script": "verif/seance_math_3.py", "cles": ["Q06_bonf_seuil", "Q06_d_brut", "Q06_d_descendant", "Q06_d_individuel", "Q06_exact", "Q06_seuils", "Q06_tries"]}}, {"id": "M3-07", "section": "math", "theme": "Erreur quadratique des estimateurs de la variance", "difficulte": 5, "temps_cible_s": 150, "enonce": "Soient \\(X_1, \\dots, X_{10}\\) dix variables aléatoires indépendantes de loi normale \\(\\mathcal{N}(\\mu, \\sigma^2)\\), avec \\(\\mu\\) et \\(\\sigma^2 > 0\\) inconnus, \\(\\bar{X}\\) leur moyenne et \\(Q = \\sum_{i=1}^{10} (X_i - \\bar{X})^2\\). On estime \\(\\sigma^2\\) par \\(Q/d\\), où \\(d > 0\\) est un réel fixé.\n\nPour quelle valeur de \\(d\\) l'erreur quadratique moyenne \\(\\mathbb{E}[(Q/d - \\sigma^2)^2]\\) est-elle minimale ? (La réponse ne dépend ni de \\(\\mu\\) ni de \\(\\sigma^2\\).)", "options": [{"id": "a", "texte": "11", "correcte": true, "explication": "Oui : \\(d = n + 1\\), d'erreur \\(\\tfrac{2}{11}\\sigma^4\\)."}, {"id": "b", "texte": "9", "correcte": false, "explication": "\\(d = n - 1\\) donne l'estimateur **sans biais**, d'erreur \\(\\tfrac{2}{9}\\sigma^4\\). L'absence de biais n'est pas le minimum de l'erreur : un peu de biais achète une baisse de variance plus grande."}, {"id": "c", "texte": "10", "correcte": false, "explication": "\\(d = n\\) donne l'estimateur du maximum de vraisemblance, d'erreur \\(\\tfrac{19}{100}\\sigma^4\\) : meilleur que \\(n - 1\\), mais pas optimal."}, {"id": "d", "texte": "12", "correcte": false, "explication": "C'est \\(n + 2\\), l'optimum si \\(Q/\\sigma^2\\) suivait \\(\\chi^2_n\\), c'est-à-dire si l'on centrait sur \\(\\mu\\) connu. Centrer sur \\(\\bar{X}\\) fait perdre un degré de liberté : \\(\\chi^2_{n-1}\\), et l'optimum devient \\((n - 1) + 2 = n + 1\\). L'erreur en \\(d = 12\\) vaut \\(\\tfrac{3}{16}\\sigma^4\\)."}], "solution": "Réponse : \\(d = 11\\), soit \\(n + 1\\).\n\nNotations : \\(n = 10\\), \\(k = n - 1 = 9\\), \\(W = Q/\\sigma^2\\), \\(c = 1/d\\).\n\nÉtape 1 : par le théorème de Fisher (leçon, partie 1, étape 5), \\(W\\) suit \\(\\chi^2_k\\), donc \\(\\mathbb{E}[W] = k\\) et \\(\\mathbb{E}[W^2] = \\mathrm{Var}(W) + k^2 = 2k + k^2\\).\n\nÉtape 2 : \\(\\mathbb{E}[(cQ - \\sigma^2)^2] = \\sigma^4\\,\\mathbb{E}[(cW - 1)^2] = \\sigma^4 \\big(c^2 (2k + k^2) - 2ck + 1\\big)\\), un trinôme en \\(c\\) de coefficient dominant positif.\n\nÉtape 3 : il est minimal où sa dérivée s'annule : \\(2c\\,(2k + k^2) = 2k\\), soit \\(c = \\dfrac{1}{k + 2} = \\dfrac{1}{n + 1}\\). Donc \\(d = n + 1 = 11\\).\n\nValeurs, en unités de \\(\\sigma^4\\) : \\(d = 9\\) : \\(0{,}2222\\) ; \\(d = 10\\) : \\(0{,}1900\\) ; \\(d = 11\\) : \\(0{,}1818\\) ; \\(d = 12\\) : \\(0{,}1875\\). Simulation (script) pour \\(d = 11\\) : 0,1820.\n\nCondition de validité : ce résultat utilise la normalité (variance \\(2k\\) du khi-deux). Pour une autre loi, l'optimum dépend du coefficient d'aplatissement.", "type": "qcm", "multiple": false, "reponse": "11", "fiche": null, "verif": {"script": "verif/seance_math_3.py", "cles": ["Q07_d_emv", "Q07_d_khi_n", "Q07_d_sans_biais", "Q07_eqm_10", "Q07_eqm_10_den", "Q07_eqm_10_num", "Q07_eqm_11", "Q07_eqm_11_den", "Q07_eqm_11_mc", "Q07_eqm_11_num", "Q07_eqm_12", "Q07_eqm_12_den", "Q07_eqm_12_num", "Q07_eqm_9", "Q07_eqm_9_den", "Q07_eqm_9_num", "Q07_exact", "Q07_k"]}}, {"id": "M3-08", "section": "math", "theme": "Inégalité de Tchebychev, taille d'échantillon", "difficulte": 3, "temps_cible_s": 90, "enonce": "On estime la probabilité inconnue \\(\\theta \\in [0, 1]\\) qu'un ordre soit exécuté par la proportion \\(\\hat{\\theta}\\) d'ordres exécutés parmi \\(n\\), les \\(n\\) ordres étant modélisés comme des tirages de Bernoulli indépendants de paramètre \\(\\theta\\).\n\nQuel est le plus petit entier \\(n\\) pour lequel l'inégalité de Tchebychev, appliquée à \\(\\hat{\\theta}\\), garantit \\(\\mathbb{P}(\\lvert \\hat{\\theta} - \\theta \\rvert \\ge 0{,}05) \\le 0{,}05\\) pour toute valeur de \\(\\theta\\) ?", "options": [{"id": "a", "texte": "2000", "correcte": true, "explication": "Oui : \\(\\mathrm{Var}(\\hat{\\theta}) \\le 1/(4n)\\), et \\(\\tfrac{1}{4n \\times 0{,}05^2} \\le 0{,}05\\) équivaut à \\(n \\ge 2000\\)."}, {"id": "b", "texte": "385", "correcte": false, "explication": "C'est l'approximation du théorème central limite, \\(n \\ge (z_{0{,}975} \\times 0{,}5/0{,}05)^2 \\approx 384{,}15\\). Ce n'est pas une garantie, ni une application de Tchebychev : pour \\(\\theta = 1/2\\) et \\(n = 385\\), la probabilité exacte (loi binomiale) vaut \\(0{,}0526\\), au-dessus de 0,05."}, {"id": "c", "texte": "8000", "correcte": false, "explication": "La variance d'une Bernoulli a été majorée par 1. Elle vaut \\(\\theta(1 - \\theta) \\le 1/4\\), car \\(1/4 - \\theta(1 - \\theta) = (\\theta - 1/2)^2 \\ge 0\\)."}, {"id": "d", "texte": "100", "correcte": false, "explication": "L'écart 0,05 n'a pas été mis au carré : Tchebychev divise la variance par \\(a^2\\), pas par \\(a\\)."}], "solution": "Réponse : \\(n = 2000\\).\n\nÉtape 1 : \\(\\hat{\\theta}\\) est la moyenne de \\(n\\) Bernoulli indépendantes, donc \\(\\mathbb{E}[\\hat{\\theta}] = \\theta\\) et \\(\\mathrm{Var}(\\hat{\\theta}) = \\theta(1 - \\theta)/n\\) (leçon, partie 1, étape 2).\n\nÉtape 2 : \\(\\theta(1 - \\theta) \\le 1/4\\) pour tout \\(\\theta\\), avec égalité en \\(\\theta = 1/2\\), car \\(1/4 - \\theta(1 - \\theta) = (\\theta - 1/2)^2\\).\n\nÉtape 3, Tchebychev : \\(\\mathbb{P}(\\lvert \\hat{\\theta} - \\theta \\rvert \\ge 0{,}05) \\le \\dfrac{\\theta(1 - \\theta)}{n \\times 0{,}05^2}\\), dont le maximum en \\(\\theta\\) vaut \\(\\dfrac{1}{4n \\times 0{,}0025} = \\dfrac{100}{n}\\).\n\nÉtape 4 : \\(100/n \\le 0{,}05\\) équivaut à \\(n \\ge 2000\\) ; pour \\(n = 1999\\), la borne dépasse 0,05 en \\(\\theta = 1/2\\), donc Tchebychev ne garantit plus rien.\n\nRemarque : la borne est très prudente ; la probabilité exacte pour \\(n = 2000\\) et \\(\\theta = 1/2\\) est de l'ordre de \\(10^{-5}\\) (script, loi binomiale).", "type": "qcm", "multiple": false, "reponse": "2000", "fiche": null, "verif": {"script": "verif/seance_math_3.py", "cles": ["Q08_d_eps", "Q08_d_sigma1", "Q08_d_tcl", "Q08_exact", "Q08_p_tcl", "Q08_tcl_brut"]}}]}]}</script>
+<script>
+'use strict';
+const D = JSON.parse(document.getElementById('donnees').textContent);
+const ITEMS = D.sections.flatMap(s => s.questions.map(q => Object.assign({ nomSection: s.nom }, q)));
+const CLE = 'atelier-quant:' + D.id;
+const SERVEUR = location.protocol.startsWith('http');
+// La session survit à un rechargement de l'onglet : on se reconnecte alors au même noyau, variables comprises.
+const SESSION = (() => { const neuve = Math.random().toString(36).slice(2) + Date.now().toString(36); try { const s = sessionStorage.getItem('atelier-quant:session') || neuve; sessionStorage.setItem('atelier-quant:session', s); return s; } catch (e) { return neuve; } })();
+const page = document.getElementById('page');
+const noyauxDemarres = {};
+let E = etatNeuf('accueil');
+
+function etatNeuf(phase) { return { phase, courant: 0, debut: null, fin: null, reponses: {}, temps: {}, ordre: {}, cellules: {}, code: {}, controles: {}, ordreControles: {}, vus: {}, partie: {}, enregistrement: null, pauseDepuis: null, pauseTotale: 0 }; }
+// Options par défaut : la pause et « Je ne sais pas » sont permis, sauf si l'examen les interdit (examens blancs).
+const PAUSE_PERMISE = D.options.pause !== false;
+const NSP_PERMIS = D.options.je_ne_sais_pas !== false;
+function dureeEcoulee(fin) { return (fin - E.debut - (E.pauseTotale || 0) - (E.pauseDepuis ? fin - E.pauseDepuis : 0)) / 1000; }
+const NOTEES = ITEMS.filter(q => q.type !== 'lecon');
+function sauver() { try { localStorage.setItem(CLE, JSON.stringify(E)); } catch (e) {} }
+function charger() { try { const s = localStorage.getItem(CLE); if (s) E = Object.assign(etatNeuf('accueil'), JSON.parse(s)); } catch (e) {} }
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function enLigne(t) { return esc(t).replace(/`([^`]+)`/g, '<code class="sans-math">$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); }
+
+// Markdown réduit : titres #, tableaux |, listes - et 1., paragraphes, `code`, **gras**, blocs entre triples accents graves.
+function rendre(t) {
+  let h = '';
+  String(t).split('```').forEach((bloc, i) => {
+    if (i % 2) {
+      const info = (bloc.match(/^(\w*)\n/) || [])[1];
+      h += '<pre class="sans-math' + (info === 'sortie' ? ' sortie-lecon' : '') + '"><code>' + esc(bloc.replace(/^\w*\n/, '')) + '</code></pre>';
+      return;
+    }
+    const lignes = bloc.split('\n');
+    let k = 0;
+    while (k < lignes.length) {
+      const l = lignes[k];
+      if (!l.trim()) { k++; continue; }
+      const titre = l.match(/^(#{1,4})\s+(.*)$/);
+      if (titre) { const n = Math.min(4, titre[1].length + 1); h += '<h' + n + '>' + enLigne(titre[2]) + '</h' + n + '>'; k++; continue; }
+      if (l.trim().startsWith('|')) {
+        const rangs = [];
+        while (k < lignes.length && lignes[k].trim().startsWith('|')) { rangs.push(lignes[k].trim()); k++; }
+        const cellules = r => r.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+        h += '<div class="defile"><table><tr>' + cellules(rangs[0]).map(c => '<th>' + enLigne(c) + '</th>').join('') + '</tr>';
+        rangs.slice(1).filter(r => !/^\|[\s|:-]+\|$/.test(r)).forEach(r => { h += '<tr>' + cellules(r).map(c => '<td>' + enLigne(c) + '</td>').join('') + '</tr>'; });
+        h += '</table></div>'; continue;
+      }
+      const puce = /^\s*[-*]\s+/, numero = /^\s*\d+\.\s+/;
+      if (puce.test(l) || numero.test(l)) {
+        const motif = puce.test(l) ? puce : numero, balise = motif === puce ? 'ul' : 'ol';
+        h += '<' + balise + '>';
+        while (k < lignes.length && motif.test(lignes[k])) { h += '<li>' + enLigne(lignes[k].replace(motif, '')) + '</li>'; k++; }
+        h += '</' + balise + '>'; continue;
+      }
+      const par = [];
+      while (k < lignes.length && lignes[k].trim() && !/^(#{1,4}\s|\s*\||\s*[-*]\s|\s*\d+\.\s)/.test(lignes[k])) { par.push(lignes[k]); k++; }
+      const texte = par.join('\n').trim();
+      // Un paragraphe réduit à une seule formule est centré ; une formule au milieu d'une phrase reste dans la ligne.
+      const seule = texte.startsWith('\\(') && texte.endsWith('\\)') && texte.indexOf('\\(', 2) < 0;
+      h += (seule ? '<p class="formule">' : '<p>') + enLigne(par.join('\n')) + '</p>';
+    }
+  });
+  return h;
+}
+function composer(el) { if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([el || page]).catch(() => {}); }
+function mmss(s) { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+function melanger(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+async function api(chemin, corps) {
+  const r = await fetch(chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  return r.json();
+}
+
+let dernierTic = null;
+function tic() {
+  const ch = document.getElementById('chrono');
+  const bouton = document.getElementById('pause');
+  bouton.hidden = !(PAUSE_PERMISE && E.phase === 'epreuve');
+  document.getElementById('recommencerHaut').hidden = E.phase !== 'epreuve';
+  document.getElementById('voile').hidden = !(E.phase === 'epreuve' && E.pauseDepuis);
+  if (E.phase !== 'epreuve' || E.pauseDepuis) { dernierTic = null; return; }
+  const maintenant = Date.now();
+  if (dernierTic !== null) { const q = ITEMS[E.courant]; E.temps[q.id] = (E.temps[q.id] || 0) + (maintenant - dernierTic) / 1000; }
+  dernierTic = maintenant;
+  const reste = D.duree_minutes * 60 - dureeEcoulee(maintenant);
+  ch.textContent = (reste < 0 ? '+' : '') + mmss(Math.abs(reste));
+  ch.classList.toggle('depasse', reste < 0);
+}
+setInterval(() => { tic(); if (E.phase === 'epreuve') sauver(); }, 500);
+if (SERVEUR) document.getElementById('lienAccueil').hidden = false;
+document.getElementById('lienAccueil').onclick = () => {
+  if (E.phase === 'epreuve' && PAUSE_PERMISE && !E.pauseDepuis) { tic(); E.pauseDepuis = Date.now(); sauver(); }
+};
+document.getElementById('recommencerHaut').onclick = () => {
+  if (!confirm('Effacer ce passage (réponses, code, chronomètre) et revenir au début de la séance ?')) return;
+  try { localStorage.removeItem(CLE); } catch (e) {}
+  E = etatNeuf('accueil'); dernierTic = null; afficher();
+};
+document.getElementById('pause').onclick = () => { tic(); E.pauseDepuis = Date.now(); sauver(); tic(); };
+document.getElementById('reprendre').onclick = () => {
+  if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+  dernierTic = null; sauver(); tic();
+};
+
+// ------------------------------------------------------------------ accueil
+function accueil() {
+  page.className = '';
+  document.getElementById('position').textContent = '';
+  document.getElementById('chrono').textContent = mmss(D.duree_minutes * 60);
+  let h = '<div class="carte presentation"><h2>' + esc(D.titre) + '</h2><p class="meta">' + D.duree_minutes + ' min · ' + NOTEES.length + ' question' + (NOTEES.length > 1 ? 's' : '') + (D.options.pause === false ? ' · sans pause' : '') + '</p>' + rendre(D.presentation);
+  h += '<div class="sections-liste">';
+  D.sections.forEach(s => { const n = s.questions.filter(q => q.type !== 'lecon').length; h += '<div><span>' + esc(s.nom) + '</span><span class="meta">' + (n ? n + ' question' + (n > 1 ? 's' : '') : 'leçon') + ' · ' + s.budget_min + ' min</span></div>'; });
+  h += '</div>';
+  D.avertissements.forEach(a => { h += '<div class="note">' + rendre(a) + '</div>'; });
+  if (!SERVEUR && ITEMS.some(q => q.type === 'code')) h += '<div class="note"><p><strong>Le notebook ne peut pas s\'exécuter :</strong> cette page est ouverte comme un fichier. Lance <code class="sans-math">python lancer.py</code> dans le dossier du projet, puis ouvre l\'examen depuis la page qui s\'affiche.</p></div>';
+  h += '<p class="meta">' + esc(D.conventions) + '</p>';
+  h += '<div class="barre"><button class="principal" id="demarrer">Commencer</button></div></div>';
+  page.innerHTML = h;
+  document.getElementById('demarrer').onclick = () => {
+    E = etatNeuf('epreuve');
+    E.debut = Date.now();
+    ITEMS.forEach(q => {
+      if (q.type === 'qcm') E.ordre[q.id] = melanger(q.options.map(o => o.id));
+      if (q.cellules_initiales) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+      if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => { E.ordreControles[q.id + ':' + cid] = melanger(c.options.map(o => o.id)); });
+    });
+    sauver(); afficher();
+  };
+  composer();
+}
+
+// ------------------------------------------------------------------ épreuve
+function pastilles() {
+  const faite = it => it.type === 'lecon' ? !!E.vus[it.id] : it.type === 'code' ? (E.code[it.id] || {}).soumissions > 0 : E.reponses[it.id] !== undefined;
+  const barre = document.querySelector('#progression > span');
+  if (barre) barre.style.width = (100 * ITEMS.filter(faite).length / ITEMS.length) + '%';
+  let h = '<div class="cadre"><aside class="plan"><div id="pastilles">', section = null, n = 0;
+  ITEMS.forEach((it, i) => {
+    if (it.nomSection !== section) { section = it.nomSection; h += '<div class="groupe">' + esc(section) + '</div>'; }
+    const libelle = it.type === 'lecon' ? 'Leçon' : 'Question ' + (++n);
+    h += '<button class="pastille' + (faite(it) ? ' faite' : '') + (i === E.courant ? ' courante' : '') + '" data-i="' + i + '" title="' + esc(it.theme) + '"' + (D.options.retour_arriere || i === E.courant ? '' : ' disabled') + '><span class="etat"></span><span class="libelle">' + libelle + '</span></button>';
+  });
+  return h + '</div></aside><div class="contenu">';
+}
+const FIN_CADRE = '</div></div>';
+function navigation() {
+  let h = '<div class="barre navigation">';
+  if (D.options.retour_arriere) h += '<button id="prec"' + (E.courant === 0 ? ' disabled' : '') + '>Précédente</button>';
+  if (E.courant < ITEMS.length - 1) h += '<button class="principal" id="suiv">Suivante</button>';
+  return h + '<button id="finir">Terminer et corriger</button></div>';
+}
+function brancherNavigation() {
+  const aller = i => { tic(); E.courant = i; sauver(); afficher(); };
+  page.querySelectorAll('.pastille').forEach(b => b.onclick = () => aller(Number(b.dataset.i)));
+  const p = document.getElementById('prec'); if (p) p.onclick = () => aller(E.courant - 1);
+  const s = document.getElementById('suiv'); if (s) s.onclick = () => aller(E.courant + 1);
+  document.getElementById('finir').onclick = () => {
+    const manquantes = NOTEES.filter(it => it.type === 'code' ? !((E.code[it.id] || {}).soumissions > 0) : E.reponses[it.id] === undefined).length;
+    if (manquantes && !confirm(manquantes + ' question(s) sans réponse ou jamais soumise(s). Terminer quand même ?')) return;
+    tic();
+    if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+    E.phase = 'bilan'; E.fin = Date.now(); sauver(); afficher();
+  };
+}
+
+function epreuve() {
+  tic();
+  const q = ITEMS[E.courant];
+  document.getElementById('position').textContent = q.nomSection + (q.type === 'lecon' ? ' · étape ' : ' · question ') + (E.courant + 1) + ' sur ' + ITEMS.length;
+  if (q.type === 'lecon') E.vus[q.id] = true;
+  if (q.cellules_initiales) return epreuveCode(q);
+  if (q.type === 'lecon') return epreuveLecon(q);
+  page.className = '';
+  const rang = NOTEES.indexOf(q) + 1;
+  let h = pastilles() + '<div class="carte question"><div class="surtitre"><span class="rang">Question ' + rang + ' sur ' + NOTEES.length + '</span><span class="chip">' + esc(q.theme) + '</span><span>temps visé ' + mmss(q.temps_cible_s) + '</span></div>' + rendre(q.enonce);
+  h += '<p class="consigne">' + (q.multiple ? 'Une ou plusieurs réponses : coche toutes les affirmations justes, et seulement elles (notation tout ou rien).' : 'Une seule réponse.') + '</p>';
+  E.ordre[q.id].forEach((oid, k) => {
+    const o = q.options.find(x => x.id === oid);
+    h += '<div class="option' + (choisies(q).includes(oid) ? ' choisie' : '') + '" data-o="' + oid + '"><span class="lettre' + (q.multiple ? ' carre' : '') + '">' + 'ABCDE'[k] + '</span><div>' + rendre(o.texte) + '</div></div>';
+  });
+  if (NSP_PERMIS) h += '<div class="option' + (E.reponses[q.id] === 'nsp' ? ' choisie' : '') + '" data-o="nsp"><span class="lettre">?</span><div><p>Je ne sais pas (compte comme faux, mais évite qu\'un hasard heureux masque une lacune)</p></div></div>';
+  page.innerHTML = h + navigation() + '</div>' + FIN_CADRE;
+  page.querySelectorAll('.option').forEach(el => el.onclick = () => {
+    const o = el.dataset.o;
+    if (q.multiple && o !== 'nsp') {
+      const s = choisies(q), k = s.indexOf(o);
+      if (k >= 0) s.splice(k, 1); else s.push(o);
+      if (s.length) E.reponses[q.id] = s.sort(); else delete E.reponses[q.id];
+    } else if (E.reponses[q.id] === o) delete E.reponses[q.id]; else E.reponses[q.id] = o;
+    sauver(); afficher();
+  });
+  brancherNavigation();
+  composer();
+}
+
+// ------------------------------------------------------------------ notebook
+function epreuveLecon(q) {
+  page.className = 'lecture';
+  page.innerHTML = pastilles() + '<div class="carte enonce"><div class="surtitre"><span class="rang">Leçon</span><span class="chip">' + esc(q.theme) + '</span><span>environ ' + Math.round(q.temps_cible_s / 60) + ' min</span></div>' + rendreLecon(q) + navigation() + '</div>' + FIN_CADRE;
+  brancherControles(q);
+  brancherNavigation();
+  composer();
+}
+
+// Points de contrôle : question corrigée dès le clic, non notée.
+function rendreLecon(q) {
+  const brut = rendre(q.contenu).replace(/<p>\[\[controle:([\w-]+)\]\]<\/p>/g, (_, cid) => '<div class="controle" data-c="' + cid + '"></div>');
+  // Une partie par titre de niveau 2 ; dans chaque partie, un bloc par rubrique (problème, énoncé, preuve, exemple...).
+  const source = document.createElement('div');
+  source.innerHTML = brut;
+  const parties = [];
+  Array.from(source.childNodes).forEach(n => {
+    if (n.nodeName === 'H3' || !parties.length) parties.push({ titre: n.nodeName === 'H3' ? n.textContent : 'Introduction', noeuds: [] });
+    parties[parties.length - 1].noeuds.push(n);
+  });
+  const genre = t => /preuve/i.test(t) ? 'preuve' : /pi[èe]ge/i.test(t) ? 'pieges' : /exemple|exp[ée]rience/i.test(t) ? 'exemple'
+    : /[ée]nonc[ée]/i.test(t) ? 'enonce-bloc' : /intuition/i.test(t) ? 'intuition' : /probl[èe]me/i.test(t) ? 'probleme'
+    : /cas limites/i.test(t) ? 'limites' : /d[ée]finition|notation|cadre|mod[èe]le/i.test(t) ? 'definitions' : '';
+  const courante = Math.min((E.partie || {})[q.id] || 0, parties.length - 1);
+  let h = '<div class="lecon-corps" data-lecon="' + q.id + '"><nav class="sommaire">';
+  parties.forEach((p, k) => { h += '<button data-partie="' + k + '"' + (k === courante ? ' class="active"' : '') + '>' + (k + 1) + '. ' + esc(p.titre.replace(/^(Leçon|Partie \d+|Outil \d+|\d+\.)\s*:?\s*/i, '').slice(0, 42) || p.titre) + '</button>'; });
+  h += '</nav>';
+  parties.forEach((p, k) => {
+    h += '<section class="partie" data-partie="' + k + '"' + (k === courante ? '' : ' hidden') + '>';
+    let bloc = null;
+    const fermer = () => { if (bloc) { h += bloc.genre === 'question' ? ficheDebrief(bloc.titre, bloc.noeuds) : bloc.genre === 'preuve' ? '</details>' : '</div>'; bloc = null; } };
+    p.noeuds.forEach(n => {
+      if (bloc && bloc.genre === 'question' && n.nodeName !== 'H4' && n.nodeName !== 'H3') { bloc.noeuds.push(n); return; }
+      if (n.nodeName === 'H4' && /^Question \d+/.test(n.textContent)) {
+        fermer();
+        bloc = { genre: 'question', titre: n.textContent, noeuds: [] };
+      } else if (n.nodeName === 'H4') {
+        fermer();
+        const g = genre(n.textContent);
+        bloc = { genre: g };
+        if (g === 'preuve') h += '<details class="bloc preuve"><summary>' + esc(n.textContent) + '<span class="meta">déplier pour la lire</span></summary>';
+        else h += '<div class="bloc ' + g + '"><h4>' + esc(n.textContent) + '</h4>';
+      } else if (n.nodeName === 'H3') { fermer(); h += n.outerHTML; }
+      else h += n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    });
+    fermer();
+    h += '<div class="pied-partie"><button data-aller="' + (k - 1) + '"' + (k === 0 ? ' disabled' : '') + '>Partie précédente</button>'
+      + '<span class="meta">Partie ' + (k + 1) + ' sur ' + parties.length + '</span>'
+      + (k < parties.length - 1 ? '<button class="principal" data-aller="' + (k + 1) + '">Partie suivante</button>' : '<span class="meta">Fin de la leçon : passe à la suite avec « Suivante ».</span>') + '</div></section>';
+  });
+  return h + '</div>';
+}
+// Une question du débrief : en-tête (numéro, titre, verdict), énoncé, réponses côte à côte, rubriques, à retenir.
+function ficheDebrief(titre, noeuds) {
+  const m = titre.match(/^(Question \d+)\s*:?\s*(.*)$/);
+  const gras = n => n.nodeName === 'P' && n.firstChild && n.firstChild.nodeName === 'STRONG' ? n.firstChild.textContent.trim() : '';
+  const reste = n => { const c = n.cloneNode(true); c.removeChild(c.firstChild); return c.innerHTML.trim(); };
+  let enonce = '', ta = null, attendue = null, verdict = '', corps = '', retenir = '', revoir = '', etat = 'enonce';
+  noeuds.forEach(n => {
+    const g = gras(n), html = n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    if (/^Ta réponse/.test(g)) { ta = reste(n); etat = 'corps'; }
+    else if (/^Réponse attendue/.test(g)) { attendue = reste(n); etat = 'corps'; }
+    else if (/^Verdict/.test(g)) { verdict = reste(n); etat = 'corps'; }
+    else if (/^À retenir/.test(g)) { retenir = '<h5>À retenir</h5><p>' + reste(n) + '</p>'; etat = 'retenir'; }
+    else if (/^Leçon à revoir/.test(g)) { revoir = reste(n); etat = 'fin'; }
+    else if (g && n.textContent.trim() === g) { corps += '<h5>' + esc(g.replace(/[.:]\s*$/, '')) + '</h5>'; etat = 'corps'; }
+    else if (etat === 'enonce') enonce += n.nodeName === 'P' && /^Type :/.test(n.textContent) ? '<p class="meta">' + n.innerHTML + '</p>' : n.nodeName === 'UL' ? '<ul class="choix">' + n.innerHTML + '</ul>' : html;
+    else if (etat === 'retenir') retenir += html;
+    else corps += html;
+  });
+  const brut = verdict.replace(/<[^>]+>/g, '').trim();
+  const v = /^juste/i.test(brut) ? ['v-juste', 'Juste'] : /^fausse/i.test(brut) ? ['v-fausse', 'Fausse'] : /^incompl/i.test(brut) ? ['v-incomplete', 'Incomplète']
+    : /^non visible/i.test(brut) ? ['', 'Réponse non visible'] : ['', ''];
+  const suite = brut.replace(/^[^.]*\.\s*/, '');
+  let h = '<article class="fiche ' + v[0] + '"><header class="fiche-tete"><span class="num">' + esc(m[1]) + '</span><span class="titre">' + esc(m[2]) + '</span>'
+    + (v[1] ? '<span class="verdict">' + v[1] + '</span>' : '') + '</header><div class="fiche-corps">';
+  if (ta === null && attendue === null) return h + enonce + corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '') + '</div></article>';
+  h += '<h5>Énoncé</h5>' + enonce;
+  h += '<div class="fiche-reponses"><div><span class="lab">Ta réponse</span>' + (ta || 'non visible') + '</div><div><span class="lab">Réponse attendue</span>' + (attendue || '') + '</div></div>';
+  if (suite) h += '<p class="meta">' + verdict.replace(/^[^.]*\.\s*/, '') + '</p>';
+  h += corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '');
+  return h + '</div></article>';
+}
+function brancherLecon(q) {
+  const corps = page.querySelector('.lecon-corps');
+  if (!corps) return;
+  const aller = k => {
+    if (!E.partie) E.partie = {};
+    E.partie[q.id] = k; sauver();
+    corps.querySelectorAll('.partie').forEach(sec => { sec.hidden = Number(sec.dataset.partie) !== k; });
+    corps.querySelectorAll('.sommaire button').forEach(b => b.classList.toggle('active', Number(b.dataset.partie) === k));
+    const cadre = corps.closest('.enonce');
+    if (cadre) cadre.scrollTop = 0;
+    window.scrollTo(0, 0);
+  };
+  corps.querySelectorAll('.sommaire button').forEach(b => b.onclick = () => aller(Number(b.dataset.partie)));
+  corps.querySelectorAll('[data-aller]').forEach(b => b.onclick = () => aller(Number(b.dataset.aller)));
+}
+function dessinerControle(q, el) {
+  const cid = el.dataset.c, c = q.controles[cid], cle = q.id + ':' + cid, choix = E.controles[cle];
+  const ordre = E.ordreControles[cle] || c.options.map(o => o.id);
+  let h = '<p class="titre-controle">Point de contrôle' + (choix ? (c.options.find(o => o.id === choix).correcte ? ' · juste' : ' · à revoir') : '') + '</p>' + rendre(c.question);
+  ordre.forEach((oid, k) => {
+    const o = c.options.find(x => x.id === oid);
+    const classe = choix ? (o.correcte ? ' juste' : (oid === choix ? ' fausse' : '')) + (oid === choix ? ' choisie' : '') : '';
+    const montrer = choix && (oid === choix || o.correcte);
+    h += '<div class="option' + classe + '" data-co="' + oid + '"><span class="lettre">' + 'ABCD'[k] + '</span><div>' + rendre(o.texte)
+      + (montrer ? '<div class="explication">' + rendre(o.explication) + '</div>' : '') + '</div></div>';
+  });
+  el.innerHTML = h;
+  if (!choix) el.querySelectorAll('.option').forEach(op => op.onclick = () => { E.controles[cle] = op.dataset.co; sauver(); dessinerControle(q, el); composer(el); });
+}
+function brancherControles(q) { page.querySelectorAll('.controle').forEach(el => dessinerControle(q, el)); brancherLecon(q); }
+
+function epreuveCode(q) {
+  page.className = 'large';
+  const lecon = q.type === 'lecon';
+  let h = pastilles() + '<div class="deux' + (lecon ? ' lecon' : '') + '"><div class="carte enonce"><div class="meta">' + esc(q.theme) + (lecon ? ' · durée visée ' : ' · temps cible ') + mmss(q.temps_cible_s) + '</div>' + (lecon ? rendreLecon(q) : rendre(q.enonce)) + '</div>';
+  h += '<div class="carte"><div class="notebook-barre"><button id="toutExecuter">Tout exécuter</button><button id="redemarrer">Redémarrer le noyau</button><button id="ajouter">Ajouter une cellule</button><span class="meta" id="versions">' + (SERVEUR ? 'noyau : démarrage...' : 'noyau indisponible : lance python lancer.py') + '</span><span class="meta" id="modeEditeur"></span></div>';
+  h += '<div id="cellules"></div>';
+  if (!lecon) h += '<div class="barre"><button id="testsVisibles">Tests visibles</button><button class="principal" id="soumettre">Soumettre</button><span class="meta" id="etatSoumission"></span></div>';
+  h += '<div class="resultats-tests" id="resultatsTests"></div>' + navigation() + '</div></div>' + FIN_CADRE;
+  page.innerHTML = h;
+  dessinerCellules(q);
+  if (lecon) brancherControles(q); else afficherEtatSoumission(q);
+  brancherNavigation();
+  document.getElementById('toutExecuter').onclick = async () => { for (let i = 0; i < E.cellules[q.id].length; i++) { if (!(await executerCellule(q, i))) break; } };
+  document.getElementById('redemarrer').onclick = () => demarrerNoyau(q, true);
+  document.getElementById('ajouter').onclick = () => { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(E.cellules[q.id].length - 1); };
+  if (!lecon) {
+    document.getElementById('testsVisibles').onclick = () => lancerTests(q, 'visibles');
+    document.getElementById('soumettre').onclick = () => lancerTests(q, 'caches');
+  }
+  if (!SERVEUR) page.querySelectorAll('.notebook-barre button, #testsVisibles, #soumettre').forEach(b => b.disabled = true);
+  else if (!noyauxDemarres[q.id]) demarrerNoyau(q, false, true);
+  else document.getElementById('versions').textContent = noyauxDemarres[q.id];
+  composer(page.querySelector('.enonce'));
+}
+
+async function demarrerNoyau(q, confirmer, reconnexion) {
+  if (confirmer && !confirm('Redémarrer le noyau ? Toutes les variables seront perdues.')) return;
+  const zone = document.getElementById('versions');
+  zone.textContent = 'noyau : démarrage...';
+  let v;
+  try { v = await api(reconnexion ? '/api/connecter' : '/api/redemarrer', { session: SESSION, dossier: q.dossier }); }
+  catch (e) { v = null; }
+  if (!v) noyauxDemarres[q.id] = 'noyau injoignable : le serveur lancer.py est-il démarré ?';
+  else {
+    const etat = v.neuf ? 'noyau neuf' : 'noyau reconnecté, variables conservées';
+    noyauxDemarres[q.id] = v.erreur ? 'noyau : ' + v.erreur : etat + ' · Python ' + v.python + ' · pandas ' + v.pandas + ' · numpy ' + v.numpy;
+    if (v.neuf) (E.cellules[q.id] || []).forEach(c => c.numero = null);
+    sauver(); majNumeros(q);
+  }
+  const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id];
+}
+
+function rendreSortie(c) { return c.sortie || ''; }
+
+// ------------------------------------------------------------------ éditeur
+// Monaco (l'éditeur de VS Code) depuis cdnjs ; les suggestions, signatures et aides viennent de jedi
+// dans le noyau, qui connaît les variables déjà exécutées. Sans connexion, repli sur une zone de texte simple.
+const MONACO_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min';
+let MONACO = null, promesseMonaco = null;
+const EDITEURS = [];
+window.EDITEURS = EDITEURS;
+// Monaco annule ses tâches en cours quand on ferme un éditeur ; cette annulation n'est pas une erreur.
+window.addEventListener('unhandledrejection', ev => { if (ev.reason && ev.reason.name === 'Canceled') ev.preventDefault(); });
+function sombre() { return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches; }
+function questionCode() { const q = ITEMS[E.courant]; return E.phase === 'epreuve' && q && q.cellules_initiales ? q : null; }
+function chargerMonaco() {
+  if (promesseMonaco) return promesseMonaco;
+  promesseMonaco = new Promise(resolve => {
+    const abandon = setTimeout(() => fini(null), 20000);
+    function fini(m) { clearTimeout(abandon); if (window.MODE_EDITEUR === undefined) { MONACO = m; window.MODE_EDITEUR = m ? 'monaco' : 'simple'; } resolve(MONACO); }
+    const s = document.createElement('script');
+    s.src = MONACO_BASE + '/vs/loader.js';
+    s.onerror = () => fini(null);
+    s.onload = () => {
+      window.MonacoEnvironment = { getWorkerUrl: () => 'data:text/javascript;charset=utf-8,' + encodeURIComponent("self.MonacoEnvironment={baseUrl:'" + MONACO_BASE + "/'};importScripts('" + MONACO_BASE + "/vs/base/worker/workerMain.js');") };
+      window.require.config({ paths: { vs: MONACO_BASE + '/vs' } });
+      window.require(['vs/editor/editor.main'], () => { try { configurerMonaco(window.monaco); fini(window.monaco); } catch (e) { fini(null); } }, () => fini(null));
+    };
+    document.head.appendChild(s);
+  });
+  return promesseMonaco;
+}
+async function aide(type, model, position) {
+  const q = questionCode();
+  if (!q || !SERVEUR) return null;
+  try { return await api('/api/' + type, { session: SESSION, dossier: q.dossier, code: model.getValue(), ligne: position.lineNumber, colonne: position.column - 1 }); }
+  catch (e) { return null; }
+}
+function configurerMonaco(m) {
+  const K = m.languages.CompletionItemKind;
+  const genres = { module: K.Module, class: K.Class, instance: K.Variable, function: K.Function, param: K.Variable, path: K.File, keyword: K.Keyword, property: K.Property, statement: K.Variable };
+  m.languages.registerCompletionItemProvider('python', {
+    triggerCharacters: ['.'],
+    provideCompletionItems: async (model, position) => {
+      const r = await aide('completer', model, position);
+      if (!r || !r.completions) return { suggestions: [] };
+      const mot = model.getWordUntilPosition(position);
+      const plage = new m.Range(position.lineNumber, mot.startColumn, position.lineNumber, mot.endColumn);
+      return { suggestions: r.completions.map((c, k) => ({ label: c.nom, kind: genres[c.type] ?? K.Variable, insertText: c.nom, detail: c.description, range: plage, sortText: String(k).padStart(4, '0') })) };
+    }
+  });
+  m.languages.registerSignatureHelpProvider('python', {
+    signatureHelpTriggerCharacters: ['(', ','],
+    provideSignatureHelp: async (model, position) => {
+      const r = await aide('signatures', model, position);
+      if (!r || !r.signatures || !r.signatures.length) return null;
+      return { value: { signatures: r.signatures.map(x => ({ label: x.texte, documentation: x.doc, parameters: x.parametres.map(p => ({ label: p })) })), activeSignature: 0, activeParameter: r.signatures[0].index ?? 0 }, dispose() {} };
+    }
+  });
+  m.languages.registerHoverProvider('python', {
+    provideHover: async (model, position) => {
+      const r = await aide('aide', model, position);
+      if (!r || !r.aide || !r.aide.length) return null;
+      return { contents: r.aide.map(a => ({ value: '```text\n' + a.doc + '\n```' })) };
+    }
+  });
+}
+function creerEditeur(conteneur, code, rappels) {
+  if (MONACO) {
+    const m = MONACO;
+    const ed = m.editor.create(conteneur, {
+      value: code, language: 'python', theme: sombre() ? 'vs-dark' : 'vs', fontSize: 14, tabSize: 4, insertSpaces: true,
+      minimap: { enabled: false }, scrollBeyondLastLine: false, automaticLayout: true, lineNumbersMinChars: 3, folding: false,
+      glyphMargin: false, renderLineHighlight: 'none', overviewRulerLanes: 0, wordBasedSuggestions: 'off', fixedOverflowWidgets: true,
+      quickSuggestions: { other: true, comments: false, strings: false }, padding: { top: 6, bottom: 6 },
+      scrollbar: { alwaysConsumeMouseWheel: false, vertical: 'hidden', horizontalScrollbarSize: 8 }
+    });
+    // Sous Windows, Monaco utilise des fins de ligne \r\n ; le code est toujours lu avec des \n, comme dans un notebook.
+    const lire = () => ed.getModel().getValue(m.editor.EndOfLinePreference.LF);
+    const hauteur = () => { conteneur.style.height = Math.max(38, ed.getContentHeight()) + 'px'; };
+    ed.onDidContentSizeChange(hauteur); hauteur();
+    ed.onDidChangeModelContent(() => rappels.modif(lire()));
+    ed.onDidFocusEditorText(rappels.focus);
+    ed.addCommand(m.KeyMod.Shift | m.KeyCode.Enter, rappels.executerSuivant, '!suggestWidgetVisible');
+    ed.addCommand(m.KeyMod.CtrlCmd | m.KeyCode.Enter, rappels.executer, '!suggestWidgetVisible');
+    return { brut: ed, getValue: lire, setValue: v => ed.setValue(v), focus: () => ed.focus(), dispose: () => ed.dispose() };
+  }
+  const zone = document.createElement('textarea');
+  zone.spellcheck = false; zone.autocomplete = 'off'; zone.className = 'sans-math';
+  zone.value = code;
+  conteneur.appendChild(zone);
+  zone.addEventListener('input', () => { rappels.modif(zone.value); ajuster(zone); });
+  zone.addEventListener('focus', rappels.focus);
+  zone.addEventListener('keydown', ev => clavier(ev, zone, rappels));
+  setTimeout(() => ajuster(zone));
+  return { brut: zone, getValue: () => zone.value, setValue: v => { zone.value = v; zone.dispatchEvent(new Event('input')); }, focus: () => zone.focus(), dispose: () => {} };
+}
+function libererEditeurs() { EDITEURS.forEach(e => e.dispose()); EDITEURS.length = 0; }
+
+function dessinerCellules(q) {
+  const conteneur = document.getElementById('cellules');
+  if (!conteneur) return;
+  if (SERVEUR && window.MODE_EDITEUR === undefined) {
+    conteneur.innerHTML = '<p class="meta">Chargement de l\'éditeur...</p>';
+    chargerMonaco().then(() => { if (questionCode() === q) dessinerCellules(q); });
+    return;
+  }
+  libererEditeurs();
+  conteneur.innerHTML = '';
+  const etat = document.getElementById('modeEditeur');
+  if (etat) etat.textContent = MONACO ? 'éditeur VS Code, autocomplétion' : 'éditeur simple' + (SERVEUR ? ' (Monaco injoignable)' : '');
+  E.cellules[q.id].forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'cellule';
+    div.innerHTML = '<div class="numero">[' + (c.numero === null ? ' ' : c.numero) + ']</div><div><div class="editeur"></div>'
+      + '<div class="actions"><button data-a="executer">Exécuter</button><button data-a="dessous">Insérer dessous</button><button data-a="supprimer">Supprimer</button></div>'
+      + '<pre class="sortie sans-math"></pre></div>';
+    div.querySelector('pre.sortie').innerHTML = rendreSortie(c);
+    conteneur.appendChild(div);
+    EDITEURS.push(creerEditeur(div.querySelector('.editeur'), c.code, {
+      modif: v => { c.code = v; sauver(); },
+      focus: () => { conteneur.querySelectorAll('.cellule').forEach(x => x.classList.remove('active')); div.classList.add('active'); },
+      executer: () => executerCellule(q, i),
+      executerSuivant: () => {
+        executerCellule(q, i);
+        if (i === E.cellules[q.id].length - 1) { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); }
+        focaliser(i + 1);
+      }
+    }));
+    div.querySelector('[data-a=executer]').onclick = () => executerCellule(q, i);
+    div.querySelector('[data-a=dessous]').onclick = () => { E.cellules[q.id].splice(i + 1, 0, { code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(i + 1); };
+    div.querySelector('[data-a=supprimer]').onclick = () => { if (E.cellules[q.id].length > 1) { E.cellules[q.id].splice(i, 1); sauver(); dessinerCellules(q); } };
+  });
+}
+function majNumeros(q) { document.querySelectorAll('#cellules .numero').forEach((n, i) => { const c = E.cellules[q.id][i]; n.textContent = '[' + (c && c.numero !== null ? c.numero : ' ') + ']'; }); }
+function ajuster(zone) { zone.style.height = 'auto'; zone.style.height = (zone.scrollHeight + 2) + 'px'; }
+function focaliser(i) { const e = EDITEURS[i]; if (e) e.focus(); }
+function inserer(zone, texte) {
+  zone.focus();
+  if (!document.execCommand('insertText', false, texte)) zone.setRangeText(texte, zone.selectionStart, zone.selectionEnd, 'end');
+  zone.dispatchEvent(new Event('input'));
+}
+function clavier(ev, zone, rappels) {
+  if (ev.key === 'Enter' && (ev.shiftKey || ev.ctrlKey)) {
+    ev.preventDefault();
+    if (ev.shiftKey) rappels.executerSuivant(); else rappels.executer();
+    return;
+  }
+  const debut = zone.selectionStart, fin = zone.selectionEnd, v = zone.value;
+  const debutLigne = v.lastIndexOf('\n', debut - 1) + 1;
+  if (ev.key === 'Tab') {
+    ev.preventDefault();
+    const multi = v.slice(debut, fin).includes('\n');
+    if (!ev.shiftKey && !multi) { inserer(zone, '    '); return; }
+    const finBloc = fin;
+    const bloc = v.slice(debutLigne, finBloc);
+    const nouveau = ev.shiftKey ? bloc.replace(/^ {1,4}/gm, '') : bloc.replace(/^/gm, '    ');
+    zone.setSelectionRange(debutLigne, finBloc);
+    inserer(zone, nouveau);
+    zone.setSelectionRange(debutLigne, debutLigne + nouveau.length);
+    return;
+  }
+  if (ev.key === 'Enter' && !ev.altKey && !ev.metaKey) {
+    ev.preventDefault();
+    const ligne = v.slice(debutLigne, debut);
+    let retrait = ligne.match(/^ */)[0];
+    if (/:\s*(#.*)?$/.test(ligne)) retrait += '    ';
+    inserer(zone, '\n' + retrait);
+  }
+}
+
+async function executerCellule(q, i) {
+  if (!SERVEUR) return false;
+  const c = E.cellules[q.id][i];
+  const div = document.querySelectorAll('#cellules .cellule')[i];
+  if (div) { div.querySelector('.numero').textContent = '[*]'; div.querySelector('pre.sortie').innerHTML = ''; }
+  let r;
+  try { r = await api('/api/executer', { session: SESSION, dossier: q.dossier, code: c.code, nom: 'cellule ' + (i + 1) }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  E.compteur = (E.compteur || 0) + 1;
+  c.numero = E.compteur;
+  let h = '';
+  if (r.sortie) h += esc(r.sortie);
+  if (r.valeur !== null && r.valeur !== undefined) h += (h && !h.endsWith('\n') ? '\n' : '') + esc(r.valeur);
+  if (r.erreur) h += (h && !h.endsWith('\n') ? '\n' : '') + '<span class="erreur">' + esc(r.erreur) + '</span>';
+  if (r.redemarre) { noyauxDemarres[q.id] = 'noyau redémarré : variables perdues'; const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id]; }
+  c.sortie = h;
+  sauver();
+  const d = document.querySelectorAll('#cellules .cellule')[i];
+  if (d) { d.querySelector('.numero').textContent = '[' + c.numero + ']'; d.querySelector('pre.sortie').innerHTML = h; }
+  return !r.erreur;
+}
+
+function codeSource(q) { return E.cellules[q.id].map((c, i) => '# %% cellule ' + (i + 1) + '\n' + c.code).join('\n\n') + '\n'; }
+function afficherEtatSoumission(q) {
+  const s = E.code[q.id] || {};
+  const z = document.getElementById('etatSoumission');
+  if (z) z.textContent = s.soumissions ? s.soumissions + ' soumission(s) · dernière : ' + s.caches_reussis + '/' + s.caches_total + ' tests cachés réussis' : 'jamais soumis';
+}
+async function lancerTests(q, mode) {
+  const zone = document.getElementById('resultatsTests');
+  zone.innerHTML = '<p class="meta">' + (mode === 'visibles' ? 'Tests visibles' : 'Tests cachés') + ' en cours...</p>';
+  let r;
+  try { r = await api('/api/tests', { session: SESSION, dossier: q.dossier, module: q.module_tests, mode }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  if (r.erreur) { zone.innerHTML = '<pre class="sans-math"><span class="erreur">' + esc(r.erreur) + '</span></pre>'; return; }
+  let h = '<p class="etiquette ' + (r.reussis === r.total ? 'bon' : 'faux') + '">' + (mode === 'visibles' ? 'Tests visibles : ' : 'Tests cachés : ') + r.reussis + '/' + r.total + ' réussis</p>';
+  if (mode === 'visibles') {
+    h += '<div class="defile"><table><tr><th>Test</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th><th class="nombre">Durée</th></tr>';
+    r.resultats.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? '') + '</code></td><td class="nombre">' + t.duree_s + ' s</td></tr>'; });
+    h += '</table></div>';
+    r.resultats.filter(t => t.erreur).forEach(t => { h += '<pre class="sans-math"><span class="erreur">' + esc(t.nom + ' :\n' + t.erreur) + '</span></pre>'; });
+    E.code[q.id] = Object.assign(E.code[q.id] || {}, { visibles_reussis: r.reussis });
+  } else {
+    h += '<div class="defile"><table><tr><th>Test caché</th><th>Résultat</th></tr>';
+    r.resultats.forEach((t, k) => { h += '<tr><td>Test ' + (k + 1) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec' + (t.erreur ? ' (exception ou temps dépassé)' : '')) + '</td></tr>'; });
+    h += '</table></div>';
+    const s = E.code[q.id] || {};
+    E.code[q.id] = Object.assign(s, { soumissions: (s.soumissions || 0) + 1, caches_reussis: r.reussis, caches_total: r.total, details: r.resultats, code_source: codeSource(q) });
+    afficherEtatSoumission(q);
+    const p = page.querySelector('.pastille.courante'); if (p) p.classList.add('faite');
+  }
+  sauver();
+  zone.innerHTML = h;
+}
+
+// ------------------------------------------------------------------ bilan
+function points(q) {
+  if (q.type === 'code') { const c = E.code[q.id]; return c && c.soumissions ? c.caches_reussis / c.caches_total : 0; }
+  const r = E.reponses[q.id];
+  if (r === undefined || r === 'nsp') return 0;
+  // Une question à plusieurs réponses est notée tout ou rien : l'ensemble coché doit être exactement l'ensemble juste.
+  const s = choisies(q), bonnes = q.options.filter(o => o.correcte).map(o => o.id);
+  return s.length === bonnes.length && bonnes.every(b => s.includes(b)) ? 1 : -D.options.penalite;
+}
+function choisies(q) { const r = E.reponses[q.id]; return r === undefined || r === 'nsp' ? [] : Array.isArray(r) ? r.slice() : [r]; }
+function texteOption(q, id) { const o = q.options.find(x => x.id === id); return o ? o.texte : null; }
+
+function resultatJSON(duree) {
+  return {
+    examen: D.id, debut: new Date(E.debut).toISOString(), duree_s: Math.round(duree), pauses_s: Math.round((E.pauseTotale || 0) / 1000), options: D.options,
+    lecons: ITEMS.filter(q => q.type === 'lecon').map(q => {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      return { id: q.id, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), controles_justes_du_premier_coup: justes, controles_total: ids.length };
+    }),
+    questions: NOTEES.map(q => {
+      const base = { id: q.id, type: q.type, section: q.section, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), temps_cible_s: q.temps_cible_s, points: Number(points(q).toFixed(4)) };
+      if (q.type === 'code') {
+        const c = E.code[q.id] || {};
+        return Object.assign(base, { soumissions: c.soumissions || 0, caches_reussis: c.caches_reussis || 0, caches_total: c.caches_total || q.tests_caches, visibles_reussis: c.visibles_reussis ?? null, code_source: c.code_source || codeSource(q) });
+      }
+      const r = E.reponses[q.id] ?? null;
+      return Object.assign(base, { reponse: r, reponse_texte: r && r !== 'nsp' ? choisies(q).map(i => texteOption(q, i)).join(' ; ') : null, bonne_reponse_texte: q.options.filter(o => o.correcte).map(o => o.texte).join(' ; ') });
+    })
+  };
+}
+
+function bilan() {
+  page.className = '';
+  document.getElementById('position').textContent = 'Bilan';
+  const duree = dureeEcoulee(E.fin);
+  document.getElementById('chrono').textContent = mmss(duree);
+  let total = 0;
+  let h = '<div class="carte"><h2>Bilan</h2>@SCORE@<div class="defile"><table><tr><th>Section</th><th class="nombre">Score</th><th class="nombre">Temps passé</th><th class="nombre">Temps indicatif</th></tr>';
+  D.sections.forEach(s => {
+    const notees = s.questions.filter(q => q.type !== 'lecon');
+    const pts = notees.reduce((a, q) => a + points(q), 0);
+    const t = s.questions.reduce((a, q) => a + (E.temps[q.id] || 0), 0);
+    total += pts;
+    h += '<tr><td>' + esc(s.nom) + '</td><td class="nombre">' + (notees.length ? pts.toFixed(2).replace('.', ',') + ' / ' + notees.length : 'non notée') + '</td><td class="nombre">' + mmss(t) + '</td><td class="nombre">' + mmss(s.budget_min * 60) + '</td></tr>';
+  });
+  h += '<tr><th>Total</th><th class="nombre">' + total.toFixed(2).replace('.', ',') + ' / ' + NOTEES.length + '</th><th class="nombre">' + mmss(duree) + '</th><th class="nombre">' + mmss(D.duree_minutes * 60) + '</th></tr></table></div>';
+  h = h.replace('@SCORE@', '<div class="score-total"><strong>' + total.toFixed(2).replace('.', ',').replace(/,00$/, '') + ' / ' + NOTEES.length + '</strong><span class="meta">en ' + mmss(duree) + '</span></div>');
+  const barreFin = document.querySelector('#progression > span'); if (barreFin) barreFin.style.width = '100%';
+  h += '<p id="enregistrement" class="meta"></p>';
+  h += '<details><summary>Résultat brut (JSON)</summary><textarea readonly class="json sans-math" id="json"></textarea><div class="barre"><button id="telecharger">Enregistrer le fichier</button></div></details>';
+  h += '<div class="barre">' + (SERVEUR ? '<button class="principal" id="retourAccueil">Retour à l\'accueil (séance suivante)</button>' : '')
+    + '<button id="recommencer">Effacer et recommencer</button></div></div>';
+  ITEMS.forEach((q, i) => {
+    const temps = mmss(E.temps[q.id] || 0) + ' sur ' + mmss(q.temps_cible_s) + ' visés';
+    const tete = (classe, verdict) => '<article class="fiche ' + classe + '"><header class="fiche-tete"><span class="num">' + (q.type === 'lecon' ? 'Leçon' : 'Question ' + (i + 1)) + '</span><span class="titre">' + esc(q.theme)
+      + '</span><span class="temps">' + esc(q.nomSection) + ' · ' + temps + '</span>' + (verdict ? '<span class="verdict">' + verdict + '</span>' : '') + '</header><div class="fiche-corps">';
+    if (q.type === 'lecon') {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      h += tete('', '') + '<p>Points de contrôle justes du premier coup : ' + justes + ' sur ' + ids.length + '. La leçon reste consultable depuis la séance.</p></div></article>';
+      return;
+    }
+    if (q.type === 'qcm') {
+      const r = E.reponses[q.id], juste = points(q) === 1;
+      const s = choisies(q), incomplete = !juste && q.multiple && s.length > 0 && s.every(id => q.options.find(o => o.id === id).correcte);
+      h += tete(juste ? 'v-juste' : incomplete ? 'v-incomplete' : r === undefined || r === 'nsp' ? '' : 'v-fausse',
+        juste ? 'Juste' : r === undefined ? 'Sans réponse' : r === 'nsp' ? 'Je ne sais pas' : incomplete ? 'Incomplète' : 'Fausse');
+      h += '<h5>Énoncé</h5>' + rendre(q.enonce) + '<h5>' + (q.multiple ? 'Options (plusieurs réponses, tout ou rien)' : 'Options') + '</h5>';
+      E.ordre[q.id].forEach((oid, k) => {
+        const o = q.options.find(x => x.id === oid), choisie = s.includes(oid);
+        const puces = (o.correcte ? '<span class="puce bon">' + (q.multiple ? 'Juste' : 'Bonne réponse') + '</span>' : '') + (choisie ? '<span class="puce' + (o.correcte ? ' bon' : ' faux') + '">Ta réponse</span>' : '');
+        h += '<div class="option ' + (o.correcte ? 'juste' : 'fausse') + (choisie ? ' choisie' : '') + '"><span class="lettre">' + 'ABCDE'[k] + '</span><div>' + puces + rendre(o.texte)
+          + '<div class="explication">' + (o.correcte && !q.multiple ? '' : rendre(o.explication)) + '</div></div></div>';
+      });
+      h += '<h5>Correction</h5>' + rendre(q.solution);
+    } else {
+      const c = E.code[q.id] || {};
+      const tout = c.soumissions && c.caches_reussis === c.caches_total;
+      h += tete(tout ? 'v-juste' : c.soumissions ? 'v-incomplete' : '', c.soumissions ? c.caches_reussis + ' / ' + c.caches_total + ' tests cachés' : 'Jamais soumis');
+      h += '<details><summary>Énoncé</summary>' + rendre(q.enonce) + '</details>';
+      if (c.details) {
+        h += '<h5>Tests cachés</h5><div class="defile"><table><tr><th>Test caché</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th></tr>';
+        c.details.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? (t.erreur ? 'exception' : '')) + '</code></td></tr>'; });
+        h += '</table></div>';
+        c.details.filter(t => t.erreur).forEach(t => { h += '<details><summary>Erreur : ' + esc(t.nom) + '</summary><pre class="sans-math">' + esc(t.erreur) + '</pre></details>'; });
+      }
+      h += '<details><summary>Ton code soumis</summary><pre class="sans-math"><code>' + esc(c.code_source || codeSource(q)) + '</code></pre></details>';
+      h += '<details><summary>Correction</summary>' + rendre(q.solution) + '</details>';
+    }
+    h += '<p class="revoir">Vérification des nombres : <code class="sans-math">' + esc(q.verif.script) + '</code></p></div></article>';
+  });
+  page.innerHTML = h;
+  const resultat = resultatJSON(duree);
+  const zone = document.getElementById('json');
+  zone.value = JSON.stringify(resultat, null, 1);
+  document.getElementById('telecharger').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([zone.value], { type: 'application/json' }));
+    a.download = D.id + '_resultat.json'; a.click();
+  };
+  const retour = document.getElementById('retourAccueil'); if (retour) retour.onclick = () => { location.href = '/'; };
+  document.getElementById('recommencer').onclick = () => { if (confirm('Effacer ce passage ?')) { try { localStorage.removeItem(CLE); } catch (e) {} E = etatNeuf('accueil'); afficher(); } };
+  const info = document.getElementById('enregistrement');
+  if (E.enregistrement) info.textContent = E.enregistrement;
+  else if (!SERVEUR) info.textContent = 'Page ouverte comme un fichier : le résultat n\'est pas enregistré automatiquement. Copie le JSON ci-dessous dans la conversation.';
+  else {
+    info.textContent = 'Enregistrement du résultat...';
+    api('/api/resultat', resultat).then(r => {
+      E.enregistrement = r.erreur ? null : 'Résultat enregistré dans ' + r.fichier + ' ; ' + r.erreurs_ajoutees + ' erreur(s) ajoutée(s) au journal suivi/erreurs.md.';
+      info.textContent = E.enregistrement || 'Échec de l\'enregistrement : ' + r.erreur;
+      sauver();
+    }).catch(() => { info.textContent = 'Serveur injoignable : le résultat n\'est pas enregistré. Copie le JSON ci-dessous dans la conversation.'; });
+  }
+  composer();
+}
+
+function afficher() {
+  libererEditeurs();
+  document.getElementById('titre').textContent = D.titre;
+  document.title = D.titre;
+  if (E.phase === 'epreuve') epreuve(); else if (E.phase === 'bilan') bilan(); else accueil();
+  window.scrollTo(0, 0);
+}
+function completerEtat() {
+  ['reponses', 'temps', 'ordre', 'cellules', 'code', 'controles', 'ordreControles', 'vus', 'partie'].forEach(k => { if (!E[k] || typeof E[k] !== 'object') E[k] = {}; });
+  if (typeof E.courant !== 'number' || E.courant < 0 || E.courant >= ITEMS.length) E.courant = 0;
+  ITEMS.forEach(q => {
+    if (q.cellules_initiales && !Array.isArray(E.cellules[q.id])) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+    if (q.type === 'qcm') {
+      const ids = q.options.map(o => o.id);
+      const o = E.ordre[q.id];
+      if (!Array.isArray(o) || o.length !== ids.length || !ids.every(i => o.includes(i))) E.ordre[q.id] = melanger(ids);
+      const rep = E.reponses[q.id];
+      if (rep !== undefined && rep !== 'nsp' && (Array.isArray(rep) !== !!q.multiple || !choisies(q).length || !choisies(q).every(i => ids.includes(i)))) delete E.reponses[q.id];
+    }
+    if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => {
+      const cle = q.id + ':' + cid;
+      if (!Array.isArray(E.ordreControles[cle])) E.ordreControles[cle] = melanger(c.options.map(o => o.id));
+    });
+  });
+}
+charger();
+completerEtat();
+if (SERVEUR && ITEMS.some(q => q.cellules_initiales)) chargerMonaco();
+afficher();
+</script>
+</body>
+</html>

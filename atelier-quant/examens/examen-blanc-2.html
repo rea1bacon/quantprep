@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier quant</title>
+<style>
+:root { --fond:#f5f6f8; --carte:#ffffff; --texte:#1f2328; --doux:#646b75; --trait:#e3e6ea; --trait-fort:#cdd2d8; --accent:#2f5bd3; --accent-doux:#eef2fc; --bon:#1f7a4d; --bon-doux:#eaf6ef; --faux:#c0392b; --faux-doux:#fcecea; --alerte:#9a5a08; --alerte-doux:#fdf3e4; --code:#f6f8fa; --ombre:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06); }
+@media (prefers-color-scheme: dark) { :root { --fond:#0f1115; --carte:#171a20; --texte:#e6e8eb; --doux:#9aa1ab; --trait:#262b33; --trait-fort:#363c46; --accent:#86a8ff; --accent-doux:#1a2135; --bon:#5cc98f; --bon-doux:#13251c; --faux:#f08479; --faux-doux:#2b1716; --alerte:#e2a54f; --alerte-doux:#2a2013; --code:#12151a; --ombre:none; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--fond); color:var(--texte); font:15.5px/1.6 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:var(--accent); }
+
+/* Barre supérieure */
+header { position:sticky; top:0; z-index:10; background:var(--carte); border-bottom:1px solid var(--trait); height:56px; padding:0 20px; display:flex; gap:14px; align-items:center; }
+#lienAccueil { display:flex; align-items:center; gap:8px; color:var(--texte); font-weight:650; font-size:15px; text-decoration:none; white-space:nowrap; padding-right:14px; border-right:1px solid var(--trait); }
+#lienAccueil::before { content:""; width:22px; height:22px; border-radius:6px; background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #7b4bd6)); }
+#lienAccueil[hidden] { display:none; }
+header h1 { font-size:14.5px; font-weight:600; margin:0; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#position { font-size:13px; color:var(--doux); white-space:nowrap; }
+#progression { position:absolute; left:0; right:0; bottom:-1px; height:2px; background:transparent; }
+#progression > span { display:block; height:100%; width:0; background:var(--accent); transition:width .3s; }
+#chrono { font:600 15px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric:tabular-nums; background:var(--fond); border:1px solid var(--trait); border-radius:999px; padding:7px 12px; }
+#chrono.depasse { color:var(--faux); border-color:var(--faux); }
+@media (max-width:720px) { #position { display:none; } header { padding:0 12px; gap:8px; } }
+
+/* Mise en page */
+main { padding:28px 24px 96px; }
+main > .carte, main > .fiche, main > .tableau-bord { max-width:880px; margin-left:auto; margin-right:auto; }
+.cadre { display:grid; grid-template-columns:250px minmax(0, 1fr); gap:32px; max-width:1180px; margin:0 auto; align-items:start; }
+main.large .cadre { max-width:none; }
+.contenu { min-width:0; max-width:820px; }
+main.lecture .contenu { max-width:880px; }
+main.large .contenu { max-width:none; }
+@media (max-width:1000px) { .cadre { grid-template-columns:1fr; gap:16px; } }
+
+/* Plan de la séance (colonne gauche) */
+.plan { scrollbar-width:thin; scrollbar-color:var(--trait-fort) transparent; position:sticky; top:84px; max-height:calc(100vh - 104px); overflow-y:auto; font-size:13.5px; }
+.plan .groupe { font-size:11.5px; font-weight:650; letter-spacing:.06em; text-transform:uppercase; color:var(--doux); margin:16px 0 6px 10px; }
+.plan .groupe:first-child { margin-top:0; }
+#pastilles { display:flex; flex-direction:column; gap:2px; }
+.pastille { display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:none; border-radius:8px; padding:6px 10px; font-size:13.5px; color:var(--texte); }
+.pastille:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 9%, transparent); }
+.pastille .etat { flex:none; width:18px; height:18px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:10px; color:#fff; }
+.pastille.faite .etat { background:var(--accent); border-color:var(--accent); }
+.pastille.faite .etat::after { content:"✓"; }
+.pastille .libelle { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pastille.courante { background:var(--accent-doux); color:var(--accent); font-weight:600; }
+.pastille.courante .etat { border-color:var(--accent); }
+@media (max-width:1000px) { .plan { position:static; max-height:none; } #pastilles { flex-direction:row; flex-wrap:wrap; } .pastille { width:auto; } .pastille .libelle { display:none; } .plan .groupe { display:none; } }
+
+/* Cartes */
+.carte { background:var(--carte); border:1px solid var(--trait); border-radius:12px; padding:22px 26px; margin-bottom:18px; box-shadow:var(--ombre); }
+h2 { font-size:21px; font-weight:650; letter-spacing:-.01em; margin:0 0 10px; }
+h3 { font-size:17px; font-weight:650; margin:20px 0 6px; }
+h4 { font-size:15px; font-weight:650; margin:16px 0 4px; }
+.meta { color:var(--doux); font-size:13.5px; }
+.surtitre { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:14px; font-size:13px; color:var(--doux); }
+.surtitre .rang { font-weight:650; color:var(--texte); }
+.chip { display:inline-block; max-width:420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; font-size:12px; font-weight:550; padding:2px 10px; border-radius:999px; background:var(--accent-doux); color:var(--accent); }
+.note { background:var(--alerte-doux); border-radius:10px; padding:10px 14px; color:var(--texte); font-size:14px; margin:12px 0; }
+.note p { margin:4px 0; }
+.consigne { font-size:13px; color:var(--doux); margin:18px 0 8px; }
+
+/* Boutons */
+button { font:inherit; font-size:14px; font-weight:550; padding:8px 14px; border-radius:8px; border:1px solid var(--trait-fort); background:var(--carte); color:var(--texte); cursor:pointer; transition:background .15s, border-color .15s; }
+button:hover:not(:disabled) { background:color-mix(in srgb, var(--doux) 8%, var(--carte)); }
+button.principal { background:var(--accent); border-color:var(--accent); color:#fff; }
+button.principal:hover:not(:disabled) { background:color-mix(in srgb, var(--accent) 88%, #000); }
+@media (prefers-color-scheme: dark) { button.principal { color:#0d1220; } }
+button:disabled { opacity:.45; cursor:default; }
+header button { padding:6px 12px; font-size:13px; }
+.barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:16px; }
+.navigation { border-top:1px solid var(--trait); margin-top:26px; padding-top:18px; }
+.navigation #prec { margin-right:auto; }
+.navigation #finir { order:1; }
+.navigation #suiv { order:2; }
+
+/* Options d'une question */
+.option { display:flex; gap:14px; align-items:flex-start; border:1px solid var(--trait-fort); border-radius:10px; padding:13px 16px; margin:10px 0; cursor:pointer; background:var(--carte); transition:border-color .12s, background .12s; }
+.option:hover { border-color:var(--accent); }
+.option .lettre { flex:none; width:26px; height:26px; border-radius:50%; border:1.5px solid var(--trait-fort); display:grid; place-items:center; font-size:12.5px; font-weight:650; color:var(--doux); margin-top:-1px; }
+.option .lettre.carre { border-radius:6px; }
+.option p { margin:0; }
+.option.choisie { border-color:var(--accent); background:var(--accent-doux); }
+.option.choisie .lettre { background:var(--accent); border-color:var(--accent); color:#fff; }
+.option.juste { border-color:var(--bon); }
+.option.fausse { border-color:var(--trait); }
+.explication { font-size:14px; color:var(--doux); margin-top:6px; }
+.etiquette { font-size:13px; font-weight:600; }
+.bon { color:var(--bon); } .faux { color:var(--faux); }
+
+/* Code, tableaux */
+pre { background:var(--code); border:1px solid var(--trait); border-radius:8px; padding:12px 14px; overflow-x:auto; font:13px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+code { font:13px ui-monospace, "Cascadia Mono", Consolas, monospace; background:var(--code); border:1px solid var(--trait); padding:0 4px; border-radius:4px; }
+pre code { background:none; border:0; padding:0; }
+.defile { overflow-x:auto; }
+table { border-collapse:collapse; width:100%; font-size:14px; margin:10px 0; }
+th { font-size:12px; font-weight:650; letter-spacing:.04em; text-transform:uppercase; color:var(--doux); }
+th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--trait); vertical-align:top; }
+td.nombre, th.nombre { text-align:right; font-variant-numeric:tabular-nums; }
+textarea.json { width:100%; min-height:140px; font:12.5px ui-monospace, Consolas, monospace; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px; }
+details { margin-top:10px; } summary { cursor:pointer; color:var(--accent); font-weight:550; }
+
+/* Question de code : énoncé à gauche, notebook à droite */
+.deux { display:grid; grid-template-columns:minmax(300px, 38%) 1fr; gap:18px; align-items:start; }
+.deux > .carte { margin:0; }
+.deux .enonce { position:sticky; top:76px; max-height:calc(100vh - 96px); overflow-y:auto; }
+@media (max-width:1100px) { .deux { grid-template-columns:1fr; } .deux .enonce { position:static; max-height:none; } }
+.notebook-barre { display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--trait); padding-bottom:12px; margin-bottom:12px; }
+.notebook-barre button { font-size:13px; padding:6px 11px; }
+.notebook-barre #versions { margin-left:auto; }
+.notebook-barre .meta { font-size:12.5px; }
+.cellule { display:grid; grid-template-columns:48px 1fr; gap:6px; margin:12px 0; }
+.cellule .numero { font:12px ui-monospace, Consolas, monospace; color:var(--doux); text-align:right; padding-top:9px; }
+.cellule .editeur { border:1px solid var(--trait); border-radius:8px; overflow:hidden; background:var(--code); }
+.cellule.active .editeur { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-doux); }
+.cellule .editeur textarea { border:none; border-radius:0; }
+.cellule textarea { width:100%; resize:none; overflow:hidden; min-height:44px; font:13.5px/1.5 ui-monospace, Consolas, monospace; tab-size:4; background:var(--code); color:var(--texte); border:1px solid var(--trait); border-radius:8px; padding:8px 10px; white-space:pre; overflow-x:auto; }
+.cellule .actions { display:flex; gap:6px; margin-top:4px; }
+.cellule .actions button { font-size:12px; padding:2px 8px; font-weight:500; }
+.cellule pre.sortie { margin:4px 0 0; max-height:420px; overflow:auto; }
+.cellule pre.sortie:empty { display:none; }
+pre .erreur { color:var(--faux); }
+.resultats-tests { margin-top:12px; }
+#voile { position:fixed; inset:0; z-index:20; background:color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:16px; }
+#voile[hidden] { display:none; }
+#voile .carte { max-width:480px; text-align:center; }
+#voile .barre { justify-content:center; }
+.deux.lecon { grid-template-columns:minmax(320px, 56%) 1fr; }
+.deux.lecon .enonce { max-height:calc(100vh - 96px); }
+pre.sortie-lecon { margin-top:-6px; border-style:dashed; color:var(--doux); }
+
+/* Leçons : colonne de lecture, une partie à la fois, onglets */
+main.lecture .carte.enonce { padding:26px 40px 30px; }
+.lecon-corps { font-size:16px; line-height:1.72; max-width:74ch; margin:0 auto; }
+.lecon-corps p { margin:0.75em 0; }
+.lecon-corps li { margin:0.4em 0; padding-left:2px; }
+.lecon-corps ol, .lecon-corps ul { padding-left:1.4em; }
+.lecon-corps ol > li::marker { font-weight:650; color:var(--doux); }
+.lecon-corps h3 { font-size:23px; font-weight:700; letter-spacing:-.015em; line-height:1.3; margin:8px 0 16px; }
+.lecon-corps table { font-size:14.5px; line-height:1.55; }
+.lecon-corps mjx-container { font-size:102% !important; }
+.lecon-corps mjx-container[display="true"], .lecon-corps p.formule > mjx-container { display:block; text-align:center; margin:0.7em 0; overflow-x:auto; overflow-y:hidden; }
+.sommaire { display:flex; flex-wrap:wrap; gap:0 2px; margin:0 0 24px; border-bottom:1px solid var(--trait); }
+.sommaire button { flex:none; font-size:13px; font-weight:550; padding:10px 12px; border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--doux); margin-bottom:-1px; }
+.sommaire button:hover:not(:disabled) { background:none; color:var(--texte); }
+.sommaire button.active { color:var(--accent); border-bottom-color:var(--accent); }
+.partie[hidden] { display:none; }
+.pied-partie { display:flex; gap:10px; align-items:center; justify-content:space-between; margin:28px 0 4px; padding-top:18px; border-top:1px solid var(--trait); }
+.pied-partie .meta { flex:1; text-align:center; }
+.bloc { --teinte:var(--doux); border:1px solid var(--trait); border-radius:10px; padding:6px 20px 10px; margin:18px 0; background:var(--carte); }
+.bloc > h4, .bloc > summary { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--teinte); margin:10px 0 2px; }
+.bloc.enonce-bloc { --teinte:var(--accent); background:var(--accent-doux); border-color:transparent; }
+.bloc.exemple { --teinte:var(--bon); } .bloc.pieges { --teinte:var(--faux); } .bloc.limites { --teinte:var(--alerte); }
+.bloc.preuve { background:var(--fond); }
+details.bloc > summary { cursor:pointer; list-style:revert; padding:6px 0; }
+details.bloc > summary .meta { text-transform:none; letter-spacing:0; font-weight:400; margin-left:6px; }
+details.bloc[open] > summary { margin-bottom:6px; }
+.controle { border:1px solid var(--trait-fort); border-radius:12px; padding:14px 18px; margin:22px 0; background:var(--fond); }
+.controle .titre-controle { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accent); margin:0 0 6px; }
+.controle .option { background:var(--carte); }
+
+/* Fiche de question : débrief et bilan */
+.fiche { background:var(--carte); border:1px solid var(--trait); border-radius:12px; margin:0 0 20px; overflow:hidden; font-size:15px; line-height:1.65; box-shadow:var(--ombre); }
+.lecon-corps .fiche { margin:24px 0; }
+.fiche-tete { display:flex; align-items:center; flex-wrap:wrap; gap:6px 14px; padding:14px 22px; border-bottom:1px solid var(--trait); }
+.fiche-tete .num { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); white-space:nowrap; }
+.fiche-tete .titre { flex:1; min-width:200px; font-weight:650; font-size:16px; }
+.fiche-tete .temps { font-size:12.5px; color:var(--doux); white-space:nowrap; }
+.verdict { font-size:12px; font-weight:650; padding:3px 10px; border-radius:999px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.v-juste .verdict { color:var(--bon); background:var(--bon-doux); } .v-fausse .verdict { color:var(--faux); background:var(--faux-doux); } .v-incomplete .verdict { color:var(--alerte); background:var(--alerte-doux); }
+.fiche-corps { padding:4px 22px 20px; }
+.fiche h5 { font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin:22px 0 8px; }
+.fiche-corps > h5:first-child { margin-top:16px; }
+.fiche p { margin:0.6em 0; }
+.fiche li { margin:0.35em 0; }
+.fiche-reponses { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:18px 0 6px; }
+.fiche-reponses > div { background:var(--fond); border-radius:10px; padding:10px 14px; }
+.fiche-reponses .lab { display:block; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); margin-bottom:2px; }
+.fiche ul.choix { list-style:none; padding:0; margin:8px 0; }
+.fiche ul.choix > li { border:1px solid var(--trait); border-radius:10px; padding:9px 14px; margin:8px 0; }
+.fiche ul.choix > li > strong:first-child { display:inline-block; min-width:1.8em; color:var(--doux); }
+.fiche .retenir { border-radius:10px; padding:12px 16px; margin-top:20px; background:var(--accent-doux); }
+.fiche .retenir h5 { margin:0 0 2px; color:var(--accent); }
+.fiche .retenir p { margin:0.3em 0 0; }
+.fiche .revoir { font-size:13.5px; color:var(--doux); margin:14px 0 0; }
+.fiche .option { cursor:default; }
+.fiche .option:hover { border-color:var(--trait); }
+.fiche .option p { margin:0; }
+.fiche .option .explication p { margin:3px 0 0; }
+.fiche .option.juste { border-color:color-mix(in srgb, var(--bon) 45%, var(--trait)); background:var(--bon-doux); }
+.fiche .option.choisie:not(.juste) { border-color:color-mix(in srgb, var(--faux) 45%, var(--trait)); background:var(--faux-doux); }
+.fiche .option.choisie .lettre { background:none; color:var(--doux); border-color:var(--trait-fort); }
+.fiche .option > div { flex:1; }
+.puce { float:right; font-size:11px; font-weight:650; padding:2px 9px; border-radius:999px; margin-left:8px; white-space:nowrap; color:var(--doux); background:var(--fond); }
+.puce.bon { color:var(--bon); background:var(--carte); } .puce.faux { color:var(--faux); background:var(--carte); }
+.fiche details { margin-top:16px; border-top:1px solid var(--trait); padding-top:12px; }
+.fiche details > summary { cursor:pointer; font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--doux); }
+
+/* Présentation d'une séance et bilan */
+.presentation h2 { font-size:26px; letter-spacing:-.02em; }
+.sections-liste { display:grid; gap:8px; margin:18px 0; }
+.sections-liste > div { display:flex; justify-content:space-between; gap:12px; background:var(--fond); border-radius:10px; padding:10px 14px; font-size:14px; }
+.score-total { display:flex; align-items:baseline; gap:10px; margin:4px 0 14px; }
+.score-total strong { font-size:34px; font-weight:700; letter-spacing:-.02em; }
+</style>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  options: { ignoreHtmlClass: 'sans-math', skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+};
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+</head>
+<body>
+<header>
+  <a id="lienAccueil" href="/" hidden>Atelier quant</a>
+  <h1 id="titre"></h1>
+  <span class="meta" id="position"></span>
+  <button id="recommencerHaut" hidden>Recommencer</button>
+  <button id="pause" hidden>Pause</button>
+  <span id="chrono">00:00</span>
+  <div id="progression"><span></span></div>
+</header>
+<div id="voile" hidden><div class="carte"><h2>En pause</h2><p>Le chronomètre est arrêté et le contenu masqué : le temps de pause n'est compté ni dans la durée de la séance, ni dans le temps par question.</p><div class="barre"><button class="principal" id="reprendre">Reprendre</button></div></div></div>
+<main id="page"></main>
+<script type="application/json" id="donnees">{"id": "examen-blanc-2", "titre": "Examen blanc 2", "duree_minutes": 72, "options": {"pause": false, "je_ne_sais_pas": false, "retour_arriere": true, "penalite": 0}, "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.", "presentation": "Deuxième examen blanc au format d'un test en ligne de recherche quantitative : 1 question de code, 10 de mathématiques, 5 de ML fondamental, 8 de ML avancé. À passer **en conditions réelles** : d'une traite, sans notes, sans recherche, sans pause (le bouton Pause est désactivé), seul. Toutes les questions sont nouvelles.\n\nLe chronomètre affiche la somme des budgets de section : 24 minutes pour le code, 25 pour les mathématiques, 7 pour le ML fondamental, 16 pour le ML avancé. Cette somme laisse 10 minutes de marge sur un format de référence de 82 minutes ; l'objectif est de finir avant la fin du chronomètre.\n\nRègles à appliquer :\n\n- Code : écris une solution simple, lance les tests visibles, **soumets tout de suite**, puis améliore et soumets à nouveau. Un code jamais soumis ne rapporte rien.\n- Règle d'abandon : au-delà du double du temps cible affiché sur une question, choisis l'option la plus plausible après élimination, retiens le numéro de la question et passe à la suivante ; tu y reviendras avec la marge.\n- Il n'y a pas de « Je ne sais pas » : sans pénalité, une question laissée vide ne rapporte jamais plus qu'une réponse devinée.", "avertissements": ["Les questions de mathématiques et de ML sont présentées en choix multiple à une seule bonne réponse. Cherche la réponse avant de lire les options, pour t'entraîner aussi au format à réponse numérique.", "Ici le retour en arrière est permis entre toutes les questions et il n'y a pas de pénalité : ce sont les règles de cette plateforme, pas celles de tout test en ligne. Si un test interdit le retour vers une section quittée, il faut finir chaque section avant de passer à la suivante.", "La question de code est un notebook avec des fichiers de données, exécuté avec Python 3.9, pandas 1.4.2 et numpy 1.21.6, l'environnement des notebooks de la plateforme."], "sections": [{"id": "code", "nom": "Coding, data science", "budget_min": 24, "questions": [{"id": "EB2-C1", "type": "code", "section": "code", "theme": "pandas : transactions et cotations, jointure temporelle", "difficulte": 4, "temps_cible_s": 1200, "enonce": "## Déséquilibre des ordres par la règle du point milieu\n\nPour savoir si une transaction a été déclenchée par un acheteur ou par un vendeur, on la compare à la dernière cotation connue juste avant elle. Une cotation donne le meilleur prix d'achat proposé (`achat` : le prix le plus haut auquel un acheteur est prêt à acheter) et le meilleur prix de vente proposé (`vente` : le prix le plus bas auquel un vendeur est prêt à vendre). Une transaction au-dessus du milieu de ces deux prix a été déclenchée par un acheteur (transaction à l'achat) ; en dessous, par un vendeur (transaction à la vente).\n\nDans le notebook, définis la fonction `desequilibre(transactions, cotations)` qui renvoie une `Series` pandas.\n\n### Entrées\n\n`transactions` est un DataFrame dont les colonnes sont exactement :\n\n| Colonne | Type | Contenu |\n|---|---|---|\n| `temps` | entier (`int64`) | instant de la transaction, en millisecondes depuis l'ouverture |\n| `actif` | chaîne | identifiant de l'actif |\n| `prix` | flottant, strictement positif | prix de la transaction |\n| `quantite` | entier (`int64`), au moins 1 | nombre de titres échangés |\n\n`cotations` est un DataFrame dont les colonnes sont exactement :\n\n| Colonne | Type | Contenu |\n|---|---|---|\n| `temps` | entier (`int64`) | instant de la cotation, en millisecondes depuis l'ouverture |\n| `actif` | chaîne | identifiant de l'actif |\n| `achat` | flottant ou `NaN` | meilleur prix d'achat proposé |\n| `vente` | flottant ou `NaN` | meilleur prix de vente proposé |\n\nGaranties : lignes dans un ordre **quelconque** et index quelconque, dans les deux DataFrames ; au plus une cotation par couple (`actif`, `temps`) ; plusieurs transactions peuvent avoir le même `temps` ; chacun des deux DataFrames peut être vide (zéro ligne, avec les colonnes et les types ci-dessus).\n\n### Calcul demandé\n\n1. **Cotations valides.** Une cotation est valide si `achat` et `vente` sont tous deux non manquants et si `achat < vente` (inégalité stricte). Les cotations non valides sont ignorées, comme si elles n'existaient pas.\n2. **Cotation de référence.** Pour une transaction d'instant `t` sur l'actif `a`, c'est, parmi les cotations valides du même actif `a` dont l'instant est **strictement inférieur** à `t`, celle dont l'instant `tc` est le plus grand. Il n'y a pas de cotation de référence s'il n'existe aucune telle cotation, ou si `t - tc > 5000` (cotation de plus de 5 secondes). Une cotation de même instant que la transaction n'est pas antérieure à elle.\n3. **Signe.** Avec `m = (achat + vente) / 2`, le milieu de la cotation de référence : le signe vaut +1 si `prix > m`, -1 si `prix < m`, et 0 si `prix == m` ou s'il n'y a pas de cotation de référence.\n4. **Déséquilibre d'un actif.** Pour chaque actif présent dans `transactions`, `V+` est la somme des quantités de ses transactions de signe +1, et `V-` la somme des quantités de ses transactions de signe -1. Son déséquilibre vaut `(V+ - V-) / (V+ + V-)`, ou `NaN` si `V+ + V-` vaut 0.\n5. **Résultat.** Une `Series` de flottants dont l'index est la liste **triée** (ordre croissant des chaînes) des actifs distincts de `transactions`, et dont les valeurs sont leurs déséquilibres. Un actif présent seulement dans `cotations` n'y figure pas. Si `transactions` est vide, le résultat est une `Series` vide.\n\nTous les prix des tests sont des multiples de 0,25, représentés exactement en flottant : les comparaisons avec le milieu sont exactes. Tolérance de comparaison des résultats : `1e-9`. Limite de temps : 10 secondes par test.\n\n### Exemple\n\n`transactions` :\n\n| temps | actif | prix | quantite |\n|---|---|---|---|\n| 3000 | A | 100.5 | 10 |\n| 3000 | B | 50.0 | 5 |\n| 4000 | C | 20.0 | 1 |\n| 5000 | A | 99.75 | 4 |\n| 6500 | A | 100.25 | 7 |\n| 8000 | B | 50.25 | 6 |\n| 9200 | B | 51.0 | 2 |\n| 9500 | B | 51.5 | 3 |\n\n`cotations` :\n\n| temps | actif | achat | vente |\n|---|---|---|---|\n| 1000 | A | 99.5 | 100.5 |\n| 2500 | A | 101.0 | 100.0 |\n| 3000 | B | 50.0 | 50.5 |\n| 9000 | B | 51.0 | 51.5 |\n\n- La cotation de A à 2500 est croisée (`achat > vente`) : elle n'est pas valide.\n- A à 3000 : référence A à 1000 (milieu 100), prix 100,5 : signe +1. A à 5000 : même référence, 4000 ms avant, prix 99,75 : signe -1. A à 6500 : la cotation de 1000 date de 5500 ms, trop ancienne : signe 0. Déséquilibre de A : (10 - 4) / (10 + 4), soit 0,4286 à 4 décimales.\n- B à 3000 : la seule cotation de B à un instant inférieur ou égal est au même instant : pas de référence, signe 0. B à 8000 : référence B à 3000, exactement 5000 ms avant, donc retenue ; milieu 50,25, égal au prix : signe 0. B à 9200 : référence B à 9000 (milieu 51,25), prix 51 : signe -1. B à 9500 : prix 51,5 : signe +1. Déséquilibre de B : (3 - 2) / (3 + 2) = 0,2.\n- C n'a aucune cotation : `NaN`.\n\nLa fonction renvoie la `Series` d'index `A`, `B`, `C` et de valeurs 0,4286 (à 4 décimales), 0,2 et `NaN`.\n\n### Fonctionnement\n\n- Le notebook s'exécute avec Python 3.9 et pandas 1.4.2, l'environnement des notebooks de la plateforme.\n- Les fichiers `transactions.csv` et `cotations.csv` (mêmes colonnes) sont dans le répertoire courant pour explorer : `pd.read_csv(\"transactions.csv\")`.\n- **Tests visibles** exécute 3 tests sur ta fonction, dont l'exemple ci-dessus. **Soumettre** exécute les 15 tests cachés : seul le nombre de réussites s'affiche, et la dernière soumission compte. Un code jamais soumis ne rapporte rien.\n- Raccourcis : Maj+Entrée exécute la cellule et passe à la suivante, Ctrl+Entrée l'exécute sans changer de cellule.\n", "dossier": "coding/examen2", "module_tests": "coding/examen2/tests.py", "fonction": "desequilibre", "cellules_initiales": ["import numpy as np\nimport pandas as pd\n\ntransactions = pd.read_csv(\"transactions.csv\")\ncotations = pd.read_csv(\"cotations.csv\")\ntransactions.head()", "def desequilibre(transactions: pd.DataFrame, cotations: pd.DataFrame) -> pd.Series:\n    # À compléter\n    return pd.Series(dtype=float)", "desequilibre(transactions, cotations)"], "tests_visibles": 3, "tests_caches": 15, "fichier_correction": "coding/examen2/_correction.py", "verif": {"script": "coding/examen2/tests.py"}, "fiche": null, "solution": "Correction commentée, avec une version pandas et une version sans bibliothèque externe (`coding/examen2/_correction.py`) :\n\n```python\n\"\"\"Correction de la question de code de l'examen blanc 2 (EB2-C1). À n'ouvrir qu'après l'avoir tentée.\n\nDeux implémentations indépendantes : l'une avec pandas (merge_asof), l'autre sans aucune bibliothèque\nexterne (tri et recherche dichotomique). Les tests exigent qu'elles soient d'accord.\n\"\"\"\nimport bisect\nimport math\n\nimport pandas as pd\n\nTOLERANCE_MS = 5000\n\n\ndef desequilibre(transactions: pd.DataFrame, cotations: pd.DataFrame) -> pd.Series:\n    \"\"\"Solution de référence avec pandas.\"\"\"\n    actifs = sorted(transactions[\"actif\"].unique())\n    if len(transactions) == 0:\n        return pd.Series(dtype=float)\n\n    # 1. Cotations valides seulement. Une comparaison avec NaN vaut False : les cotations\n    #    incomplètes disparaissent avec les cotations croisées ou bloquées (achat >= vente).\n    #    Filtrer AVANT la jointure : sinon la dernière cotation trouvée peut être invalide,\n    #    alors qu'une cotation valide plus ancienne, à moins de 5 s, existe.\n    valides = cotations.loc[cotations[\"achat\"] < cotations[\"vente\"], [\"temps\", \"actif\", \"achat\", \"vente\"]]\n    valides = valides.rename(columns={\"temps\": \"temps_cotation\"}).sort_values(\"temps_cotation\")\n\n    # 2. Jointure « au plus tard avant ». merge_asof exige deux cadres triés sur la clé de temps.\n    #    by=\"actif\" : jamais la cotation d'un autre actif.\n    #    allow_exact_matches=False : une cotation de même temps n'est pas antérieure.\n    #    tolerance=5000 : écart au plus 5000 ms, borne incluse (vérifié dans verif/examen_blanc_2.py).\n    t = transactions.sort_values(\"temps\")\n    m = pd.merge_asof(t, valides, left_on=\"temps\", right_on=\"temps_cotation\", by=\"actif\",\n                      allow_exact_matches=False, tolerance=TOLERANCE_MS)\n\n    # 3. Signe par rapport au milieu ; NaN (pas de cotation de référence) compte comme 0.\n    milieu = (m[\"achat\"] + m[\"vente\"]) / 2\n    achat = m[\"quantite\"].where(m[\"prix\"] > milieu, 0)\n    vente = m[\"quantite\"].where(m[\"prix\"] < milieu, 0)\n\n    # 4. Volumes par actif, puis déséquilibre ; NaN quand aucun volume n'est classé.\n    v_achat = achat.groupby(m[\"actif\"]).sum()\n    v_vente = vente.groupby(m[\"actif\"]).sum()\n    total = v_achat + v_vente\n    r = (v_achat - v_vente) / total.where(total > 0)\n    return r.reindex(actifs).astype(float)\n\n\ndef desequilibre_sans_bibliotheque(transactions, cotations):\n    \"\"\"Même calcul sans pandas ni numpy.\n\n    transactions : liste de (temps, actif, prix, quantite) ; cotations : liste de (temps, actif, achat, vente),\n    None ou NaN = manquant. Renvoie une liste de (actif, déséquilibre ou nan), triée par actif.\n    \"\"\"\n    manquant = lambda x: x is None or (isinstance(x, float) and math.isnan(x))\n    par_actif = {}\n    for temps, actif, achat, vente in cotations:\n        if manquant(achat) or manquant(vente) or not achat < vente:\n            continue\n        par_actif.setdefault(actif, []).append((temps, achat, vente))\n    temps_par_actif = {}\n    for actif, liste in par_actif.items():\n        liste.sort()  # au plus une cotation par (actif, temps) : le tri ne compare jamais les prix\n        temps_par_actif[actif] = [c[0] for c in liste]\n\n    v_achat, v_vente = {}, {}\n    for temps, actif, prix, quantite in transactions:\n        v_achat.setdefault(actif, 0)\n        v_vente.setdefault(actif, 0)\n        if actif not in par_actif:\n            continue\n        # bisect_left renvoie le nombre de cotations de temps strictement inférieur à `temps`.\n        k = bisect.bisect_left(temps_par_actif[actif], temps) - 1\n        if k < 0:\n            continue\n        temps_cotation, achat, vente = par_actif[actif][k]\n        if temps - temps_cotation > TOLERANCE_MS:\n            continue\n        milieu = (achat + vente) / 2\n        if prix > milieu:\n            v_achat[actif] += quantite\n        elif prix < milieu:\n            v_vente[actif] += quantite\n    sortie = []\n    for actif in sorted(v_achat):\n        total = v_achat[actif] + v_vente[actif]\n        sortie.append((actif, (v_achat[actif] - v_vente[actif]) / total if total > 0 else float(\"nan\")))\n    return sortie\n```"}]}, {"id": "math", "nom": "Mathématiques", "budget_min": 25, "questions": [{"id": "EB2-M01", "section": "math", "theme": "Chaîne de Markov, temps de retour", "difficulte": 4, "temps_cible_s": 180, "enonce": "Un modèle de régimes de marché décrit chaque jour de bourse par un état parmi trois : C (calme), N (normal), A (agité). La suite \\((X_t)_{t \\ge 0}\\), où \\(X_t\\) est l'état du jour \\(t\\), est une chaîne de Markov homogène : sachant tout le passé jusqu'au jour \\(t\\), l'état du jour \\(t + 1\\) ne dépend que de \\(X_t\\), avec les probabilités de transition du tableau (ligne : état du jour \\(t\\) ; colonne : état du jour \\(t + 1\\)).\n\n| depuis | vers C | vers N | vers A |\n|---|---|---|---|\n| C | 0,8 | 0,2 | 0 |\n| N | 0,1 | 0,7 | 0,2 |\n| A | 0 | 0,5 | 0,5 |\n\nLe jour 0 est agité (\\(X_0 = \\mathrm{A}\\)). Soit \\(T = \\min\\{t \\ge 1 : X_t = \\mathrm{A}\\}\\) le premier jour agité après le jour 0 (\\(T = 1\\) si le jour 1 est agité). Que vaut \\(\\mathbb{E}[T]\\) ?", "options": [{"id": "a", "texte": "4,75", "correcte": true, "explication": "Oui : \\(1 + 0{,}5\\,h_{\\mathrm{N}}\\), où \\(h_{\\mathrm{N}}\\) est le temps moyen pour atteindre A depuis N ; c'est aussi l'inverse de la probabilité stationnaire de A."}, {"id": "b", "texte": "2", "correcte": false, "explication": "C'est \\(1/(1 - 0{,}5)\\), la durée moyenne d'un séjour en A (nombre de jours consécutifs passés en A). La question demande le temps de retour : quand la chaîne quitte A, elle passe par N et met en moyenne 7,5 jours à revenir."}, {"id": "c", "texte": "8,5", "correcte": false, "explication": "C'est \\(1 + h_{\\mathrm{N}}\\), où \\(h_{\\mathrm{N}} = 7{,}5\\) est le temps moyen pour atteindre A depuis N : on a supposé que la chaîne quitte toujours A au premier pas. Avec probabilité 0,5, elle reste en A et \\(T = 1\\) ; le terme \\(h_{\\mathrm{N}}\\) ne compte qu'avec le poids 0,5."}, {"id": "d", "texte": "3", "correcte": false, "explication": "C'est l'inverse de 1/3 : le lemme de Kac appliqué à une loi stationnaire supposée uniforme sur les trois états. La loi stationnaire de cette chaîne n'est pas uniforme : la probabilité stationnaire de A vaut \\(4/19\\)."}], "solution": "Réponse : \\(\\mathbb{E}[T] = 19/4 = 4{,}75\\) jours.\n\nNotations : pour un état \\(x\\) parmi C et N, \\(h_x\\) est l'espérance du nombre de jours nécessaires pour atteindre A en partant de \\(x\\), c'est-à-dire \\(\\mathbb{E}[\\min\\{t \\ge 1 : X_t = \\mathrm{A}\\} \\mid X_0 = x]\\).\n\nÉtape 0, ces espérances sont finies. Depuis n'importe quel état, la chaîne atteint A dans les deux jours suivants avec probabilité au moins \\(0{,}2 \\times 0{,}2 = 0{,}04\\) (le pire cas est C, par le chemin C, N, A). Par la propriété de Markov, la probabilité de ne pas avoir atteint A après \\(2k\\) jours est au plus \\((1 - 0{,}04)^k\\), et l'espérance, somme des probabilités de queue, est finie.\n\nÉtape 1, premier pas depuis N. Le premier jour compte pour 1 ; avec probabilité 0,2 la chaîne est en A et c'est fini ; avec probabilité 0,7 elle est en N, avec probabilité 0,1 en C, et, par la propriété de Markov, elle repart comme une chaîne neuve depuis ce nouvel état. Donc \\(h_{\\mathrm{N}} = 1 + 0{,}1\\,h_{\\mathrm{C}} + 0{,}7\\,h_{\\mathrm{N}}\\). De même depuis C : \\(h_{\\mathrm{C}} = 1 + 0{,}8\\,h_{\\mathrm{C}} + 0{,}2\\,h_{\\mathrm{N}}\\).\n\nÉtape 2, résolution. La seconde équation donne \\(0{,}2\\,h_{\\mathrm{C}} = 1 + 0{,}2\\,h_{\\mathrm{N}}\\), soit \\(h_{\\mathrm{C}} = 5 + h_{\\mathrm{N}}\\). En reportant dans la première : \\(0{,}3\\,h_{\\mathrm{N}} = 1 + 0{,}1\\,(5 + h_{\\mathrm{N}})\\), donc \\(0{,}2\\,h_{\\mathrm{N}} = 1{,}5\\), \\(h_{\\mathrm{N}} = 7{,}5\\) et \\(h_{\\mathrm{C}} = 12{,}5\\).\n\nÉtape 3, premier pas depuis A. Avec probabilité 0,5 le jour 1 est agité et \\(T = 1\\) ; avec probabilité 0,5 il est normal et \\(T\\) vaut 1 plus le temps d'atteinte de A depuis N. Donc \\(\\mathbb{E}[T] = 1 + 0{,}5 \\times 0 + 0{,}5 \\times h_{\\mathrm{N}} = 1 + 0{,}5 \\times 7{,}5 = 4{,}75\\).\n\nContrôle par le lemme de Kac (théorème admis ici : pour une chaîne irréductible sur un ensemble fini d'états, l'espérance du temps de retour en un état est l'inverse de sa probabilité stationnaire). La loi stationnaire \\((\\pi_{\\mathrm{C}}, \\pi_{\\mathrm{N}}, \\pi_{\\mathrm{A}})\\) vérifie \\(\\pi_{\\mathrm{C}} = 0{,}8\\,\\pi_{\\mathrm{C}} + 0{,}1\\,\\pi_{\\mathrm{N}}\\), donc \\(\\pi_{\\mathrm{N}} = 2\\,\\pi_{\\mathrm{C}}\\), et \\(\\pi_{\\mathrm{A}} = 0{,}2\\,\\pi_{\\mathrm{N}} + 0{,}5\\,\\pi_{\\mathrm{A}}\\), donc \\(\\pi_{\\mathrm{A}} = 0{,}4\\,\\pi_{\\mathrm{N}}\\). Avec une somme égale à 1 : \\(\\pi = (5/19, 10/19, 4/19)\\), et \\(1/\\pi_{\\mathrm{A}} = 19/4\\). Les deux méthodes concordent.\n\nSimulation (script) : temps de retour moyen 4,761.", "type": "qcm", "multiple": false, "reponse": "4,75", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M01_d_sejour", "M01_d_un_plus_hN", "M01_d_uniforme", "M01_exact", "M01_exact_den", "M01_exact_num", "M01_hC", "M01_hN", "M01_mc", "M01_p_deux_pas", "M01_piA_den", "M01_piA_num", "M01_piC_den", "M01_piC_num", "M01_piN_den", "M01_piN_num"]}}, {"id": "EB2-M02", "section": "math", "theme": "Urne de Pólya, échangeabilité, martingale", "difficulte": 4, "temps_cible_s": 150, "enonce": "Une urne contient au départ 1 boule rouge et 1 boule bleue. À chaque tirage, on tire une boule uniformément au hasard parmi celles de l'urne, puis on la remet **avec** une boule supplémentaire de la même couleur (urne de Pólya). On effectue 8 tirages.\n\nQuelle est la probabilité qu'exactement 3 des 8 boules tirées soient rouges ?", "options": [{"id": "a", "texte": "1/9 ≈ 0,111", "correcte": true, "explication": "Oui : le nombre de rouges tirées est uniforme sur \\(\\{0, 1, \\dots, 8\\}\\)."}, {"id": "b", "texte": "7/32 ≈ 0,219", "correcte": false, "explication": "C'est \\(\\binom{8}{3}/2^8\\), la loi binomiale de 8 tirages indépendants de probabilité 1/2. Les tirages ne sont pas indépendants : chaque rouge tirée rend la rouge suivante plus probable."}, {"id": "c", "texte": "1/8 = 0,125", "correcte": false, "explication": "C'est une loi uniforme sur 8 valeurs. Le nombre de rouges tirées peut valoir 0, 1, ..., 8 : il y a 9 valeurs possibles."}, {"id": "d", "texte": "1/504 ≈ 0,002", "correcte": false, "explication": "C'est la probabilité d'une suite particulière de tirages contenant 3 rouges, par exemple trois rouges puis cinq bleues. Il faut la multiplier par le nombre \\(\\binom{8}{3}\\) de positions possibles des rouges."}], "solution": "Réponse : \\(1/9 \\approx 0{,}111\\).\n\nNotations : \\(n = 8\\) tirages, \\(k = 3\\) rouges voulues.\n\nÉtape 1, probabilité d'une suite donnée. Considérons une suite de tirages contenant \\(k\\) rouges et \\(n - k\\) bleues, dans un ordre fixé. Au \\(m\\)-ième tirage, l'urne contient \\(m + 1\\) boules (2 au départ, une de plus par tirage) : les dénominateurs successifs font le produit \\(2 \\times 3 \\times \\dots \\times (n + 1) = (n + 1)!\\). Quand on tire la \\(j\\)-ième rouge, l'urne contient \\(j\\) rouges (1 au départ, plus les \\(j - 1\\) déjà ajoutées) : les numérateurs des tirages rouges font \\(1 \\times 2 \\times \\dots \\times k = k!\\), ceux des tirages bleus \\((n - k)!\\). La probabilité de la suite est donc \\(k!\\,(n - k)!/(n + 1)!\\), quel que soit l'ordre des couleurs (échangeabilité).\n\nÉtape 2 : il y a \\(\\binom{n}{k}\\) suites contenant \\(k\\) rouges, toutes de même probabilité, donc \\(\\mathbb{P}(k \\text{ rouges}) = \\binom{n}{k}\\,\\dfrac{k!\\,(n - k)!}{(n + 1)!} = \\dfrac{1}{n + 1}\\), soit \\(1/9\\) ici.\n\nLien avec les martingales : la proportion de rouges dans l'urne après chaque tirage est une martingale (son espérance conditionnelle au tirage suivant est égale à sa valeur actuelle) ; elle converge presque sûrement, et sa limite suit la loi uniforme sur \\([0, 1]\\), cohérente avec la loi uniforme du nombre de rouges. Ce dernier point est cité, pas démontré ici.\n\nVérifications (script) : énumération exacte des \\(2^8\\) suites, et simulation : 0,1110.", "type": "qcm", "multiple": false, "reponse": "1/9 ≈ 0,111", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M02_d_binomiale", "M02_d_binomiale_den", "M02_d_binomiale_num", "M02_d_huit", "M02_d_huit_den", "M02_d_huit_num", "M02_d_suite", "M02_d_suite_den", "M02_d_suite_num", "M02_exact", "M02_exact_den", "M02_exact_num", "M02_mc"]}}, {"id": "EB2-M03", "section": "math", "theme": "Dénombrement, arrangements avec contrainte", "difficulte": 3, "temps_cible_s": 150, "enonce": "On appelle anagramme du mot ARBITRAGE toute suite de ses 9 lettres (A, R, B, I, T, R, A, G, E), chaque lettre étant utilisée exactement une fois, que la suite ait un sens ou non ; deux anagrammes sont identiques si elles s'écrivent de la même façon (échanger les deux A, ou les deux R, ne donne pas une nouvelle anagramme).\n\nCombien d'anagrammes de ARBITRAGE ne contiennent pas deux R côte à côte ?", "options": [{"id": "a", "texte": "70560", "correcte": true, "explication": "Oui : 90720 anagrammes en tout, moins les 20160 où les deux R se touchent."}, {"id": "b", "texte": "90720", "correcte": false, "explication": "C'est le nombre total d'anagrammes, \\(9!/(2!\\,2!)\\) : la contrainte sur les R n'a pas été appliquée."}, {"id": "c", "texte": "20160", "correcte": false, "explication": "C'est le nombre d'anagrammes où les deux R sont **côte à côte** (bloc RR traité comme une seule lettre, \\(8!/2!\\)). La question demande le complémentaire."}, {"id": "d", "texte": "141120", "correcte": false, "explication": "C'est \\(9!/2! - 8!\\) : la répétition des deux A a été oubliée. Échanger les deux A ne crée pas une nouvelle anagramme, il faut diviser chaque décompte par \\(2!\\)."}], "solution": "Réponse : 70560.\n\nÉtape 1, total. Les 9 lettres comptent deux A et deux R. Parmi les \\(9!\\) ordres des 9 lettres rendues distinctes, chaque anagramme apparaît \\(2!\\,2!\\) fois (on peut permuter les A entre eux et les R entre eux sans changer l'écriture). Total : \\(9!/(2!\\,2!) = 90720\\).\n\nÉtape 2, R côte à côte. On colle les deux R en un bloc RR. Il reste 8 objets (RR, deux A, B, I, T, G, E), dont deux A identiques : \\(8!/2! = 20160\\) suites. Chaque anagramme avec les R adjacents correspond à exactement une de ces suites (le bloc est à la place des deux R).\n\nÉtape 3, complémentaire : \\(90720 - 20160 = 70560\\).\n\nContrôle (script) : l'énumération des permutations des 9 lettres, sans doublon, donne les mêmes trois nombres.\n\nMéthode alternative : placer d'abord les 7 autres lettres (\\(7!/2!\\) façons), puis choisir 2 des 8 intervalles qu'elles délimitent pour les R (\\(\\binom{8}{2}\\)) : même résultat. Piège : oublier une répétition (A ou R), ou compter le bloc RR comme deux objets.", "type": "qcm", "multiple": false, "reponse": "70560", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M03_adjacents", "M03_d_a_distincts", "M03_exact", "M03_total"]}}, {"id": "EB2-M04", "section": "math", "theme": "Espérance et variance conditionnelles", "difficulte": 3, "temps_cible_s": 150, "enonce": "Le nombre \\(N\\) d'ordres reçus par un courtier en une minute est modélisé ainsi : l'intensité \\(\\Lambda\\) de la minute est une variable aléatoire de loi exponentielle d'espérance 4 (densité \\(\\tfrac14 e^{-\\lambda/4}\\) pour \\(\\lambda > 0\\)) et, sachant \\(\\Lambda = \\lambda\\), \\(N\\) suit la loi de Poisson de paramètre \\(\\lambda\\).\n\nQue vaut \\(\\mathrm{Var}(N)\\) ?", "options": [{"id": "a", "texte": "20", "correcte": true, "explication": "Oui : \\(\\mathbb{E}[\\Lambda] + \\mathrm{Var}(\\Lambda) = 4 + 16\\)."}, {"id": "b", "texte": "4", "correcte": false, "explication": "C'est \\(\\mathbb{E}[N]\\), qui serait aussi la variance si l'intensité était fixe et égale à 4 (loi de Poisson). Une intensité aléatoire ajoute sa propre variance, \\(\\mathrm{Var}(\\Lambda)\\)."}, {"id": "c", "texte": "16", "correcte": false, "explication": "C'est \\(\\mathrm{Var}(\\Lambda)\\) seule : il manque la dispersion de Poisson autour de l'intensité, \\(\\mathbb{E}[\\mathrm{Var}(N \\mid \\Lambda)] = \\mathbb{E}[\\Lambda] = 4\\)."}, {"id": "d", "texte": "8", "correcte": false, "explication": "C'est \\(4 + 4\\) : la variance d'une loi exponentielle a été prise égale à son espérance, comme pour une loi de Poisson. Pour une exponentielle d'espérance \\(m\\), la variance vaut \\(m^2\\)."}], "solution": "Réponse : \\(\\mathrm{Var}(N) = 20\\).\n\nÉtape 1, formule de la variance totale : \\(\\mathrm{Var}(N) = \\mathbb{E}[\\mathrm{Var}(N \\mid \\Lambda)] + \\mathrm{Var}(\\mathbb{E}[N \\mid \\Lambda])\\). Preuve : \\(\\mathbb{E}[N^2] = \\mathbb{E}\\big[\\mathbb{E}[N^2 \\mid \\Lambda]\\big] = \\mathbb{E}\\big[\\mathrm{Var}(N \\mid \\Lambda)\\big] + \\mathbb{E}\\big[\\mathbb{E}[N \\mid \\Lambda]^2\\big]\\) et \\(\\mathbb{E}[N] = \\mathbb{E}\\big[\\mathbb{E}[N \\mid \\Lambda]\\big]\\) ; en retranchant \\(\\mathbb{E}[N]^2\\), les deux derniers termes forment la variance de \\(\\mathbb{E}[N \\mid \\Lambda]\\).\n\nÉtape 2, moments conditionnels : une loi de Poisson de paramètre \\(\\lambda\\) a pour espérance et pour variance \\(\\lambda\\). Donc \\(\\mathbb{E}[N \\mid \\Lambda] = \\mathrm{Var}(N \\mid \\Lambda) = \\Lambda\\).\n\nÉtape 3, moments de \\(\\Lambda\\) : pour une exponentielle d'espérance \\(m = 4\\), \\(\\mathbb{E}[\\Lambda^2] = \\int_0^\\infty \\lambda^2\\,\\tfrac1m e^{-\\lambda/m}\\,d\\lambda = 2m^2\\) (deux intégrations par parties), donc \\(\\mathrm{Var}(\\Lambda) = 2m^2 - m^2 = m^2 = 16\\).\n\nÉtape 4 : \\(\\mathrm{Var}(N) = \\mathbb{E}[\\Lambda] + \\mathrm{Var}(\\Lambda) = 4 + 16 = 20\\).\n\nContrôle : en intégrant sur \\(\\lambda\\) (script), \\(\\mathbb{P}(N = k) = \\tfrac15 \\big(\\tfrac45\\big)^k\\) pour \\(k \\ge 0\\) : \\(N\\) suit une loi géométrique sur \\(\\{0, 1, 2, \\dots\\}\\), d'espérance 4 et de variance \\((4/5)/(1/5)^2 = 20\\). Simulation : \\(\\mathbb{E}[N] \\approx 3{,}988\\) et \\(\\mathbb{E}[N^2] \\approx 35{,}75\\), pour des valeurs exactes 4 et 36.\n\nLecture : une variance de comptage supérieure à l'espérance (surdispersion) signale une intensité qui varie d'une minute à l'autre ; un modèle de Poisson à intensité fixe la sous-estimerait.", "type": "qcm", "multiple": false, "reponse": "20", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M04_E", "M04_E2", "M04_E2_mc", "M04_E_mc", "M04_d_somme_moyennes", "M04_exact", "M04_var_lambda"]}}, {"id": "EB2-M05", "section": "math", "theme": "Processus de Poisson, maximum d'exponentielles", "difficulte": 3, "temps_cible_s": 120, "enonce": "Les ordres d'achat arrivent selon un processus de Poisson d'intensité 3 par minute, et les ordres de vente selon un processus de Poisson d'intensité 2 par minute, indépendant du premier. On observe à partir de l'instant 0.\n\nQuelle est l'espérance, en minutes, du temps d'attente jusqu'à avoir reçu au moins un ordre d'achat **et** au moins un ordre de vente ?", "options": [{"id": "a", "texte": "19/30 ≈ 0,633", "correcte": true, "explication": "Oui : \\(1/3 + 1/2 - 1/5\\), l'espérance du maximum de deux exponentielles indépendantes."}, {"id": "b", "texte": "1/2 = 0,500", "correcte": false, "explication": "C'est le plus grand des deux temps moyens, \\(\\max(1/3, 1/2)\\). L'espérance d'un maximum dépasse le maximum des espérances (la fonction max est convexe) : avec une probabilité non nulle, c'est l'ordre d'achat qui arrive le dernier."}, {"id": "c", "texte": "5/6 ≈ 0,833", "correcte": false, "explication": "C'est \\(1/3 + 1/2\\), qui revient à attendre le premier achat, puis seulement ensuite le premier vente. Les deux attentes se déroulent en même temps : il faut retirer leur partie commune, l'espérance du minimum."}, {"id": "d", "texte": "1/5 = 0,200", "correcte": false, "explication": "C'est l'espérance du minimum, le temps jusqu'au premier ordre quel que soit son type. La question demande d'avoir reçu les deux types."}], "solution": "Réponse : \\(19/30 \\approx 0{,}633\\) minute.\n\nNotations : \\(A\\) est l'instant du premier ordre d'achat, \\(B\\) celui du premier ordre de vente ; le temps demandé est \\(\\max(A, B)\\).\n\nÉtape 1, lois. \\(A > t\\) signifie qu'aucun ordre d'achat n'arrive dans \\([0, t]\\), dont le nombre suit une loi de Poisson de paramètre \\(3t\\) : \\(\\mathbb{P}(A > t) = e^{-3t}\\). Donc \\(A\\) suit la loi exponentielle de paramètre 3, d'espérance 1/3 ; de même \\(B\\) est exponentielle de paramètre 2, d'espérance 1/2, et \\(A\\), \\(B\\) sont indépendants.\n\nÉtape 2, minimum. Par indépendance, \\(\\mathbb{P}(\\min(A, B) > t) = \\mathbb{P}(A > t)\\,\\mathbb{P}(B > t) = e^{-5t}\\) : le minimum est exponentiel de paramètre 5, d'espérance 1/5.\n\nÉtape 3, l'identité \\(\\max(a, b) = a + b - \\min(a, b)\\), vraie pour tous réels \\(a\\), \\(b\\), et la linéarité de l'espérance donnent \\(\\mathbb{E}[\\max(A, B)] = 1/3 + 1/2 - 1/5 = 19/30\\).\n\nContrôle direct (script) : \\(\\mathbb{E}[\\max(A, B)] = \\int_0^\\infty \\big(1 - (1 - e^{-3t})(1 - e^{-2t})\\big)\\,dt = 19/30\\), par la formule \\(\\mathbb{E}[Y] = \\int_0^\\infty \\mathbb{P}(Y > t)\\,dt\\) pour \\(Y \\ge 0\\). Simulation : 0,6334.", "type": "qcm", "multiple": false, "reponse": "19/30 ≈ 0,633", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M05_d_max_moyennes", "M05_d_max_moyennes_den", "M05_d_max_moyennes_num", "M05_d_min", "M05_d_min_den", "M05_d_min_num", "M05_d_somme", "M05_d_somme_den", "M05_d_somme_num", "M05_exact", "M05_exact_den", "M05_exact_num", "M05_mc"]}}, {"id": "EB2-M06", "section": "math", "theme": "Conditionnement, valeurs singulières d'une matrice non symétrique", "difficulte": 4, "temps_cible_s": 150, "enonce": "Soit \\(\\mathbf{A}\\) la matrice \\(2 \\times 2\\) de lignes \\((1, 1)\\) et \\((0, 1)\\). Pour une matrice inversible \\(\\mathbf{M}\\), on note \\(\\lVert \\mathbf{M} \\rVert_2 = \\max_{\\mathbf{x} \\ne \\mathbf{0}} \\lVert \\mathbf{M}\\mathbf{x} \\rVert/\\lVert \\mathbf{x} \\rVert\\) sa norme d'opérateur associée à la norme euclidienne, et \\(\\kappa(\\mathbf{M}) = \\lVert \\mathbf{M} \\rVert_2\\,\\lVert \\mathbf{M}^{-1} \\rVert_2\\) son conditionnement.\n\nQue vaut \\(\\kappa(\\mathbf{A})\\), arrondi à trois décimales ?", "options": [{"id": "a", "texte": "2,618", "correcte": true, "explication": "Oui : \\((3 + \\sqrt5)/2\\), rapport des valeurs singulières extrêmes."}, {"id": "b", "texte": "1,000", "correcte": false, "explication": "C'est le rapport des valeurs propres de \\(\\mathbf{A}\\), toutes deux égales à 1. Pour une matrice non symétrique, le conditionnement se lit sur les valeurs singulières (racines des valeurs propres de \\(\\mathbf{A}^\\top\\mathbf{A}\\)), pas sur les valeurs propres."}, {"id": "c", "texte": "6,854", "correcte": false, "explication": "C'est le rapport des valeurs propres de \\(\\mathbf{A}^\\top\\mathbf{A}\\), c'est-à-dire \\(\\kappa(\\mathbf{A})^2\\) : il manque la racine carrée qui transforme ces valeurs propres en valeurs singulières de \\(\\mathbf{A}\\)."}, {"id": "d", "texte": "4,000", "correcte": false, "explication": "C'est le conditionnement pour la norme d'opérateur associée à la norme du maximum (plus grande somme des valeurs absolues d'une ligne : 2 pour \\(\\mathbf{A}\\) et 2 pour \\(\\mathbf{A}^{-1}\\)). L'énoncé fixe la norme euclidienne."}], "solution": "Réponse : \\(\\kappa(\\mathbf{A}) = (3 + \\sqrt5)/2 \\approx 2{,}618\\).\n\nÉtape 1, norme d'opérateur et valeurs singulières. \\(\\lVert \\mathbf{A}\\mathbf{x} \\rVert^2 = \\mathbf{x}^\\top \\mathbf{A}^\\top\\mathbf{A}\\,\\mathbf{x}\\), et \\(\\mathbf{A}^\\top\\mathbf{A}\\) est symétrique semi-définie positive, de valeurs propres \\(\\lambda_{\\max} \\ge \\lambda_{\\min} \\ge 0\\). En décomposant \\(\\mathbf{x}\\) dans une base orthonormée de vecteurs propres (théorème spectral), \\(\\mathbf{x}^\\top \\mathbf{A}^\\top\\mathbf{A}\\,\\mathbf{x}/\\lVert \\mathbf{x} \\rVert^2\\) est une moyenne pondérée des valeurs propres, maximale en un vecteur propre de \\(\\lambda_{\\max}\\). Donc \\(\\lVert \\mathbf{A} \\rVert_2 = \\sqrt{\\lambda_{\\max}}\\), la plus grande valeur singulière.\n\nÉtape 2, inverse. \\(\\mathbf{A}^{-1}\\) a pour valeurs singulières les inverses de celles de \\(\\mathbf{A}\\) (si \\(\\mathbf{A} = \\mathbf{U}\\mathbf{D}\\mathbf{V}^\\top\\), alors \\(\\mathbf{A}^{-1} = \\mathbf{V}\\mathbf{D}^{-1}\\mathbf{U}^\\top\\)), donc \\(\\lVert \\mathbf{A}^{-1} \\rVert_2 = 1/\\sqrt{\\lambda_{\\min}}\\) et \\(\\kappa(\\mathbf{A}) = \\sqrt{\\lambda_{\\max}/\\lambda_{\\min}}\\).\n\nÉtape 3, calcul. \\(\\mathbf{A}^\\top\\mathbf{A}\\) a pour lignes \\((1, 1)\\) et \\((1, 2)\\) : trace 3, déterminant 1, donc ses valeurs propres sont les racines de \\(\\lambda^2 - 3\\lambda + 1\\), soit \\((3 \\pm \\sqrt5)/2\\), environ 2,618 et 0,382. Comme leur produit vaut 1, \\(\\lambda_{\\max}/\\lambda_{\\min} = \\lambda_{\\max}^2\\) et \\(\\kappa(\\mathbf{A}) = \\lambda_{\\max} = (3 + \\sqrt5)/2 \\approx 2{,}618\\).\n\nPiège : les valeurs propres de \\(\\mathbf{A}\\) valent toutes deux 1, et pourtant \\(\\mathbf{A}\\) amplifie certaines erreurs relatives d'un facteur 2,618. Pour une matrice symétrique définie positive, valeurs propres et valeurs singulières coïncident, et le conditionnement est le rapport des valeurs propres extrêmes ; pas pour une matrice quelconque. Contrôle (script) : sympy et numpy donnent la même valeur.", "type": "qcm", "multiple": false, "reponse": "2,618", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M06_d_carre", "M06_d_infini", "M06_d_valeurs_propres", "M06_exact", "M06_vp_max", "M06_vp_min"]}}, {"id": "EB2-M07", "section": "math", "theme": "Méthode delta, approximation d'un écart-type", "difficulte": 3, "temps_cible_s": 150, "enonce": "Soient \\(X_1, \\dots, X_{100}\\) des variables aléatoires indépendantes, de même loi, strictement positives, d'espérance \\(\\mu = 2\\) et de variance \\(\\sigma^2 = 4\\), et \\(\\bar X = (X_1 + \\dots + X_{100})/100\\) leur moyenne.\n\nPar la méthode delta (développement de Taylor à l'ordre 1 de la fonction \\(\\ln\\) autour de \\(\\mu\\)), quelle est l'approximation de l'écart-type de \\(\\ln \\bar X\\) ?", "options": [{"id": "a", "texte": "0,10", "correcte": true, "explication": "Oui : \\(\\sigma/(\\mu\\sqrt n)\\), la dérivée de \\(\\ln\\) en 2 valant 1/2."}, {"id": "b", "texte": "0,20", "correcte": false, "explication": "C'est \\(\\sigma/\\sqrt n\\), l'écart-type de \\(\\bar X\\) lui-même : la dérivée \\(1/\\mu\\) de \\(\\ln\\) en \\(\\mu\\), qui convertit une variation de \\(\\bar X\\) en variation de \\(\\ln \\bar X\\), a été oubliée."}, {"id": "c", "texte": "0,01", "correcte": false, "explication": "C'est l'approximation de la **variance** de \\(\\ln \\bar X\\), \\(\\sigma^2/(\\mu^2 n)\\). L'écart-type en est la racine carrée."}, {"id": "d", "texte": "0,05", "correcte": false, "explication": "C'est \\(\\sigma/(\\mu^2\\sqrt n)\\) : la dérivée de \\(\\ln\\) a été prise égale à \\(1/\\mu^2\\), qui est (au signe près) sa dérivée seconde. La dérivée de \\(\\ln x\\) est \\(1/x\\)."}], "solution": "Réponse : \\(\\sigma/(\\mu\\sqrt n) = 2/(2 \\times 10) = 0{,}10\\).\n\nNotations : \\(n = 100\\), \\(g = \\ln\\), \\(g'(x) = 1/x\\).\n\nÉtape 1 : \\(\\bar X\\) a pour espérance \\(\\mu\\) et pour écart-type \\(\\sigma/\\sqrt n = 0{,}2\\), petit devant \\(\\mu = 2\\) : \\(\\bar X\\) reste proche de \\(\\mu\\), ce qui justifie un développement local.\n\nÉtape 2, Taylor à l'ordre 1 : \\(\\ln \\bar X \\approx \\ln \\mu + (\\bar X - \\mu)/\\mu\\). Le second membre est une fonction affine de \\(\\bar X\\), de variance \\(\\mathrm{Var}(\\bar X)/\\mu^2 = \\sigma^2/(\\mu^2 n)\\).\n\nÉtape 3 : écart-type approché \\(\\sigma/(\\mu\\sqrt n) = 0{,}10\\).\n\nStatut : c'est une approximation, pas une égalité. Elle devient exacte au premier ordre quand \\(n \\to \\infty\\) : \\(\\sqrt n\\,(\\ln \\bar X - \\ln \\mu)\\) converge en loi vers une normale de variance \\(\\sigma^2/\\mu^2\\) (théorème central limite et méthode delta, admis). Illustration (script) : pour une loi exponentielle d'espérance 2 (donc de variance 4), l'écart-type simulé de \\(\\ln \\bar X\\) vaut 0,1000. Lecture : l'écart-type de \\(\\ln \\bar X\\) est l'écart-type relatif de \\(\\bar X\\), \\((\\sigma/\\sqrt n)/\\mu\\).", "type": "qcm", "multiple": false, "reponse": "0,10", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M07_d_derivee_seconde", "M07_d_sans_derivee", "M07_d_variance", "M07_exact", "M07_sd_moyenne", "M07_sd_sim"]}}, {"id": "EB2-M08", "section": "math", "theme": "Test d'une proportion, p-value", "difficulte": 2, "temps_cible_s": 120, "enonce": "Un signal prédit chaque jour le sens (hausse ou baisse) du rendement du lendemain. Sur \\(n = 400\\) jours, il a raison 220 fois. On modélise les 400 jours comme indépendants, chacun avec la même probabilité de succès \\(p\\), et l'on teste \\(H_0 : p = 1/2\\) contre \\(H_1 : p \\ne 1/2\\).\n\nOn note \\(\\hat P\\) la proportion de succès, \\(\\Phi\\) la fonction de répartition de la loi normale centrée réduite, et l'on utilise la statistique \\(Z = (\\hat P - 1/2)/\\sqrt{(1/2)(1/2)/n}\\), dont on approche la loi sous \\(H_0\\) par la loi normale centrée réduite (théorème central limite). Quelle est la p-value bilatérale, arrondie à trois décimales ?", "options": [{"id": "a", "texte": "0,046", "correcte": true, "explication": "Oui : \\(Z = 2\\) et \\(2\\,(1 - \\Phi(2))\\)."}, {"id": "b", "texte": "0,023", "correcte": false, "explication": "C'est la p-value unilatérale \\(\\mathbb{P}(Z \\ge 2)\\). L'alternative \\(p \\ne 1/2\\) est bilatérale : un écart aussi grand vers le bas serait aussi un signe contre \\(H_0\\), et l'on additionne les deux queues."}, {"id": "c", "texte": "0,954", "correcte": false, "explication": "C'est \\(\\mathbb{P}(\\lvert Z \\rvert < 2)\\), la probabilité de l'événement contraire. La p-value est la probabilité, sous \\(H_0\\), d'un écart au moins aussi extrême que celui observé."}, {"id": "d", "texte": "0,000", "correcte": false, "explication": "L'écart-type de \\(\\hat P\\) a été pris égal à \\((1/2)(1/2)/n\\) au lieu de sa racine carrée : \\(Z\\) vaut alors 80 et la p-value est presque nulle. La variance d'une moyenne de \\(n\\) variables indépendantes est divisée par \\(n\\), son écart-type par \\(\\sqrt n\\)."}], "solution": "Réponse : \\(2\\,(1 - \\Phi(2)) \\approx 0{,}046\\).\n\nÉtape 1 : \\(\\hat P = 220/400 = 0{,}55\\).\n\nÉtape 2 : sous \\(H_0\\), le nombre de succès suit la loi binomiale de paramètres \\(n\\) et 1/2, donc \\(\\hat P\\) a pour espérance 1/2 et pour écart-type \\(\\sqrt{(1/2)(1/2)/n} = 0{,}000\\). Ainsi \\(Z = (0{,}55 - 0{,}5)/0{,}000 = 2\\).\n\nÉtape 3 : la p-value bilatérale est \\(\\mathbb{P}(\\lvert Z \\rvert \\ge 2)\\) sous \\(H_0\\), approchée par \\(2\\,(1 - \\Phi(2)) \\approx 0{,}0455\\).\n\nLecture : au niveau 5 %, on rejette \\(H_0\\), de justesse. Mais la p-value binomiale exacte du même test, \\(\\mathbb{P}(\\lvert K - 200 \\rvert \\ge 20)\\) avec \\(K\\) de loi binomiale de paramètres 400 et 1/2, vaut 0,0510 (script) : au-dessus de 5 %. Près du seuil, la conclusion dépend de l'approximation ; et si ce signal a été retenu parmi plusieurs, il faut de plus corriger pour les tests multiples.\n\nSimulations (script) : 0,0455 pour la loi normale, 0,0510 pour la loi binomiale.", "type": "qcm", "multiple": false, "reponse": "0,046", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M08_binom", "M08_binom_mc", "M08_d_complement", "M08_d_div_n", "M08_d_div_n_z", "M08_d_unilaterale", "M08_exact", "M08_mc", "M08_phat", "M08_se", "M08_z"]}}, {"id": "EB2-M09", "section": "math", "theme": "Intégrale gaussienne, espérance tronquée", "difficulte": 3, "temps_cible_s": 150, "enonce": "Soit \\(Z\\) une variable aléatoire de loi normale centrée réduite. On note \\(\\varphi\\) sa densité et \\(\\Phi\\) sa fonction de répartition ; on donne \\(\\varphi(1) \\approx 0,2420\\) et \\(\\Phi(1) \\approx 0,8413\\).\n\nQue vaut \\(\\mathbb{E}[\\max(Z - 1, 0)]\\), arrondie à trois décimales ?", "options": [{"id": "a", "texte": "0,083", "correcte": true, "explication": "Oui : \\(\\varphi(1) - (1 - \\Phi(1))\\)."}, {"id": "b", "texte": "0,242", "correcte": false, "explication": "C'est \\(\\int_1^\\infty z\\,\\varphi(z)\\,dz = \\varphi(1)\\) seul : le terme \\(-1 \\times \\mathbb{P}(Z > 1)\\), qui retranche le seuil, a été oublié."}, {"id": "c", "texte": "0,159", "correcte": false, "explication": "C'est \\(\\mathbb{P}(Z > 1)\\), la probabilité que le maximum soit non nul, et non l'espérance du montant qui dépasse 1."}, {"id": "d", "texte": "0,000", "correcte": false, "explication": "C'est \\(\\max(\\mathbb{E}[Z] - 1, 0)\\) : l'espérance a été passée à l'intérieur de la fonction. Comme \\(x \\mapsto \\max(x - 1, 0)\\) est convexe, l'inégalité de Jensen donne \\(\\mathbb{E}[\\max(Z - 1, 0)] \\ge \\max(\\mathbb{E}[Z] - 1, 0)\\), et l'inégalité est stricte puisque \\(Z\\) dépasse 1 avec une probabilité non nulle."}], "solution": "Réponse : \\(\\varphi(1) - (1 - \\Phi(1)) \\approx 0{,}083\\).\n\nÉtape 1 : \\(\\max(Z - 1, 0) = (Z - 1)\\,\\mathbf{1}_{\\{Z > 1\\}}\\), donc \\(\\mathbb{E}[\\max(Z - 1, 0)] = \\int_1^\\infty (z - 1)\\,\\varphi(z)\\,dz = \\int_1^\\infty z\\,\\varphi(z)\\,dz - \\mathbb{P}(Z > 1)\\).\n\nÉtape 2 : \\(\\varphi(z) = e^{-z^2/2}/\\sqrt{2\\pi}\\) vérifie \\(\\varphi'(z) = -z\\,\\varphi(z)\\). Donc \\(\\int_1^\\infty z\\,\\varphi(z)\\,dz = \\big[-\\varphi(z)\\big]_1^\\infty = \\varphi(1)\\), puisque \\(\\varphi(z) \\to 0\\) quand \\(z \\to +\\infty\\).\n\nÉtape 3 : \\(\\varphi(1) - (1 - \\Phi(1)) \\approx 0{,}2420 - 0{,}1587 = 0{,}0833\\).\n\nGénéralisation : pour un seuil \\(k\\) réel, le même calcul donne \\(\\mathbb{E}[\\max(Z - k, 0)] = \\varphi(k) - k\\,(1 - \\Phi(k))\\). C'est le prix, sans actualisation, d'une option d'achat de prix d'exercice \\(k\\) sur un sous-jacent de loi normale centrée réduite (modèle de Bachelier). Cas limite \\(k = 0\\) : \\(\\mathbb{E}[\\max(Z, 0)] = \\varphi(0) \\approx 0{,}3989\\).\n\nSimulation (script) : 0,0832.", "type": "qcm", "multiple": false, "reponse": "0,083", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M09_E_zplus", "M09_Phi1", "M09_d_jensen", "M09_exact", "M09_mc", "M09_phi1", "M09_queue"]}}, {"id": "EB2-M10", "section": "math", "theme": "Mouvement brownien, intégrale en temps", "difficulte": 4, "temps_cible_s": 180, "enonce": "Soit \\((W_t)_{t \\ge 0}\\) un mouvement brownien standard : \\(W_0 = 0\\), trajectoires continues, accroissements indépendants, et \\(W_t - W_s\\) de loi normale centrée de variance \\(t - s\\) pour \\(0 \\le s < t\\). On pose \\(I = \\int_0^1 W_s\\,ds\\), l'aire algébrique sous la trajectoire entre les instants 0 et 1, qui est une variable aléatoire.\n\nQue vaut \\(\\mathrm{Var}(I)\\) ?", "options": [{"id": "a", "texte": "1/3", "correcte": true, "explication": "Oui : \\(\\int_0^1\\!\\int_0^1 \\min(s, t)\\,ds\\,dt\\)."}, {"id": "b", "texte": "1/2", "correcte": false, "explication": "C'est \\(\\mathbb{E}\\big[\\int_0^1 W_s^2\\,ds\\big] = \\int_0^1 s\\,ds\\) : on a calculé l'espérance de l'intégrale du carré au lieu de celle du carré de l'intégrale. \\(I^2 = \\int_0^1\\!\\int_0^1 W_s W_t\\,ds\\,dt\\) fait intervenir les covariances entre instants différents."}, {"id": "c", "texte": "1", "correcte": false, "explication": "C'est \\(\\mathrm{Var}(W_1)\\), la variance du point final. L'intégrale moyenne la trajectoire sur \\([0, 1]\\), dont les valeurs proches de l'instant 0 sont petites : sa variance est plus faible."}, {"id": "d", "texte": "1/6", "correcte": false, "explication": "C'est \\(\\int_0^1\\!\\int_0^t s\\,ds\\,dt\\), l'intégrale de \\(\\min(s, t)\\) sur le seul triangle \\(s \\le t\\). Le carré \\([0, 1]^2\\) contient deux triangles symétriques : il faut doubler."}], "solution": "Réponse : \\(\\mathrm{Var}(I) = 1/3\\).\n\nÉtape 1, covariance. Pour \\(0 \\le s \\le t\\), \\(W_t = W_s + (W_t - W_s)\\), où l'accroissement est centré et indépendant de \\(W_s\\). Donc \\(\\mathbb{E}[W_s W_t] = \\mathbb{E}[W_s^2] + \\mathbb{E}[W_s]\\,\\mathbb{E}[W_t - W_s] = s\\). Ainsi \\(\\mathbb{E}[W_s W_t] = \\min(s, t)\\).\n\nÉtape 2, espérance : \\(\\mathbb{E}[I] = \\int_0^1 \\mathbb{E}[W_s]\\,ds = 0\\), l'échange étant permis par le théorème de Fubini puisque \\(\\int_0^1 \\mathbb{E}\\lvert W_s \\rvert\\,ds < \\infty\\).\n\nÉtape 3 : \\(I^2 = \\int_0^1\\!\\int_0^1 W_s W_t\\,ds\\,dt\\). Le théorème de Fubini s'applique car \\(\\mathbb{E}\\lvert W_s W_t \\rvert \\le \\sqrt{st} \\le 1\\) (inégalité de Cauchy-Schwarz). Donc \\(\\mathbb{E}[I^2] = \\int_0^1\\!\\int_0^1 \\min(s, t)\\,ds\\,dt = 2\\int_0^1\\!\\int_0^t s\\,ds\\,dt = 2\\int_0^1 \\tfrac{t^2}{2}\\,dt = \\tfrac13\\), la symétrie en \\((s, t)\\) permettant de ne calculer que le triangle \\(s \\le t\\).\n\nSeconde méthode, par le calcul d'Itô (formule d'Itô et isométrie d'Itô admises). La formule d'Itô pour le produit \\(t\\,W_t\\), où \\(t\\) est déterministe, donne \\(d(t\\,W_t) = W_t\\,dt + t\\,dW_t\\), donc \\(W_1 = \\int_0^1 W_s\\,ds + \\int_0^1 s\\,dW_s\\) et \\(I = \\int_0^1 (1 - s)\\,dW_s\\). Par l'isométrie d'Itô, \\(\\mathrm{Var}(I) = \\int_0^1 (1 - s)^2\\,ds = \\tfrac13\\). Cette écriture montre aussi que \\(I\\) est gaussienne : \\(I\\) suit la loi normale centrée de variance 1/3.\n\nVérification numérique (script) : la somme de Riemann à 200 pas, \\(\\tfrac{1}{200}\\sum_{k=1}^{200} W_{k/200}\\), a pour variance exacte 0,3358, qui tend vers 1/3 quand le pas diminue ; sa simulation donne 0,3345.", "type": "qcm", "multiple": false, "reponse": "1/3", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["M10_d_moitie_den", "M10_d_moitie_num", "M10_d_second_moment_den", "M10_d_second_moment_num", "M10_d_un", "M10_exact_den", "M10_exact_num", "M10_riemann_200_mc", "M10_var_riemann_200"]}}]}, {"id": "mlf", "nom": "Machine Learning fondamental", "budget_min": 7, "questions": [{"id": "EB2-F01", "section": "mlf", "theme": "Log-loss, meilleur prédicteur constant", "difficulte": 3, "temps_cible_s": 90, "enonce": "Un jeu de test contient 20 % d'exemples positifs (étiquette 1) et 80 % de négatifs (étiquette 0). Un prédicteur constant attribue la même probabilité \\(p \\in \\,]0, 1[\\) d'être positif à tous les exemples. La log-loss moyenne est \\(-\\tfrac{1}{n}\\sum_{i=1}^{n} \\big[y_i \\ln p + (1 - y_i)\\ln(1 - p)\\big]\\), où \\(n\\) est le nombre d'exemples et \\(y_i\\) l'étiquette de l'exemple \\(i\\), avec le logarithme népérien.\n\nQuelle est la plus petite log-loss moyenne que peut atteindre un prédicteur constant, arrondie à trois décimales ?", "options": [{"id": "a", "texte": "0,500", "correcte": true, "explication": "Oui : \\(p = 0{,}2\\) et \\(-(0{,}2 \\ln 0{,}2 + 0{,}8 \\ln 0{,}8)\\)."}, {"id": "b", "texte": "0,693", "correcte": false, "explication": "C'est \\(\\ln 2\\), la log-loss du prédicteur constant \\(p = 1/2\\). Ce n'est pas le meilleur constant quand les classes sont déséquilibrées : la meilleure constante est la proportion de positifs."}, {"id": "c", "texte": "0,223", "correcte": false, "explication": "C'est \\(-\\ln 0{,}8\\), la perte sur un exemple négatif seulement. La moyenne pondère aussi la perte \\(-\\ln 0{,}2\\) des 20 % de positifs."}, {"id": "d", "texte": "0,160", "correcte": false, "explication": "C'est \\(0{,}2 \\times 0{,}8\\), le score de Brier (erreur quadratique moyenne des probabilités) du meilleur prédicteur constant. La question porte sur la log-loss."}], "solution": "Réponse : \\(-(0{,}2 \\ln 0{,}2 + 0{,}8 \\ln 0{,}8) \\approx 0{,}500\\), atteinte en \\(p = 0{,}2\\).\n\nÉtape 1 : avec une proportion \\(q = 0{,}2\\) de positifs, la log-loss moyenne du prédicteur constant vaut \\(L(p) = -\\big(q \\ln p + (1 - q)\\ln(1 - p)\\big)\\).\n\nÉtape 2 : \\(L'(p) = -q/p + (1 - q)/(1 - p)\\), qui s'annule en \\(p = q\\) ; \\(L''(p) = q/p^2 + (1 - q)/(1 - p)^2 > 0\\), donc \\(L\\) est strictement convexe et \\(p = q\\) est son unique minimum.\n\nÉtape 3 : \\(L(0{,}2) = -(0{,}2 \\ln 0{,}2 + 0{,}8 \\ln 0{,}8) \\approx 0{,}500\\) : c'est l'entropie de la loi de Bernoulli de paramètre 0,2.\n\nLecture : c'est le niveau de référence. Un modèle dont la log-loss de test dépasse 0,500 fait moins bien que la simple fréquence de base ; la comparer à \\(\\ln 2\\) serait trop indulgent quand les classes sont déséquilibrées. Contrôle (script) : minimisation sur une grille, minimum en 0,2.", "type": "qcm", "multiple": false, "reponse": "0,500", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["F01_d_brier", "F01_d_demi", "F01_d_negatifs", "F01_exact"]}}, {"id": "EB2-F02", "section": "mlf", "theme": "R² hors échantillon", "difficulte": 2, "temps_cible_s": 60, "enonce": "Un modèle prédit la valeur constante 4 pour toutes les observations (c'est la moyenne de la cible sur l'échantillon d'apprentissage). Sur un échantillon de test, les cibles valent 1, 2, 3, 4, 5. On définit le \\(R^2\\) de test par \\(1 - \\mathrm{SCR}/\\mathrm{SCT}\\), où \\(\\mathrm{SCR} = \\sum_i (y_i - \\hat y_i)^2\\) est la somme des carrés des erreurs de prédiction sur le test et \\(\\mathrm{SCT} = \\sum_i (y_i - \\bar y)^2\\), \\(\\bar y\\) étant la moyenne des cibles de test.\n\nQue vaut ce \\(R^2\\) de test ?", "options": [{"id": "a", "texte": "-0,5", "correcte": true, "explication": "Oui : \\(1 - 15/10\\)."}, {"id": "b", "texte": "0", "correcte": false, "explication": "Un prédicteur constant n'a un \\(R^2\\) nul que si sa constante est la moyenne **du test**. Ici la constante, 4, vient de l'apprentissage et diffère de la moyenne de test, 3."}, {"id": "c", "texte": "0,5", "correcte": false, "explication": "Le signe est perdu. Un \\(R^2\\) de test n'est pas un carré : il peut être négatif, ce qui arrive dès que le modèle fait pire que la moyenne du test."}, {"id": "d", "texte": "-1,5", "correcte": false, "explication": "C'est \\(-\\mathrm{SCR}/\\mathrm{SCT}\\) : le 1 de la définition a été oublié."}], "solution": "Réponse : \\(R^2 = 1 - 15/10 = -0{,}5\\).\n\nÉtape 1 : \\(\\mathrm{SCR} = (1 - 4)^2 + (2 - 4)^2 + (3 - 4)^2 + 0 + (5 - 4)^2 = 15\\).\n\nÉtape 2 : la moyenne de test vaut 3, \\(\\mathrm{SCT} = 4 + 1 + 0 + 1 + 4 = 10\\).\n\nÉtape 3 : \\(R^2 = 1 - 15/10 = -0{,}5\\).\n\nLecture : sur l'échantillon d'apprentissage, avec constante, le \\(R^2\\) des moindres carrés est compris entre 0 et 1, parce que la moyenne d'apprentissage fait partie des modèles possibles. Hors échantillon, rien ne le garantit : un \\(R^2\\) négatif signifie que le modèle prédit moins bien que la moyenne du test. En prévision de rendements, où le signal est faible, une petite erreur sur le niveau moyen suffit à rendre le \\(R^2\\) de test négatif ; il faut donc préciser la référence utilisée (moyenne du test, moyenne d'apprentissage ou zéro).", "type": "qcm", "multiple": false, "reponse": "-0,5", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["F02_d_sans_un", "F02_d_signe", "F02_d_zero", "F02_exact", "F02_scr", "F02_sct"]}}, {"id": "EB2-F03", "section": "mlf", "theme": "Seuil de décision, coûts asymétriques", "difficulte": 3, "temps_cible_s": 90, "enonce": "Un classifieur fournit, pour chaque transaction, une probabilité \\(p\\) d'être frauduleuse, supposée bien calibrée : parmi les transactions de probabilité \\(p\\), une proportion \\(p\\) est frauduleuse. Laisser passer une fraude (faux négatif) coûte 9 ; bloquer une transaction honnête (faux positif) coûte 1 ; une bonne décision ne coûte rien. On bloque une transaction si et seulement si \\(p > s\\).\n\nQuel seuil \\(s\\) minimise l'espérance du coût de chaque décision ?", "options": [{"id": "a", "texte": "0,10", "correcte": true, "explication": "Oui : bloquer coûte en moyenne \\(1 - p\\), laisser passer \\(9p\\) ; on bloque quand \\(1 - p < 9p\\)."}, {"id": "b", "texte": "0,50", "correcte": false, "explication": "C'est le seuil qui minimise le nombre d'erreurs quand les deux erreurs coûtent autant. Ici un faux négatif coûte 9 fois plus : on bloque dès une probabilité bien plus faible."}, {"id": "c", "texte": "0,90", "correcte": false, "explication": "Les coûts ont été inversés : avec ce seuil, on ne bloquerait que les transactions presque sûrement frauduleuses, ce qui convient si c'est le faux positif qui coûte cher."}, {"id": "d", "texte": "1/9 ≈ 0,111", "correcte": false, "explication": "C'est le rapport des coûts, 1/9. La condition \\(1 - p < 9p\\) donne \\(p > 1/(1 + 9)\\) : le seuil est \\(c_{\\mathrm{FP}}/(c_{\\mathrm{FP}} + c_{\\mathrm{FN}})\\), pas \\(c_{\\mathrm{FP}}/c_{\\mathrm{FN}}\\)."}], "solution": "Réponse : \\(s = 1/(1 + 9) = 0{,}1\\).\n\nNotations : \\(c_{\\mathrm{FN}} = 9\\) et \\(c_{\\mathrm{FP}} = 1\\) sont les coûts d'un faux négatif et d'un faux positif.\n\nÉtape 1 : pour une transaction de probabilité \\(p\\), bloquer coûte \\(c_{\\mathrm{FP}}\\) si elle est honnête, ce qui arrive avec probabilité \\(1 - p\\) (calibration) : coût moyen \\((1 - p)\\,c_{\\mathrm{FP}}\\). Laisser passer coûte \\(c_{\\mathrm{FN}}\\) si elle est frauduleuse : coût moyen \\(p\\,c_{\\mathrm{FN}}\\).\n\nÉtape 2 : bloquer est préférable si et seulement si \\((1 - p)\\,c_{\\mathrm{FP}} < p\\,c_{\\mathrm{FN}}\\), c'est-à-dire \\(p > c_{\\mathrm{FP}}/(c_{\\mathrm{FP}} + c_{\\mathrm{FN}}) = 1/10\\). La règle « bloquer si \\(p > 0{,}1\\) » prend la meilleure décision pour chaque transaction, donc minimise le coût moyen.\n\nCondition de validité : le raisonnement utilise la calibration. Avec des scores non calibrés, le seuil 0,1 n'a pas ce sens ; on le choisit alors sur un échantillon de validation. Expérience (script) : probabilités uniformes et étiquettes tirées selon elles ; le coût moyen simulé est minimal au seuil 0,10 et vaut 0,450 contre 1,253 au seuil 0,5.", "type": "qcm", "multiple": false, "reponse": "0,10", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["F03_d_defaut", "F03_d_inverse", "F03_d_rapport", "F03_d_rapport_den", "F03_d_rapport_num", "F03_exact", "F03_exp_cout_01", "F03_exp_cout_05", "F03_exp_meilleur_seuil"]}}, {"id": "EB2-F04", "section": "mlf", "theme": "Malédiction de la dimension, voisinages", "difficulte": 2, "temps_cible_s": 75, "enonce": "Des points sont tirés indépendamment et uniformément dans le cube \\([0, 1]^{10}\\). Autour d'un point, on prend comme voisinage un sous-cube de côté \\(e\\), à faces parallèles aux axes, entièrement contenu dans \\([0, 1]^{10}\\).\n\nQuelle valeur de \\(e\\) donne un voisinage qui contient en moyenne 1 % des points, arrondie à trois décimales ?", "options": [{"id": "a", "texte": "0,631", "correcte": true, "explication": "Oui : \\(e^{10} = 0{,}01\\), soit \\(e = 0{,}01^{1/10}\\)."}, {"id": "b", "texte": "0,010", "correcte": false, "explication": "C'est la fraction de points voulue, prise pour une longueur de côté. En dimension 10, un sous-cube de côté 0,01 a pour volume \\(0{,}01^{10}\\) : il ne contient pratiquement aucun point."}, {"id": "c", "texte": "0,001", "correcte": false, "explication": "C'est \\(0{,}01/10\\) : la dimension a divisé la fraction au lieu d'en prendre la racine dixième. Le volume d'un cube est le produit de ses côtés, \\(e^{10}\\)."}, {"id": "d", "texte": "0,100", "correcte": false, "explication": "C'est \\(0{,}01^{1/2}\\), la bonne réponse en dimension 2. En dimension 10, il faut la racine dixième."}], "solution": "Réponse : \\(e = 0{,}01^{1/10} \\approx 0{,}631\\).\n\nÉtape 1 : pour un point uniforme dans \\([0, 1]^{10}\\), la probabilité de tomber dans une partie du cube est son volume. Un sous-cube de côté \\(e\\) a pour volume \\(e^{10}\\), produit des longueurs de ses côtés.\n\nÉtape 2 : la proportion moyenne de points dans le voisinage est cette probabilité (linéarité de l'espérance appliquée aux indicatrices « le point \\(i\\) est dans le voisinage »). On veut \\(e^{10} = 0{,}01\\), soit \\(e = 0{,}01^{1/10} = 10^{-0{,}2} \\approx 0{,}631\\).\n\nLecture : pour capturer 1 % des données, le voisinage doit couvrir une proportion 0,63 de l'étendue de chaque variable ; il n'a plus rien de local, et la prédiction des k plus proches voisins mélange des points éloignés. En dimension 100, il faudrait un côté de 0,955. C'est la malédiction de la dimension. Simulation (script) : une proportion 0,0101 des points tirés tombe dans un tel cube.", "type": "qcm", "multiple": false, "reponse": "0,631", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["F04_arete_d100", "F04_d_dim2", "F04_d_div", "F04_d_fraction", "F04_exact", "F04_mc"]}}, {"id": "EB2-F05", "section": "mlf", "theme": "Validation croisée un-contre-tous, levier", "difficulte": 4, "temps_cible_s": 105, "enonce": "On ajuste par moindres carrés ordinaires, avec constante, une régression \\(y \\approx b_0 + b_1 x\\) sur 5 observations dont les valeurs de \\(x\\) sont 0, 1, 2, 3 et 9. Le résidu d'ajustement de la cinquième observation (\\(x = 9\\)), c'est-à-dire \\(y_5 - \\hat y_5\\), vaut 0,4.\n\nOn réajuste le même modèle sans la cinquième observation, et l'on note \\(\\tilde y_5\\) sa prédiction en \\(x = 9\\). Que vaut le résidu de validation croisée un-contre-tous \\(y_5 - \\tilde y_5\\) ?", "options": [{"id": "a", "texte": "5", "correcte": true, "explication": "Oui : \\(0{,}4/(1 - h_{55})\\) avec un levier \\(h_{55} = 23/25\\)."}, {"id": "b", "texte": "0,4", "correcte": false, "explication": "C'est le résidu d'ajustement. Retirer l'observation change la droite : sans elle, rien ne tire la droite vers \\(y_5\\), et l'erreur de prédiction est bien plus grande."}, {"id": "c", "texte": "1,43", "correcte": false, "explication": "Le levier a été calculé sans le terme \\(1/n\\) dû à la constante : \\(h_{55} = 1/n + (x_5 - \\bar x)^2/\\sum_j (x_j - \\bar x)^2\\)."}, {"id": "d", "texte": "0,5", "correcte": false, "explication": "Le levier a été pris égal à \\(1/n\\), sa valeur pour une observation située à la moyenne des \\(x\\). Le point \\(x = 9\\) est loin de la moyenne 3 : son levier est proche de 1."}], "solution": "Réponse : \\(0{,}4/(1 - 23/25) = 5\\).\n\nNotations : \\(\\mathbf{H}\\) est la matrice de projection (matrice chapeau) des moindres carrés, \\(\\hat{\\mathbf{y}} = \\mathbf{H}\\mathbf{y}\\), et \\(h_{ii}\\) son \\(i\\)-ème coefficient diagonal, le levier de l'observation \\(i\\) ; \\(e_i = y_i - \\hat y_i\\).\n\nÉtape 1, formule du résidu un-contre-tous : \\(y_i - \\tilde y_i = e_i/(1 - h_{ii})\\). Preuve. Soit \\(\\tilde{\\mathbf{b}}\\) l'estimateur obtenu sans l'observation \\(i\\), et \\(\\mathbf{z}\\) le vecteur égal à \\(\\mathbf{y}\\) sauf \\(z_i = \\tilde y_i\\). Pour tout \\(\\mathbf{b}\\), la somme des carrés des résidus sur \\(\\mathbf{z}\\) est la somme sur les observations \\(j \\ne i\\) plus \\((\\tilde y_i - \\mathbf{x}_i^\\top \\mathbf{b})^2 \\ge 0\\) ; en \\(\\mathbf{b} = \\tilde{\\mathbf{b}}\\), le premier morceau est minimal et le second nul. Donc \\(\\tilde{\\mathbf{b}}\\) est l'estimateur des moindres carrés pour \\(\\mathbf{z}\\), et \\(\\tilde y_i = (\\mathbf{H}\\mathbf{z})_i = \\hat y_i - h_{ii}\\,(y_i - \\tilde y_i)\\), car \\(\\mathbf{z} = \\mathbf{y} - (y_i - \\tilde y_i)\\,\\mathbf{e}_i\\). En réarrangeant : \\((1 - h_{ii})(y_i - \\tilde y_i) = y_i - \\hat y_i\\).\n\nÉtape 2, levier en régression simple avec constante : \\(h_{ii} = 1/n + (x_i - \\bar x)^2/\\sum_j (x_j - \\bar x)^2\\). Preuve : \\(\\mathbf{H}\\) projette sur l'espace engendré par \\(\\mathbf{1}\\) et \\(\\mathbf{x}\\), qui est aussi engendré par les vecteurs orthogonaux \\(\\mathbf{1}\\) et \\(\\mathbf{x} - \\bar x\\,\\mathbf{1}\\) ; la projection sur une base orthogonale est la somme des projections sur chaque vecteur, d'où les deux termes.\n\nÉtape 3 : \\(\\bar x = 3\\), \\(\\sum_j (x_j - \\bar x)^2 = 9 + 4 + 1 + 0 + 36 = 50\\), donc \\(h_{55} = 1/5 + 36/50 = 23/25\\) et \\(y_5 - \\tilde y_5 = 0{,}4/(1 - 0{,}92) = 5\\).\n\nLecture : un point à fort levier attire la droite à lui ; son petit résidu d'ajustement cache une grande erreur de prédiction. La formule donne toute la validation croisée un-contre-tous d'une régression linéaire en un seul ajustement. Contrôles (script) : réajustement explicite sans l'observation, et formule vérifiée sur des données aléatoires pour chaque observation.", "type": "qcm", "multiple": false, "reponse": "5", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["F05_d_1n", "F05_d_residu", "F05_d_sans_1n", "F05_exact", "F05_h", "F05_h_den", "F05_h_num", "F05_moy_x", "F05_sxx"]}}]}, {"id": "mla", "nom": "Machine Learning avancé", "budget_min": 16, "questions": [{"id": "EB2-A01", "section": "mla", "theme": "Boosting de gradient, perte absolue", "difficulte": 4, "temps_cible_s": 120, "enonce": "Boosting de gradient avec la perte absolue \\(\\ell(y, f) = \\lvert y - f \\rvert\\), où \\(y\\) est la cible et \\(f\\) la prédiction. Une feuille du nouvel arbre contient 5 observations dont les résidus courants \\(r_i = y_i - \\hat y_i\\) (cible moins prédiction courante \\(\\hat y_i\\)) valent −2 ; 0,5 ; 1 ; 4 ; 10.\n\nLa valeur \\(w\\) de la feuille, ajoutée à la prédiction de chacune de ces 5 observations, est choisie pour minimiser exactement \\(\\sum_i \\lvert y_i - (\\hat y_i + w) \\rvert\\) : pas de développement de Taylor, pas de régularisation, pas de taux d'apprentissage. Que vaut \\(w\\) ?", "options": [{"id": "a", "texte": "1", "correcte": true, "explication": "Oui : la médiane des résidus de la feuille."}, {"id": "b", "texte": "2,7", "correcte": false, "explication": "C'est la moyenne des résidus, qui minimise la somme des carrés \\(\\sum_i (r_i - w)^2\\), pas la somme des valeurs absolues. Elle est tirée vers le haut par le résidu 10 ; la perte absolue y vaut 17,2 contre 15,5 à la médiane."}, {"id": "c", "texte": "0,6", "correcte": false, "explication": "C'est la moyenne des pseudo-résidus \\(\\mathrm{signe}(r_i)\\), c'est-à-dire la valeur qu'un arbre de régression ajusté aux pseudo-résidus mettrait dans cette feuille. Cette valeur sert à choisir les coupures ; la valeur de la feuille est ensuite recalculée pour minimiser la vraie perte."}, {"id": "d", "texte": "Aucune : la dérivée seconde de la perte est nulle, le poids \\(-G/(H + \\lambda)\\) n'est pas défini", "correcte": false, "explication": "La formule \\(-G/(H + \\lambda)\\) vient d'un développement de Taylor à l'ordre 2, que l'énoncé exclut. Le minimum exact de \\(\\sum_i \\lvert r_i - w \\rvert\\) existe toujours : c'est une fonction convexe, affine par morceaux, qui tend vers l'infini aux deux bouts."}], "solution": "Réponse : \\(w = 1\\), la médiane des résidus.\n\nÉtape 1 : \\(y_i - (\\hat y_i + w) = r_i - w\\), donc on minimise \\(g(w) = \\sum_i \\lvert r_i - w \\rvert\\).\n\nÉtape 2 : chaque terme \\(\\lvert r_i - w \\rvert\\) a pour pente +1 quand \\(w > r_i\\) et −1 quand \\(w < r_i\\). Entre deux résidus consécutifs, \\(g\\) est donc affine, de pente \\(\\#\\{i : r_i < w\\} - \\#\\{i : r_i > w\\}\\).\n\nÉtape 3 : avec les 5 résidus triés, −2 < 0,5 < 1 < 4 < 10, la pente vaut \\(2 - 3 = -1\\) juste avant 1 et \\(3 - 2 = +1\\) juste après : \\(g\\) décroît puis croît, son minimum est en 1, la médiane, où elle vaut 15,5.\n\nMécanisme : c'est la robustesse de la perte absolue ; le résidu 10, peut-être aberrant, n'agit sur la feuille que par son signe. Dans le boosting de gradient de Friedman avec cette perte (Friedman, « Greedy function approximation: a gradient boosting machine », Annals of Statistics, 2001, algorithme LAD_TreeBoost), l'arbre est d'abord ajusté aux pseudo-résidus \\(\\mathrm{signe}(r_i)\\) (l'opposé du gradient de la perte), puis chaque feuille reçoit la médiane des résidus qu'elle contient. Cas limite : avec un nombre pair de résidus, tout point entre les deux résidus centraux est un minimum.", "type": "qcm", "multiple": false, "reponse": "1", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["A01_d_moyenne", "A01_d_signes", "A01_exact", "A01_perte_mediane", "A01_perte_moyenne"]}}, {"id": "EB2-A02", "section": "mla", "theme": "LSTM, disparition du gradient", "difficulte": 3, "temps_cible_s": 105, "enonce": "Dans une cellule LSTM à une dimension, la mémoire évolue selon \\(c_t = f_t\\,c_{t-1} + i_t\\,g_t\\), où \\(f_t\\) est la porte d'oubli, \\(i_t\\) la porte d'entrée et \\(g_t\\) la valeur candidate. On suit seulement le chemin direct de la mémoire : les portes et la valeur candidate sont traitées comme des constantes qui ne dépendent pas de \\(c_{t-1}\\), avec \\(f_t = 0{,}99\\) à chaque pas.\n\nQue vaut \\(\\partial c_{50}/\\partial c_0\\), arrondi à trois décimales ?", "options": [{"id": "a", "texte": "0,605", "correcte": true, "explication": "Oui : \\(0{,}99^{50}\\), produit des portes d'oubli le long du chemin."}, {"id": "b", "texte": "0,005", "correcte": false, "explication": "C'est \\(0{,}9^{50}\\), la valeur pour un réseau récurrent simple \\(h_t = \\tanh(w\\,h_{t-1} + \\dots)\\) de poids \\(w = 0{,}9\\) près de 0. La mémoire de la LSTM est multipliée par la porte d'oubli, 0,99, pas par 0,9."}, {"id": "c", "texte": "0,500", "correcte": false, "explication": "C'est \\(1 - 50 \\times 0{,}01\\), le développement au premier ordre de \\(0{,}99^{50}\\). Avec 50 facteurs, l'approximation linéaire n'est plus valable : \\((1 - x)^n \\approx 1 - nx\\) suppose \\(nx\\) petit."}, {"id": "d", "texte": "49,500", "correcte": false, "explication": "C'est \\(50 \\times 0{,}99\\) : les dérivées des pas successifs ont été additionnées. Par la règle de dérivation des fonctions composées, elles se multiplient."}], "solution": "Réponse : \\(0{,}99^{50} \\approx 0{,}605\\).\n\nÉtape 1 : sous l'hypothèse de l'énoncé, \\(\\partial c_t/\\partial c_{t-1} = f_t = 0{,}99\\).\n\nÉtape 2, règle de dérivation des fonctions composées : \\(\\partial c_{50}/\\partial c_0 = \\prod_{t=1}^{50} \\partial c_t/\\partial c_{t-1} = 0{,}99^{50} \\approx 0{,}605\\).\n\nComparaison : dans un réseau récurrent simple \\(h_t = \\tanh(w\\,h_{t-1} + u\\,x_t)\\), le facteur par pas est \\(w \\tanh'(\\cdot)\\), au plus \\(\\lvert w \\rvert\\) ; avec \\(w = 0{,}9\\), il reste au mieux \\(0{,}9^{50} \\approx 0{,}005\\) après 50 pas. C'est la disparition du gradient : le réseau ne peut pas apprendre de dépendances longues. La LSTM la contourne parce que sa mémoire se propage additivement, avec un facteur \\(f_t\\) que le réseau apprend et peut garder proche de 1.\n\nCondition de validité : dans une vraie LSTM, les portes dépendent de l'état caché précédent, donc indirectement de \\(c_{t-1}\\) ; le gradient complet ajoute d'autres chemins. Le chemin direct calculé ici est celui qui ne s'éteint pas. Contrôle (script) : dérivée numérique de \\(c_{50}\\) par rapport à \\(c_0\\).", "type": "qcm", "multiple": false, "reponse": "0,605", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["A02_d_lineaire", "A02_d_somme", "A02_exact", "A02_rnn"]}}, {"id": "EB2-A03", "section": "mla", "theme": "Normalisation par lot (BatchNorm)", "difficulte": 2, "temps_cible_s": 105, "enonce": "En entraînement, une couche de normalisation par lot (BatchNorm) reçoit, pour un neurone donné, les 4 valeurs du lot : 1, 2, 3, 6. Elle calcule la moyenne \\(m\\) et la variance \\(v\\) de ces 4 valeurs, la variance étant calculée avec le diviseur 4 (taille du lot), puis renvoie pour chaque valeur \\(h\\) la sortie \\(\\gamma\\,(h - m)/\\sqrt{v + \\epsilon} + \\beta\\), avec \\(\\gamma = 2\\), \\(\\beta = 1\\) et \\(\\epsilon = 0\\).\n\nQuelle est la sortie pour la valeur \\(h = 6\\), arrondie à trois décimales ?", "options": [{"id": "a", "texte": "4,207", "correcte": true, "explication": "Oui : \\(2 \\times 3/\\sqrt{3{,}5} + 1\\)."}, {"id": "b", "texte": "3,777", "correcte": false, "explication": "La variance a été calculée avec le diviseur 3 au lieu de 4. L'énoncé fixe le diviseur égal à la taille du lot, ce que fait la normalisation par lot en entraînement."}, {"id": "c", "texte": "1,604", "correcte": false, "explication": "C'est la valeur normalisée \\((h - m)/\\sqrt v\\), avant la transformation affine apprise \\(\\gamma\\,(\\cdot) + \\beta\\)."}, {"id": "d", "texte": "2,714", "correcte": false, "explication": "L'écart à la moyenne a été divisé par la variance au lieu de l'écart-type \\(\\sqrt v\\)."}], "solution": "Réponse : \\(2 \\times 3/\\sqrt{3{,}5} + 1 \\approx 4{,}207\\).\n\nÉtape 1 : \\(m = (1 + 2 + 3 + 6)/4 = 3\\).\n\nÉtape 2 : \\(v = \\big((1 - 3)^2 + (2 - 3)^2 + 0 + (6 - 3)^2\\big)/4 = 14/4 = 3{,}5\\).\n\nÉtape 3 : \\((6 - 3)/\\sqrt{3{,}5} \\approx 1{,}6036\\), puis \\(2 \\times 1{,}6036 + 1 \\approx 4{,}207\\).\n\nMécanisme : la normalisation rend la distribution des pré-activations de chaque neurone stable (moyenne 0, variance 1 sur le lot), et \\(\\gamma\\), \\(\\beta\\) rendent au réseau la possibilité de choisir une autre échelle et un autre centre. Pièges : la sortie d'un exemple dépend des autres exemples du lot ; en évaluation, \\(m\\) et \\(v\\) sont remplacées par des moyennes mobiles calculées pendant l'entraînement ; \\(\\epsilon > 0\\) évite une division par zéro quand toutes les valeurs du lot sont égales.", "type": "qcm", "multiple": false, "reponse": "4,207", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["A03_d_n_moins_1", "A03_d_sans_affine", "A03_d_variance", "A03_exact", "A03_moyenne", "A03_var"]}}, {"id": "EB2-A04", "section": "mla", "theme": "Momentum, pas effectif", "difficulte": 3, "temps_cible_s": 120, "enonce": "Descente de gradient avec momentum sur un paramètre réel \\(\\theta\\) : \\(v_t = \\beta\\,v_{t-1} + g_t\\), puis \\(\\theta_t = \\theta_{t-1} - \\eta\\,v_t\\), avec \\(v_0 = 0\\), \\(\\beta = 0{,}9\\) et \\(\\eta = 0{,}01\\). Le gradient vaut \\(g_t = 1\\) à chaque pas (pente constante).\n\nDe combien \\(\\theta\\) a-t-il diminué après 3 pas, c'est-à-dire que vaut \\(\\theta_0 - \\theta_3\\) ?", "options": [{"id": "a", "texte": "0,0561", "correcte": true, "explication": "Oui : \\(0{,}01 \\times (1 + 1{,}9 + 2{,}71)\\)."}, {"id": "b", "texte": "0,0300", "correcte": false, "explication": "C'est le déplacement sans momentum, \\(3 \\times \\eta \\times 1\\). Le momentum accumule les gradients passés : la vitesse \\(v_t\\) grandit tant que la pente reste la même."}, {"id": "c", "texte": "0,0271", "correcte": false, "explication": "C'est le seul troisième pas, \\(\\eta\\,v_3\\). La question demande le déplacement total, somme des trois pas."}, {"id": "d", "texte": "0,3000", "correcte": false, "explication": "C'est 3 pas à la vitesse limite \\(\\eta/(1 - \\beta) = 0{,}1\\). La vitesse part de 0 et n'atteint cette limite qu'après un nombre de pas de l'ordre de \\(1/(1 - \\beta) = 10\\)."}], "solution": "Réponse : \\(\\theta_0 - \\theta_3 = 0{,}01 \\times (1 + 1{,}9 + 2{,}71) = 0{,}0561\\).\n\nÉtape 1, vitesses : \\(v_1 = 1\\), \\(v_2 = 0{,}9 \\times 1 + 1 = 1{,}9\\), \\(v_3 = 0{,}9 \\times 1{,}9 + 1 = 2{,}71\\).\n\nÉtape 2 : chaque pas diminue \\(\\theta\\) de \\(\\eta\\,v_t\\) ; au total \\(\\eta\\,(v_1 + v_2 + v_3) = 0{,}0561\\).\n\nMécanisme : avec un gradient constant \\(g\\), \\(v_t = g\\,(1 - \\beta^t)/(1 - \\beta)\\) (somme géométrique), qui tend vers \\(g/(1 - \\beta)\\). Le pas effectif devient \\(\\eta/(1 - \\beta) = 0{,}1\\), dix fois le pas nominal : dans une direction de pente constante, le momentum accélère ; dans une direction où le gradient change de signe, les contributions successives se compensent et amortissent les oscillations. Conséquence pratique : en ajoutant un momentum \\(\\beta = 0{,}9\\) à un réglage qui fonctionnait sans, il faut diviser \\(\\eta\\) par 10 pour garder le même pas effectif ; à défaut, l'itération peut diverger.", "type": "qcm", "multiple": false, "reponse": "0,0561", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["A04_d_dernier", "A04_d_limite", "A04_d_sans_moment", "A04_exact", "A04_pas_limite", "A04_v2", "A04_v3"]}}, {"id": "EB2-A05", "section": "mla", "theme": "Astuce du noyau, noyau polynomial", "difficulte": 4, "temps_cible_s": 120, "enonce": "Le noyau polynomial \\(k(\\mathbf{x}, \\mathbf{z}) = (1 + \\mathbf{x}^\\top \\mathbf{z})^2\\) est défini pour \\(\\mathbf{x}, \\mathbf{z} \\in \\mathbb{R}^{10}\\).\n\nQuel est le plus petit entier \\(D\\) tel qu'il existe une application \\(\\boldsymbol{\\phi} : \\mathbb{R}^{10} \\to \\mathbb{R}^D\\) vérifiant \\(k(\\mathbf{x}, \\mathbf{z}) = \\boldsymbol{\\phi}(\\mathbf{x})^\\top \\boldsymbol{\\phi}(\\mathbf{z})\\) pour tous \\(\\mathbf{x}, \\mathbf{z} \\in \\mathbb{R}^{10}\\) ?", "options": [{"id": "a", "texte": "66", "correcte": true, "explication": "Oui : la constante, 10 termes linéaires, 10 carrés et 45 produits croisés."}, {"id": "b", "texte": "111", "correcte": false, "explication": "C'est \\(1 + 10 + 10 \\times 10\\) : l'application explicite qui contient \\(x_i x_j\\) pour tous les couples ordonnés \\((i, j)\\). Elle convient, mais \\(x_i x_j\\) et \\(x_j x_i\\) sont la même fonction : on les fusionne en une coordonnée \\(\\sqrt2\\,x_i x_j\\), ce qui réduit la dimension."}, {"id": "c", "texte": "55", "correcte": false, "explication": "C'est \\(\\binom{11}{2}\\), le nombre de monômes de degré exactement 2. Le développement \\(1 + 2\\,\\mathbf{x}^\\top\\mathbf{z} + (\\mathbf{x}^\\top\\mathbf{z})^2\\) contient aussi la constante et les termes de degré 1."}, {"id": "d", "texte": "21", "correcte": false, "explication": "C'est \\(1 + 10 + 10\\) : la constante, les termes linéaires et les carrés \\(x_i^2\\), sans les produits croisés \\(x_i x_j\\) (\\(i \\ne j\\)) qui apparaissent dans \\((\\mathbf{x}^\\top\\mathbf{z})^2 = \\sum_{i,j} x_i x_j z_i z_j\\)."}], "solution": "Réponse : \\(D = 66\\).\n\nÉtape 1, une application de dimension 66. En développant, \\(k(\\mathbf{x}, \\mathbf{z}) = 1 + 2\\sum_i x_i z_i + \\sum_i x_i^2 z_i^2 + 2\\sum_{i < j} x_i x_j z_i z_j\\). Avec \\(\\boldsymbol{\\phi}(\\mathbf{x}) = \\big(1, (\\sqrt2\\,x_i)_{i}, (x_i^2)_{i}, (\\sqrt2\\,x_i x_j)_{i < j}\\big)\\), on a \\(\\boldsymbol{\\phi}(\\mathbf{x})^\\top \\boldsymbol{\\phi}(\\mathbf{z}) = k(\\mathbf{x}, \\mathbf{z})\\), en dimension \\(1 + 10 + 10 + 45 = 66\\).\n\nÉtape 2, on ne peut pas faire moins. Si \\(k(\\mathbf{x}, \\mathbf{z}) = \\boldsymbol{\\phi}(\\mathbf{x})^\\top \\boldsymbol{\\phi}(\\mathbf{z})\\) avec \\(\\boldsymbol{\\phi}\\) à valeurs dans \\(\\mathbb{R}^D\\), alors pour chaque \\(\\mathbf{z}\\) fixé, la fonction \\(\\mathbf{x} \\mapsto k(\\mathbf{x}, \\mathbf{z})\\) est une combinaison linéaire des \\(D\\) fonctions coordonnées de \\(\\boldsymbol{\\phi}\\). L'espace \\(E\\) engendré par ces fonctions de \\(\\mathbf{x}\\), quand \\(\\mathbf{z}\\) parcourt \\(\\mathbb{R}^{10}\\), est donc de dimension au plus \\(D\\). Il suffit de montrer que \\(E\\) contient les 66 monômes \\(1\\), \\(x_i\\), \\(x_i x_j\\) (\\(i \\le j\\)), linéairement indépendants (un polynôme nul en tout point a tous ses coefficients nuls).\n\n2a. Pour \\(\\mathbf{z} = t\\,\\mathbf{a}\\), avec \\(t\\) réel et \\(\\mathbf{a}\\) fixé : \\(k(\\mathbf{x}, t\\mathbf{a}) = 1 + 2t\\,(\\mathbf{a}^\\top\\mathbf{x}) + t^2\\,(\\mathbf{a}^\\top\\mathbf{x})^2\\). Avec trois valeurs distinctes de \\(t\\), le système qui donne ces trois fonctions de \\(\\mathbf{x}\\) a une matrice de Vandermonde inversible : \\(1\\), \\(\\mathbf{a}^\\top\\mathbf{x}\\) et \\((\\mathbf{a}^\\top\\mathbf{x})^2\\) sont dans \\(E\\).\n\n2b. Avec \\(\\mathbf{a} = \\mathbf{e}_i\\), \\(i\\)-ème vecteur de la base canonique, \\(x_i\\) et \\(x_i^2\\) sont dans \\(E\\). Avec \\(\\mathbf{a} = \\mathbf{e}_i + \\mathbf{e}_j\\), \\((x_i + x_j)^2\\) est dans \\(E\\), donc aussi \\(2\\,x_i x_j = (x_i + x_j)^2 - x_i^2 - x_j^2\\). D'où \\(D \\ge 66\\).\n\nVérification numérique (script) : la matrice \\(300 \\times 300\\) des \\(k(\\mathbf{x}_a, \\mathbf{x}_b)\\) pour 300 points aléatoires est de rang 66.\n\nIntérêt de l'astuce du noyau : évaluer \\(k\\) coûte un produit scalaire en dimension 10, au lieu de construire 66 coordonnées ; pour un degré \\(p\\), la dimension \\(\\binom{10 + p}{p}\\) explose, le coût du noyau non.", "type": "qcm", "multiple": false, "reponse": "66", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["A05_carres", "A05_croises", "A05_d_carres", "A05_d_degre2", "A05_d_ordonne", "A05_exact", "A05_lineaires", "A05_rang_gram"]}}, {"id": "EB2-A06", "section": "mla", "theme": "SVM à marge dure, marge", "difficulte": 4, "temps_cible_s": 150, "enonce": "Trois points du plan : \\((2, 0)\\) et \\((0, 2)\\) sont de classe \\(+1\\), \\((0, 0)\\) est de classe \\(-1\\). Le SVM à marge dure cherche \\(\\mathbf{w} \\in \\mathbb{R}^2\\) et \\(b \\in \\mathbb{R}\\) qui minimisent \\(\\tfrac12 \\lVert \\mathbf{w} \\rVert^2\\) sous les contraintes \\(y_i\\,(\\mathbf{w}^\\top \\mathbf{x}_i + b) \\ge 1\\) pour chaque point \\(\\mathbf{x}_i\\) de classe \\(y_i\\). La largeur de la marge est la distance entre les droites \\(\\mathbf{w}^\\top \\mathbf{x} + b = 1\\) et \\(\\mathbf{w}^\\top \\mathbf{x} + b = -1\\), soit \\(2/\\lVert \\mathbf{w} \\rVert\\).\n\nQue vaut la largeur de la marge de la solution, arrondie à trois décimales ?", "options": [{"id": "a", "texte": "1,414", "correcte": true, "explication": "Oui : \\(\\mathbf{w} = (1, 1)\\), \\(b = -1\\), largeur \\(2/\\sqrt2\\)."}, {"id": "b", "texte": "0,707", "correcte": false, "explication": "C'est la demi-largeur \\(1/\\lVert \\mathbf{w} \\rVert\\), distance de la frontière \\(\\mathbf{w}^\\top\\mathbf{x} + b = 0\\) à chaque classe. L'énoncé définit la largeur entre les deux droites \\(\\pm 1\\)."}, {"id": "c", "texte": "2,000", "correcte": false, "explication": "C'est la distance du point négatif à chacun des positifs. La marge sépare le négatif de l'ensemble convexe des positifs, le segment de \\((2, 0)\\) à \\((0, 2)\\), dont le point le plus proche de l'origine est \\((1, 1)\\), à distance \\(\\sqrt2\\)."}, {"id": "d", "texte": "2,828", "correcte": false, "explication": "C'est la distance entre les deux points positifs. La marge mesure la séparation entre les classes, pas l'écart entre les points d'une même classe."}], "solution": "Réponse : \\(2/\\sqrt2 = \\sqrt2 \\approx 1{,}414\\).\n\nÉtape 1, une solution réalisable. Avec \\(\\mathbf{w} = (1, 1)\\) et \\(b = -1\\) : \\((2, 0)\\) et \\((0, 2)\\) donnent \\(\\mathbf{w}^\\top\\mathbf{x} + b = 1\\), et \\((0, 0)\\) donne \\(-1\\), soit \\(y_i\\,(\\mathbf{w}^\\top\\mathbf{x}_i + b) = 1\\) pour les trois points. Ici \\(\\lVert \\mathbf{w} \\rVert = \\sqrt2\\).\n\nÉtape 2, on ne peut pas faire mieux. Pour tout \\((\\mathbf{w}, b)\\) réalisable, la contrainte du point \\((0, 0)\\) donne \\(-b \\ge 1\\) ; celles des points positifs donnent \\(2w_1 + b \\ge 1\\) et \\(2w_2 + b \\ge 1\\). En additionnant ces deux dernières, \\(w_1 + w_2 \\ge 1 - b \\ge 2\\). Par l'inégalité de Cauchy-Schwarz, \\(w_1 + w_2 \\le \\sqrt2\\,\\lVert \\mathbf{w} \\rVert\\), donc \\(\\lVert \\mathbf{w} \\rVert \\ge \\sqrt2\\), avec égalité pour \\(\\mathbf{w} = (1, 1)\\), \\(b = -1\\).\n\nÉtape 3 : largeur \\(2/\\lVert \\mathbf{w} \\rVert = \\sqrt2 \\approx 1{,}414\\).\n\nLecture : les trois points saturent leur contrainte, ce sont les trois vecteurs de support ; la frontière \\(x_1 + x_2 = 1\\) passe à égale distance, \\(1/\\sqrt2\\), de l'origine et du segment des positifs. Retirer un point qui n'est pas vecteur de support ne changerait pas la solution. Contrôle (script) : recherche sur une grille de \\((w_1, w_2, b)\\) ; aucune solution réalisable n'a une norme plus petite que \\(\\sqrt2\\).", "type": "qcm", "multiple": false, "reponse": "1,414", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["A06_d_demi", "A06_d_points", "A06_d_positifs", "A06_exact"]}}, {"id": "EB2-A07", "section": "mla", "theme": "Non-stationnarité, moyenne mobile exponentielle", "difficulte": 3, "temps_cible_s": 105, "enonce": "Pour suivre une volatilité qui change dans le temps, on estime chaque jour la variance des rendements par une moyenne mobile exponentielle : \\(\\hat s_t = \\lambda\\,\\hat s_{t-1} + (1 - \\lambda)\\,r_t^2\\), où \\(r_t\\) est le rendement du jour \\(t\\) et \\(\\lambda = 0{,}94\\). En déroulant la récurrence, le carré \\(r_{t-k}\\) d'il y a \\(k\\) jours reçoit le poids \\((1 - \\lambda)\\,\\lambda^k\\).\n\nLa demi-vie est le nombre \\(h\\) (réel) de jours tel que \\(\\lambda^h = 1/2\\) : le poids d'une observation est divisé par deux tous les \\(h\\) jours. Que vaut \\(h\\), arrondi à deux décimales ?", "options": [{"id": "a", "texte": "11,20", "correcte": true, "explication": "Oui : \\(\\ln(1/2)/\\ln 0{,}94\\)."}, {"id": "b", "texte": "16,67", "correcte": false, "explication": "C'est \\(1/(1 - \\lambda)\\), qu'on présente parfois comme une « longueur de fenêtre équivalente ». Ce n'est pas la demi-vie : il faut résoudre \\(\\lambda^h = 1/2\\)."}, {"id": "c", "texte": "15,67", "correcte": false, "explication": "C'est \\(\\lambda/(1 - \\lambda)\\), l'âge moyen des observations pondérées par leurs poids \\((1 - \\lambda)\\lambda^k\\). La moyenne d'une loi géométrique dépasse sa médiane, proche de la demi-vie."}, {"id": "d", "texte": "8,33", "correcte": false, "explication": "C'est \\(0{,}5/(1 - \\lambda)\\) : on a supposé que le poids perd \\(1 - \\lambda = 6\\) % par jour de façon additive. La décroissance est multiplicative : \\(\\lambda^h\\), pas \\(1 - h\\,(1 - \\lambda)\\)."}], "solution": "Réponse : \\(h = \\ln(1/2)/\\ln(0{,}94) \\approx 11{,}20\\) jours.\n\nÉtape 1 : \\(\\lambda^h = 1/2 \\iff h \\ln \\lambda = -\\ln 2 \\iff h = \\ln 2/(-\\ln \\lambda)\\), car \\(\\ln \\lambda < 0\\).\n\nÉtape 2 : \\(-\\ln 0{,}94 \\approx 0{,}0619\\), d'où \\(h \\approx 11{,}20\\). Approximation utile : \\(-\\ln \\lambda \\approx 1 - \\lambda\\) quand \\(\\lambda\\) est proche de 1, donc \\(h \\approx \\ln 2/(1 - \\lambda) \\approx 11{,}55\\).\n\nContrôle des poids : \\(\\sum_{k \\ge 0} (1 - \\lambda)\\lambda^k = 1\\) (série géométrique), et l'âge moyen \\(\\sum_k k\\,(1 - \\lambda)\\lambda^k = \\lambda/(1 - \\lambda) \\approx 15{,}67\\) jours (script, avec sympy).\n\nMécanisme : la moyenne exponentielle répond à la non-stationnarité en oubliant progressivement le passé. Une demi-vie courte suit vite les changements de régime mais donne une estimation bruitée (peu d'observations effectives) ; une demi-vie longue est stable mais en retard. Le choix de \\(\\lambda\\) se valide hors échantillon, comme un hyperparamètre.", "type": "qcm", "multiple": false, "reponse": "11,20", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["A07_approx", "A07_d_age", "A07_d_inverse", "A07_d_lineaire", "A07_exact", "A07_moins_ln"]}}, {"id": "EB2-A08", "section": "mla", "theme": "Ratio de Sharpe d'une combinaison de stratégies", "difficulte": 3, "temps_cible_s": 135, "enonce": "Deux stratégies ont des rendements annuels \\(R_1\\) et \\(R_2\\) de même écart-type \\(\\sigma > 0\\), de même espérance \\(\\mu > 0\\) et de corrélation 0,5 ; chacune a donc le ratio de Sharpe \\(\\mu/\\sigma = 1\\) (taux sans risque nul). On investit la moitié du capital dans chacune : rendement \\((R_1 + R_2)/2\\).\n\nQuel est le ratio de Sharpe de cette combinaison, arrondi à trois décimales ?", "options": [{"id": "a", "texte": "1,155", "correcte": true, "explication": "Oui : \\(1/\\sqrt{(1 + 0{,}5)/2}\\)."}, {"id": "b", "texte": "1,000", "correcte": false, "explication": "C'est la moyenne des deux Sharpe. L'espérance de la combinaison est la moyenne des espérances, mais son écart-type est plus petit que la moyenne des écarts-types dès que la corrélation est inférieure à 1 : c'est la diversification."}, {"id": "c", "texte": "1,414", "correcte": false, "explication": "C'est \\(\\sqrt2\\), le résultat pour deux stratégies non corrélées. Avec une corrélation 0,5, la variance de la combinaison vaut \\(0{,}75\\,\\sigma^2\\), pas \\(0{,}5\\,\\sigma^2\\)."}, {"id": "d", "texte": "2,000", "correcte": false, "explication": "C'est la somme des deux Sharpe, comme si les espérances s'additionnaient sans que le risque augmente. Le Sharpe ne dépend pas de l'échelle des positions : additionner deux stratégies identiques donnerait encore 1."}], "solution": "Réponse : \\(1/\\sqrt{0{,}75} \\approx 1{,}155\\).\n\nÉtape 1, espérance : \\(\\mathbb{E}[(R_1 + R_2)/2] = \\mu\\).\n\nÉtape 2, variance : \\(\\mathrm{Var}\\big((R_1 + R_2)/2\\big) = \\tfrac14\\big(\\sigma^2 + \\sigma^2 + 2 \\times 0{,}5\\,\\sigma^2\\big) = 0{,}75\\,\\sigma^2\\).\n\nÉtape 3 : Sharpe \\(= \\mu/(\\sigma\\sqrt{0{,}75}) = 1/\\sqrt{0{,}75} \\approx 1{,}155\\).\n\nGénéralisation : \\(N\\) stratégies de même Sharpe \\(S\\), même volatilité et corrélation \\(\\rho\\) deux à deux, à poids égaux, ont un Sharpe \\(S\\sqrt{N/(1 + (N - 1)\\rho)}\\) (même calcul : la variance de la moyenne vaut \\(\\sigma^2(1 + (N - 1)\\rho)/N\\)). Quand \\(N \\to \\infty\\), il tend vers \\(S/\\sqrt\\rho\\), soit 1,414 ici : la corrélation plafonne le gain de diversification, comme pour les arbres d'une forêt aléatoire. Simulation (script) : espérance 1,000 et variance 0,750 du rendement combiné, pour 1 et 0,75.", "type": "qcm", "multiple": false, "reponse": "1,155", "fiche": null, "verif": {"script": "verif/examen_blanc_2.py", "cles": ["A08_d_independance", "A08_d_moyenne", "A08_d_somme", "A08_exact", "A08_limite", "A08_moyenne_mc", "A08_var_comb", "A08_var_mc"]}}]}]}</script>
+<script>
+'use strict';
+const D = JSON.parse(document.getElementById('donnees').textContent);
+const ITEMS = D.sections.flatMap(s => s.questions.map(q => Object.assign({ nomSection: s.nom }, q)));
+const CLE = 'atelier-quant:' + D.id;
+const SERVEUR = location.protocol.startsWith('http');
+// La session survit à un rechargement de l'onglet : on se reconnecte alors au même noyau, variables comprises.
+const SESSION = (() => { const neuve = Math.random().toString(36).slice(2) + Date.now().toString(36); try { const s = sessionStorage.getItem('atelier-quant:session') || neuve; sessionStorage.setItem('atelier-quant:session', s); return s; } catch (e) { return neuve; } })();
+const page = document.getElementById('page');
+const noyauxDemarres = {};
+let E = etatNeuf('accueil');
+
+function etatNeuf(phase) { return { phase, courant: 0, debut: null, fin: null, reponses: {}, temps: {}, ordre: {}, cellules: {}, code: {}, controles: {}, ordreControles: {}, vus: {}, partie: {}, enregistrement: null, pauseDepuis: null, pauseTotale: 0 }; }
+// Options par défaut : la pause et « Je ne sais pas » sont permis, sauf si l'examen les interdit (examens blancs).
+const PAUSE_PERMISE = D.options.pause !== false;
+const NSP_PERMIS = D.options.je_ne_sais_pas !== false;
+function dureeEcoulee(fin) { return (fin - E.debut - (E.pauseTotale || 0) - (E.pauseDepuis ? fin - E.pauseDepuis : 0)) / 1000; }
+const NOTEES = ITEMS.filter(q => q.type !== 'lecon');
+function sauver() { try { localStorage.setItem(CLE, JSON.stringify(E)); } catch (e) {} }
+function charger() { try { const s = localStorage.getItem(CLE); if (s) E = Object.assign(etatNeuf('accueil'), JSON.parse(s)); } catch (e) {} }
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function enLigne(t) { return esc(t).replace(/`([^`]+)`/g, '<code class="sans-math">$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); }
+
+// Markdown réduit : titres #, tableaux |, listes - et 1., paragraphes, `code`, **gras**, blocs entre triples accents graves.
+function rendre(t) {
+  let h = '';
+  String(t).split('```').forEach((bloc, i) => {
+    if (i % 2) {
+      const info = (bloc.match(/^(\w*)\n/) || [])[1];
+      h += '<pre class="sans-math' + (info === 'sortie' ? ' sortie-lecon' : '') + '"><code>' + esc(bloc.replace(/^\w*\n/, '')) + '</code></pre>';
+      return;
+    }
+    const lignes = bloc.split('\n');
+    let k = 0;
+    while (k < lignes.length) {
+      const l = lignes[k];
+      if (!l.trim()) { k++; continue; }
+      const titre = l.match(/^(#{1,4})\s+(.*)$/);
+      if (titre) { const n = Math.min(4, titre[1].length + 1); h += '<h' + n + '>' + enLigne(titre[2]) + '</h' + n + '>'; k++; continue; }
+      if (l.trim().startsWith('|')) {
+        const rangs = [];
+        while (k < lignes.length && lignes[k].trim().startsWith('|')) { rangs.push(lignes[k].trim()); k++; }
+        const cellules = r => r.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+        h += '<div class="defile"><table><tr>' + cellules(rangs[0]).map(c => '<th>' + enLigne(c) + '</th>').join('') + '</tr>';
+        rangs.slice(1).filter(r => !/^\|[\s|:-]+\|$/.test(r)).forEach(r => { h += '<tr>' + cellules(r).map(c => '<td>' + enLigne(c) + '</td>').join('') + '</tr>'; });
+        h += '</table></div>'; continue;
+      }
+      const puce = /^\s*[-*]\s+/, numero = /^\s*\d+\.\s+/;
+      if (puce.test(l) || numero.test(l)) {
+        const motif = puce.test(l) ? puce : numero, balise = motif === puce ? 'ul' : 'ol';
+        h += '<' + balise + '>';
+        while (k < lignes.length && motif.test(lignes[k])) { h += '<li>' + enLigne(lignes[k].replace(motif, '')) + '</li>'; k++; }
+        h += '</' + balise + '>'; continue;
+      }
+      const par = [];
+      while (k < lignes.length && lignes[k].trim() && !/^(#{1,4}\s|\s*\||\s*[-*]\s|\s*\d+\.\s)/.test(lignes[k])) { par.push(lignes[k]); k++; }
+      const texte = par.join('\n').trim();
+      // Un paragraphe réduit à une seule formule est centré ; une formule au milieu d'une phrase reste dans la ligne.
+      const seule = texte.startsWith('\\(') && texte.endsWith('\\)') && texte.indexOf('\\(', 2) < 0;
+      h += (seule ? '<p class="formule">' : '<p>') + enLigne(par.join('\n')) + '</p>';
+    }
+  });
+  return h;
+}
+function composer(el) { if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([el || page]).catch(() => {}); }
+function mmss(s) { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+function melanger(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+async function api(chemin, corps) {
+  const r = await fetch(chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  return r.json();
+}
+
+let dernierTic = null;
+function tic() {
+  const ch = document.getElementById('chrono');
+  const bouton = document.getElementById('pause');
+  bouton.hidden = !(PAUSE_PERMISE && E.phase === 'epreuve');
+  document.getElementById('recommencerHaut').hidden = E.phase !== 'epreuve';
+  document.getElementById('voile').hidden = !(E.phase === 'epreuve' && E.pauseDepuis);
+  if (E.phase !== 'epreuve' || E.pauseDepuis) { dernierTic = null; return; }
+  const maintenant = Date.now();
+  if (dernierTic !== null) { const q = ITEMS[E.courant]; E.temps[q.id] = (E.temps[q.id] || 0) + (maintenant - dernierTic) / 1000; }
+  dernierTic = maintenant;
+  const reste = D.duree_minutes * 60 - dureeEcoulee(maintenant);
+  ch.textContent = (reste < 0 ? '+' : '') + mmss(Math.abs(reste));
+  ch.classList.toggle('depasse', reste < 0);
+}
+setInterval(() => { tic(); if (E.phase === 'epreuve') sauver(); }, 500);
+if (SERVEUR) document.getElementById('lienAccueil').hidden = false;
+document.getElementById('lienAccueil').onclick = () => {
+  if (E.phase === 'epreuve' && PAUSE_PERMISE && !E.pauseDepuis) { tic(); E.pauseDepuis = Date.now(); sauver(); }
+};
+document.getElementById('recommencerHaut').onclick = () => {
+  if (!confirm('Effacer ce passage (réponses, code, chronomètre) et revenir au début de la séance ?')) return;
+  try { localStorage.removeItem(CLE); } catch (e) {}
+  E = etatNeuf('accueil'); dernierTic = null; afficher();
+};
+document.getElementById('pause').onclick = () => { tic(); E.pauseDepuis = Date.now(); sauver(); tic(); };
+document.getElementById('reprendre').onclick = () => {
+  if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+  dernierTic = null; sauver(); tic();
+};
+
+// ------------------------------------------------------------------ accueil
+function accueil() {
+  page.className = '';
+  document.getElementById('position').textContent = '';
+  document.getElementById('chrono').textContent = mmss(D.duree_minutes * 60);
+  let h = '<div class="carte presentation"><h2>' + esc(D.titre) + '</h2><p class="meta">' + D.duree_minutes + ' min · ' + NOTEES.length + ' question' + (NOTEES.length > 1 ? 's' : '') + (D.options.pause === false ? ' · sans pause' : '') + '</p>' + rendre(D.presentation);
+  h += '<div class="sections-liste">';
+  D.sections.forEach(s => { const n = s.questions.filter(q => q.type !== 'lecon').length; h += '<div><span>' + esc(s.nom) + '</span><span class="meta">' + (n ? n + ' question' + (n > 1 ? 's' : '') : 'leçon') + ' · ' + s.budget_min + ' min</span></div>'; });
+  h += '</div>';
+  D.avertissements.forEach(a => { h += '<div class="note">' + rendre(a) + '</div>'; });
+  if (!SERVEUR && ITEMS.some(q => q.type === 'code')) h += '<div class="note"><p><strong>Le notebook ne peut pas s\'exécuter :</strong> cette page est ouverte comme un fichier. Lance <code class="sans-math">python lancer.py</code> dans le dossier du projet, puis ouvre l\'examen depuis la page qui s\'affiche.</p></div>';
+  h += '<p class="meta">' + esc(D.conventions) + '</p>';
+  h += '<div class="barre"><button class="principal" id="demarrer">Commencer</button></div></div>';
+  page.innerHTML = h;
+  document.getElementById('demarrer').onclick = () => {
+    E = etatNeuf('epreuve');
+    E.debut = Date.now();
+    ITEMS.forEach(q => {
+      if (q.type === 'qcm') E.ordre[q.id] = melanger(q.options.map(o => o.id));
+      if (q.cellules_initiales) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+      if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => { E.ordreControles[q.id + ':' + cid] = melanger(c.options.map(o => o.id)); });
+    });
+    sauver(); afficher();
+  };
+  composer();
+}
+
+// ------------------------------------------------------------------ épreuve
+function pastilles() {
+  const faite = it => it.type === 'lecon' ? !!E.vus[it.id] : it.type === 'code' ? (E.code[it.id] || {}).soumissions > 0 : E.reponses[it.id] !== undefined;
+  const barre = document.querySelector('#progression > span');
+  if (barre) barre.style.width = (100 * ITEMS.filter(faite).length / ITEMS.length) + '%';
+  let h = '<div class="cadre"><aside class="plan"><div id="pastilles">', section = null, n = 0;
+  ITEMS.forEach((it, i) => {
+    if (it.nomSection !== section) { section = it.nomSection; h += '<div class="groupe">' + esc(section) + '</div>'; }
+    const libelle = it.type === 'lecon' ? 'Leçon' : 'Question ' + (++n);
+    h += '<button class="pastille' + (faite(it) ? ' faite' : '') + (i === E.courant ? ' courante' : '') + '" data-i="' + i + '" title="' + esc(it.theme) + '"' + (D.options.retour_arriere || i === E.courant ? '' : ' disabled') + '><span class="etat"></span><span class="libelle">' + libelle + '</span></button>';
+  });
+  return h + '</div></aside><div class="contenu">';
+}
+const FIN_CADRE = '</div></div>';
+function navigation() {
+  let h = '<div class="barre navigation">';
+  if (D.options.retour_arriere) h += '<button id="prec"' + (E.courant === 0 ? ' disabled' : '') + '>Précédente</button>';
+  if (E.courant < ITEMS.length - 1) h += '<button class="principal" id="suiv">Suivante</button>';
+  return h + '<button id="finir">Terminer et corriger</button></div>';
+}
+function brancherNavigation() {
+  const aller = i => { tic(); E.courant = i; sauver(); afficher(); };
+  page.querySelectorAll('.pastille').forEach(b => b.onclick = () => aller(Number(b.dataset.i)));
+  const p = document.getElementById('prec'); if (p) p.onclick = () => aller(E.courant - 1);
+  const s = document.getElementById('suiv'); if (s) s.onclick = () => aller(E.courant + 1);
+  document.getElementById('finir').onclick = () => {
+    const manquantes = NOTEES.filter(it => it.type === 'code' ? !((E.code[it.id] || {}).soumissions > 0) : E.reponses[it.id] === undefined).length;
+    if (manquantes && !confirm(manquantes + ' question(s) sans réponse ou jamais soumise(s). Terminer quand même ?')) return;
+    tic();
+    if (E.pauseDepuis) { E.pauseTotale = (E.pauseTotale || 0) + (Date.now() - E.pauseDepuis); E.pauseDepuis = null; }
+    E.phase = 'bilan'; E.fin = Date.now(); sauver(); afficher();
+  };
+}
+
+function epreuve() {
+  tic();
+  const q = ITEMS[E.courant];
+  document.getElementById('position').textContent = q.nomSection + (q.type === 'lecon' ? ' · étape ' : ' · question ') + (E.courant + 1) + ' sur ' + ITEMS.length;
+  if (q.type === 'lecon') E.vus[q.id] = true;
+  if (q.cellules_initiales) return epreuveCode(q);
+  if (q.type === 'lecon') return epreuveLecon(q);
+  page.className = '';
+  const rang = NOTEES.indexOf(q) + 1;
+  let h = pastilles() + '<div class="carte question"><div class="surtitre"><span class="rang">Question ' + rang + ' sur ' + NOTEES.length + '</span><span class="chip">' + esc(q.theme) + '</span><span>temps visé ' + mmss(q.temps_cible_s) + '</span></div>' + rendre(q.enonce);
+  h += '<p class="consigne">' + (q.multiple ? 'Une ou plusieurs réponses : coche toutes les affirmations justes, et seulement elles (notation tout ou rien).' : 'Une seule réponse.') + '</p>';
+  E.ordre[q.id].forEach((oid, k) => {
+    const o = q.options.find(x => x.id === oid);
+    h += '<div class="option' + (choisies(q).includes(oid) ? ' choisie' : '') + '" data-o="' + oid + '"><span class="lettre' + (q.multiple ? ' carre' : '') + '">' + 'ABCDE'[k] + '</span><div>' + rendre(o.texte) + '</div></div>';
+  });
+  if (NSP_PERMIS) h += '<div class="option' + (E.reponses[q.id] === 'nsp' ? ' choisie' : '') + '" data-o="nsp"><span class="lettre">?</span><div><p>Je ne sais pas (compte comme faux, mais évite qu\'un hasard heureux masque une lacune)</p></div></div>';
+  page.innerHTML = h + navigation() + '</div>' + FIN_CADRE;
+  page.querySelectorAll('.option').forEach(el => el.onclick = () => {
+    const o = el.dataset.o;
+    if (q.multiple && o !== 'nsp') {
+      const s = choisies(q), k = s.indexOf(o);
+      if (k >= 0) s.splice(k, 1); else s.push(o);
+      if (s.length) E.reponses[q.id] = s.sort(); else delete E.reponses[q.id];
+    } else if (E.reponses[q.id] === o) delete E.reponses[q.id]; else E.reponses[q.id] = o;
+    sauver(); afficher();
+  });
+  brancherNavigation();
+  composer();
+}
+
+// ------------------------------------------------------------------ notebook
+function epreuveLecon(q) {
+  page.className = 'lecture';
+  page.innerHTML = pastilles() + '<div class="carte enonce"><div class="surtitre"><span class="rang">Leçon</span><span class="chip">' + esc(q.theme) + '</span><span>environ ' + Math.round(q.temps_cible_s / 60) + ' min</span></div>' + rendreLecon(q) + navigation() + '</div>' + FIN_CADRE;
+  brancherControles(q);
+  brancherNavigation();
+  composer();
+}
+
+// Points de contrôle : question corrigée dès le clic, non notée.
+function rendreLecon(q) {
+  const brut = rendre(q.contenu).replace(/<p>\[\[controle:([\w-]+)\]\]<\/p>/g, (_, cid) => '<div class="controle" data-c="' + cid + '"></div>');
+  // Une partie par titre de niveau 2 ; dans chaque partie, un bloc par rubrique (problème, énoncé, preuve, exemple...).
+  const source = document.createElement('div');
+  source.innerHTML = brut;
+  const parties = [];
+  Array.from(source.childNodes).forEach(n => {
+    if (n.nodeName === 'H3' || !parties.length) parties.push({ titre: n.nodeName === 'H3' ? n.textContent : 'Introduction', noeuds: [] });
+    parties[parties.length - 1].noeuds.push(n);
+  });
+  const genre = t => /preuve/i.test(t) ? 'preuve' : /pi[èe]ge/i.test(t) ? 'pieges' : /exemple|exp[ée]rience/i.test(t) ? 'exemple'
+    : /[ée]nonc[ée]/i.test(t) ? 'enonce-bloc' : /intuition/i.test(t) ? 'intuition' : /probl[èe]me/i.test(t) ? 'probleme'
+    : /cas limites/i.test(t) ? 'limites' : /d[ée]finition|notation|cadre|mod[èe]le/i.test(t) ? 'definitions' : '';
+  const courante = Math.min((E.partie || {})[q.id] || 0, parties.length - 1);
+  let h = '<div class="lecon-corps" data-lecon="' + q.id + '"><nav class="sommaire">';
+  parties.forEach((p, k) => { h += '<button data-partie="' + k + '"' + (k === courante ? ' class="active"' : '') + '>' + (k + 1) + '. ' + esc(p.titre.replace(/^(Leçon|Partie \d+|Outil \d+|\d+\.)\s*:?\s*/i, '').slice(0, 42) || p.titre) + '</button>'; });
+  h += '</nav>';
+  parties.forEach((p, k) => {
+    h += '<section class="partie" data-partie="' + k + '"' + (k === courante ? '' : ' hidden') + '>';
+    let bloc = null;
+    const fermer = () => { if (bloc) { h += bloc.genre === 'question' ? ficheDebrief(bloc.titre, bloc.noeuds) : bloc.genre === 'preuve' ? '</details>' : '</div>'; bloc = null; } };
+    p.noeuds.forEach(n => {
+      if (bloc && bloc.genre === 'question' && n.nodeName !== 'H4' && n.nodeName !== 'H3') { bloc.noeuds.push(n); return; }
+      if (n.nodeName === 'H4' && /^Question \d+/.test(n.textContent)) {
+        fermer();
+        bloc = { genre: 'question', titre: n.textContent, noeuds: [] };
+      } else if (n.nodeName === 'H4') {
+        fermer();
+        const g = genre(n.textContent);
+        bloc = { genre: g };
+        if (g === 'preuve') h += '<details class="bloc preuve"><summary>' + esc(n.textContent) + '<span class="meta">déplier pour la lire</span></summary>';
+        else h += '<div class="bloc ' + g + '"><h4>' + esc(n.textContent) + '</h4>';
+      } else if (n.nodeName === 'H3') { fermer(); h += n.outerHTML; }
+      else h += n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    });
+    fermer();
+    h += '<div class="pied-partie"><button data-aller="' + (k - 1) + '"' + (k === 0 ? ' disabled' : '') + '>Partie précédente</button>'
+      + '<span class="meta">Partie ' + (k + 1) + ' sur ' + parties.length + '</span>'
+      + (k < parties.length - 1 ? '<button class="principal" data-aller="' + (k + 1) + '">Partie suivante</button>' : '<span class="meta">Fin de la leçon : passe à la suite avec « Suivante ».</span>') + '</div></section>';
+  });
+  return h + '</div>';
+}
+// Une question du débrief : en-tête (numéro, titre, verdict), énoncé, réponses côte à côte, rubriques, à retenir.
+function ficheDebrief(titre, noeuds) {
+  const m = titre.match(/^(Question \d+)\s*:?\s*(.*)$/);
+  const gras = n => n.nodeName === 'P' && n.firstChild && n.firstChild.nodeName === 'STRONG' ? n.firstChild.textContent.trim() : '';
+  const reste = n => { const c = n.cloneNode(true); c.removeChild(c.firstChild); return c.innerHTML.trim(); };
+  let enonce = '', ta = null, attendue = null, verdict = '', corps = '', retenir = '', revoir = '', etat = 'enonce';
+  noeuds.forEach(n => {
+    const g = gras(n), html = n.outerHTML !== undefined ? n.outerHTML : esc(n.textContent);
+    if (/^Ta réponse/.test(g)) { ta = reste(n); etat = 'corps'; }
+    else if (/^Réponse attendue/.test(g)) { attendue = reste(n); etat = 'corps'; }
+    else if (/^Verdict/.test(g)) { verdict = reste(n); etat = 'corps'; }
+    else if (/^À retenir/.test(g)) { retenir = '<h5>À retenir</h5><p>' + reste(n) + '</p>'; etat = 'retenir'; }
+    else if (/^Leçon à revoir/.test(g)) { revoir = reste(n); etat = 'fin'; }
+    else if (g && n.textContent.trim() === g) { corps += '<h5>' + esc(g.replace(/[.:]\s*$/, '')) + '</h5>'; etat = 'corps'; }
+    else if (etat === 'enonce') enonce += n.nodeName === 'P' && /^Type :/.test(n.textContent) ? '<p class="meta">' + n.innerHTML + '</p>' : n.nodeName === 'UL' ? '<ul class="choix">' + n.innerHTML + '</ul>' : html;
+    else if (etat === 'retenir') retenir += html;
+    else corps += html;
+  });
+  const brut = verdict.replace(/<[^>]+>/g, '').trim();
+  const v = /^juste/i.test(brut) ? ['v-juste', 'Juste'] : /^fausse/i.test(brut) ? ['v-fausse', 'Fausse'] : /^incompl/i.test(brut) ? ['v-incomplete', 'Incomplète']
+    : /^non visible/i.test(brut) ? ['', 'Réponse non visible'] : ['', ''];
+  const suite = brut.replace(/^[^.]*\.\s*/, '');
+  let h = '<article class="fiche ' + v[0] + '"><header class="fiche-tete"><span class="num">' + esc(m[1]) + '</span><span class="titre">' + esc(m[2]) + '</span>'
+    + (v[1] ? '<span class="verdict">' + v[1] + '</span>' : '') + '</header><div class="fiche-corps">';
+  if (ta === null && attendue === null) return h + enonce + corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '') + '</div></article>';
+  h += '<h5>Énoncé</h5>' + enonce;
+  h += '<div class="fiche-reponses"><div><span class="lab">Ta réponse</span>' + (ta || 'non visible') + '</div><div><span class="lab">Réponse attendue</span>' + (attendue || '') + '</div></div>';
+  if (suite) h += '<p class="meta">' + verdict.replace(/^[^.]*\.\s*/, '') + '</p>';
+  h += corps + (retenir ? '<div class="retenir">' + retenir + '</div>' : '') + (revoir ? '<p class="revoir">Leçon à revoir : ' + revoir + '</p>' : '');
+  return h + '</div></article>';
+}
+function brancherLecon(q) {
+  const corps = page.querySelector('.lecon-corps');
+  if (!corps) return;
+  const aller = k => {
+    if (!E.partie) E.partie = {};
+    E.partie[q.id] = k; sauver();
+    corps.querySelectorAll('.partie').forEach(sec => { sec.hidden = Number(sec.dataset.partie) !== k; });
+    corps.querySelectorAll('.sommaire button').forEach(b => b.classList.toggle('active', Number(b.dataset.partie) === k));
+    const cadre = corps.closest('.enonce');
+    if (cadre) cadre.scrollTop = 0;
+    window.scrollTo(0, 0);
+  };
+  corps.querySelectorAll('.sommaire button').forEach(b => b.onclick = () => aller(Number(b.dataset.partie)));
+  corps.querySelectorAll('[data-aller]').forEach(b => b.onclick = () => aller(Number(b.dataset.aller)));
+}
+function dessinerControle(q, el) {
+  const cid = el.dataset.c, c = q.controles[cid], cle = q.id + ':' + cid, choix = E.controles[cle];
+  const ordre = E.ordreControles[cle] || c.options.map(o => o.id);
+  let h = '<p class="titre-controle">Point de contrôle' + (choix ? (c.options.find(o => o.id === choix).correcte ? ' · juste' : ' · à revoir') : '') + '</p>' + rendre(c.question);
+  ordre.forEach((oid, k) => {
+    const o = c.options.find(x => x.id === oid);
+    const classe = choix ? (o.correcte ? ' juste' : (oid === choix ? ' fausse' : '')) + (oid === choix ? ' choisie' : '') : '';
+    const montrer = choix && (oid === choix || o.correcte);
+    h += '<div class="option' + classe + '" data-co="' + oid + '"><span class="lettre">' + 'ABCD'[k] + '</span><div>' + rendre(o.texte)
+      + (montrer ? '<div class="explication">' + rendre(o.explication) + '</div>' : '') + '</div></div>';
+  });
+  el.innerHTML = h;
+  if (!choix) el.querySelectorAll('.option').forEach(op => op.onclick = () => { E.controles[cle] = op.dataset.co; sauver(); dessinerControle(q, el); composer(el); });
+}
+function brancherControles(q) { page.querySelectorAll('.controle').forEach(el => dessinerControle(q, el)); brancherLecon(q); }
+
+function epreuveCode(q) {
+  page.className = 'large';
+  const lecon = q.type === 'lecon';
+  let h = pastilles() + '<div class="deux' + (lecon ? ' lecon' : '') + '"><div class="carte enonce"><div class="meta">' + esc(q.theme) + (lecon ? ' · durée visée ' : ' · temps cible ') + mmss(q.temps_cible_s) + '</div>' + (lecon ? rendreLecon(q) : rendre(q.enonce)) + '</div>';
+  h += '<div class="carte"><div class="notebook-barre"><button id="toutExecuter">Tout exécuter</button><button id="redemarrer">Redémarrer le noyau</button><button id="ajouter">Ajouter une cellule</button><span class="meta" id="versions">' + (SERVEUR ? 'noyau : démarrage...' : 'noyau indisponible : lance python lancer.py') + '</span><span class="meta" id="modeEditeur"></span></div>';
+  h += '<div id="cellules"></div>';
+  if (!lecon) h += '<div class="barre"><button id="testsVisibles">Tests visibles</button><button class="principal" id="soumettre">Soumettre</button><span class="meta" id="etatSoumission"></span></div>';
+  h += '<div class="resultats-tests" id="resultatsTests"></div>' + navigation() + '</div></div>' + FIN_CADRE;
+  page.innerHTML = h;
+  dessinerCellules(q);
+  if (lecon) brancherControles(q); else afficherEtatSoumission(q);
+  brancherNavigation();
+  document.getElementById('toutExecuter').onclick = async () => { for (let i = 0; i < E.cellules[q.id].length; i++) { if (!(await executerCellule(q, i))) break; } };
+  document.getElementById('redemarrer').onclick = () => demarrerNoyau(q, true);
+  document.getElementById('ajouter').onclick = () => { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(E.cellules[q.id].length - 1); };
+  if (!lecon) {
+    document.getElementById('testsVisibles').onclick = () => lancerTests(q, 'visibles');
+    document.getElementById('soumettre').onclick = () => lancerTests(q, 'caches');
+  }
+  if (!SERVEUR) page.querySelectorAll('.notebook-barre button, #testsVisibles, #soumettre').forEach(b => b.disabled = true);
+  else if (!noyauxDemarres[q.id]) demarrerNoyau(q, false, true);
+  else document.getElementById('versions').textContent = noyauxDemarres[q.id];
+  composer(page.querySelector('.enonce'));
+}
+
+async function demarrerNoyau(q, confirmer, reconnexion) {
+  if (confirmer && !confirm('Redémarrer le noyau ? Toutes les variables seront perdues.')) return;
+  const zone = document.getElementById('versions');
+  zone.textContent = 'noyau : démarrage...';
+  let v;
+  try { v = await api(reconnexion ? '/api/connecter' : '/api/redemarrer', { session: SESSION, dossier: q.dossier }); }
+  catch (e) { v = null; }
+  if (!v) noyauxDemarres[q.id] = 'noyau injoignable : le serveur lancer.py est-il démarré ?';
+  else {
+    const etat = v.neuf ? 'noyau neuf' : 'noyau reconnecté, variables conservées';
+    noyauxDemarres[q.id] = v.erreur ? 'noyau : ' + v.erreur : etat + ' · Python ' + v.python + ' · pandas ' + v.pandas + ' · numpy ' + v.numpy;
+    if (v.neuf) (E.cellules[q.id] || []).forEach(c => c.numero = null);
+    sauver(); majNumeros(q);
+  }
+  const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id];
+}
+
+function rendreSortie(c) { return c.sortie || ''; }
+
+// ------------------------------------------------------------------ éditeur
+// Monaco (l'éditeur de VS Code) depuis cdnjs ; les suggestions, signatures et aides viennent de jedi
+// dans le noyau, qui connaît les variables déjà exécutées. Sans connexion, repli sur une zone de texte simple.
+const MONACO_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min';
+let MONACO = null, promesseMonaco = null;
+const EDITEURS = [];
+window.EDITEURS = EDITEURS;
+// Monaco annule ses tâches en cours quand on ferme un éditeur ; cette annulation n'est pas une erreur.
+window.addEventListener('unhandledrejection', ev => { if (ev.reason && ev.reason.name === 'Canceled') ev.preventDefault(); });
+function sombre() { return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches; }
+function questionCode() { const q = ITEMS[E.courant]; return E.phase === 'epreuve' && q && q.cellules_initiales ? q : null; }
+function chargerMonaco() {
+  if (promesseMonaco) return promesseMonaco;
+  promesseMonaco = new Promise(resolve => {
+    const abandon = setTimeout(() => fini(null), 20000);
+    function fini(m) { clearTimeout(abandon); if (window.MODE_EDITEUR === undefined) { MONACO = m; window.MODE_EDITEUR = m ? 'monaco' : 'simple'; } resolve(MONACO); }
+    const s = document.createElement('script');
+    s.src = MONACO_BASE + '/vs/loader.js';
+    s.onerror = () => fini(null);
+    s.onload = () => {
+      window.MonacoEnvironment = { getWorkerUrl: () => 'data:text/javascript;charset=utf-8,' + encodeURIComponent("self.MonacoEnvironment={baseUrl:'" + MONACO_BASE + "/'};importScripts('" + MONACO_BASE + "/vs/base/worker/workerMain.js');") };
+      window.require.config({ paths: { vs: MONACO_BASE + '/vs' } });
+      window.require(['vs/editor/editor.main'], () => { try { configurerMonaco(window.monaco); fini(window.monaco); } catch (e) { fini(null); } }, () => fini(null));
+    };
+    document.head.appendChild(s);
+  });
+  return promesseMonaco;
+}
+async function aide(type, model, position) {
+  const q = questionCode();
+  if (!q || !SERVEUR) return null;
+  try { return await api('/api/' + type, { session: SESSION, dossier: q.dossier, code: model.getValue(), ligne: position.lineNumber, colonne: position.column - 1 }); }
+  catch (e) { return null; }
+}
+function configurerMonaco(m) {
+  const K = m.languages.CompletionItemKind;
+  const genres = { module: K.Module, class: K.Class, instance: K.Variable, function: K.Function, param: K.Variable, path: K.File, keyword: K.Keyword, property: K.Property, statement: K.Variable };
+  m.languages.registerCompletionItemProvider('python', {
+    triggerCharacters: ['.'],
+    provideCompletionItems: async (model, position) => {
+      const r = await aide('completer', model, position);
+      if (!r || !r.completions) return { suggestions: [] };
+      const mot = model.getWordUntilPosition(position);
+      const plage = new m.Range(position.lineNumber, mot.startColumn, position.lineNumber, mot.endColumn);
+      return { suggestions: r.completions.map((c, k) => ({ label: c.nom, kind: genres[c.type] ?? K.Variable, insertText: c.nom, detail: c.description, range: plage, sortText: String(k).padStart(4, '0') })) };
+    }
+  });
+  m.languages.registerSignatureHelpProvider('python', {
+    signatureHelpTriggerCharacters: ['(', ','],
+    provideSignatureHelp: async (model, position) => {
+      const r = await aide('signatures', model, position);
+      if (!r || !r.signatures || !r.signatures.length) return null;
+      return { value: { signatures: r.signatures.map(x => ({ label: x.texte, documentation: x.doc, parameters: x.parametres.map(p => ({ label: p })) })), activeSignature: 0, activeParameter: r.signatures[0].index ?? 0 }, dispose() {} };
+    }
+  });
+  m.languages.registerHoverProvider('python', {
+    provideHover: async (model, position) => {
+      const r = await aide('aide', model, position);
+      if (!r || !r.aide || !r.aide.length) return null;
+      return { contents: r.aide.map(a => ({ value: '```text\n' + a.doc + '\n```' })) };
+    }
+  });
+}
+function creerEditeur(conteneur, code, rappels) {
+  if (MONACO) {
+    const m = MONACO;
+    const ed = m.editor.create(conteneur, {
+      value: code, language: 'python', theme: sombre() ? 'vs-dark' : 'vs', fontSize: 14, tabSize: 4, insertSpaces: true,
+      minimap: { enabled: false }, scrollBeyondLastLine: false, automaticLayout: true, lineNumbersMinChars: 3, folding: false,
+      glyphMargin: false, renderLineHighlight: 'none', overviewRulerLanes: 0, wordBasedSuggestions: 'off', fixedOverflowWidgets: true,
+      quickSuggestions: { other: true, comments: false, strings: false }, padding: { top: 6, bottom: 6 },
+      scrollbar: { alwaysConsumeMouseWheel: false, vertical: 'hidden', horizontalScrollbarSize: 8 }
+    });
+    // Sous Windows, Monaco utilise des fins de ligne \r\n ; le code est toujours lu avec des \n, comme dans un notebook.
+    const lire = () => ed.getModel().getValue(m.editor.EndOfLinePreference.LF);
+    const hauteur = () => { conteneur.style.height = Math.max(38, ed.getContentHeight()) + 'px'; };
+    ed.onDidContentSizeChange(hauteur); hauteur();
+    ed.onDidChangeModelContent(() => rappels.modif(lire()));
+    ed.onDidFocusEditorText(rappels.focus);
+    ed.addCommand(m.KeyMod.Shift | m.KeyCode.Enter, rappels.executerSuivant, '!suggestWidgetVisible');
+    ed.addCommand(m.KeyMod.CtrlCmd | m.KeyCode.Enter, rappels.executer, '!suggestWidgetVisible');
+    return { brut: ed, getValue: lire, setValue: v => ed.setValue(v), focus: () => ed.focus(), dispose: () => ed.dispose() };
+  }
+  const zone = document.createElement('textarea');
+  zone.spellcheck = false; zone.autocomplete = 'off'; zone.className = 'sans-math';
+  zone.value = code;
+  conteneur.appendChild(zone);
+  zone.addEventListener('input', () => { rappels.modif(zone.value); ajuster(zone); });
+  zone.addEventListener('focus', rappels.focus);
+  zone.addEventListener('keydown', ev => clavier(ev, zone, rappels));
+  setTimeout(() => ajuster(zone));
+  return { brut: zone, getValue: () => zone.value, setValue: v => { zone.value = v; zone.dispatchEvent(new Event('input')); }, focus: () => zone.focus(), dispose: () => {} };
+}
+function libererEditeurs() { EDITEURS.forEach(e => e.dispose()); EDITEURS.length = 0; }
+
+function dessinerCellules(q) {
+  const conteneur = document.getElementById('cellules');
+  if (!conteneur) return;
+  if (SERVEUR && window.MODE_EDITEUR === undefined) {
+    conteneur.innerHTML = '<p class="meta">Chargement de l\'éditeur...</p>';
+    chargerMonaco().then(() => { if (questionCode() === q) dessinerCellules(q); });
+    return;
+  }
+  libererEditeurs();
+  conteneur.innerHTML = '';
+  const etat = document.getElementById('modeEditeur');
+  if (etat) etat.textContent = MONACO ? 'éditeur VS Code, autocomplétion' : 'éditeur simple' + (SERVEUR ? ' (Monaco injoignable)' : '');
+  E.cellules[q.id].forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'cellule';
+    div.innerHTML = '<div class="numero">[' + (c.numero === null ? ' ' : c.numero) + ']</div><div><div class="editeur"></div>'
+      + '<div class="actions"><button data-a="executer">Exécuter</button><button data-a="dessous">Insérer dessous</button><button data-a="supprimer">Supprimer</button></div>'
+      + '<pre class="sortie sans-math"></pre></div>';
+    div.querySelector('pre.sortie').innerHTML = rendreSortie(c);
+    conteneur.appendChild(div);
+    EDITEURS.push(creerEditeur(div.querySelector('.editeur'), c.code, {
+      modif: v => { c.code = v; sauver(); },
+      focus: () => { conteneur.querySelectorAll('.cellule').forEach(x => x.classList.remove('active')); div.classList.add('active'); },
+      executer: () => executerCellule(q, i),
+      executerSuivant: () => {
+        executerCellule(q, i);
+        if (i === E.cellules[q.id].length - 1) { E.cellules[q.id].push({ code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); }
+        focaliser(i + 1);
+      }
+    }));
+    div.querySelector('[data-a=executer]').onclick = () => executerCellule(q, i);
+    div.querySelector('[data-a=dessous]').onclick = () => { E.cellules[q.id].splice(i + 1, 0, { code: '', sortie: '', numero: null }); sauver(); dessinerCellules(q); focaliser(i + 1); };
+    div.querySelector('[data-a=supprimer]').onclick = () => { if (E.cellules[q.id].length > 1) { E.cellules[q.id].splice(i, 1); sauver(); dessinerCellules(q); } };
+  });
+}
+function majNumeros(q) { document.querySelectorAll('#cellules .numero').forEach((n, i) => { const c = E.cellules[q.id][i]; n.textContent = '[' + (c && c.numero !== null ? c.numero : ' ') + ']'; }); }
+function ajuster(zone) { zone.style.height = 'auto'; zone.style.height = (zone.scrollHeight + 2) + 'px'; }
+function focaliser(i) { const e = EDITEURS[i]; if (e) e.focus(); }
+function inserer(zone, texte) {
+  zone.focus();
+  if (!document.execCommand('insertText', false, texte)) zone.setRangeText(texte, zone.selectionStart, zone.selectionEnd, 'end');
+  zone.dispatchEvent(new Event('input'));
+}
+function clavier(ev, zone, rappels) {
+  if (ev.key === 'Enter' && (ev.shiftKey || ev.ctrlKey)) {
+    ev.preventDefault();
+    if (ev.shiftKey) rappels.executerSuivant(); else rappels.executer();
+    return;
+  }
+  const debut = zone.selectionStart, fin = zone.selectionEnd, v = zone.value;
+  const debutLigne = v.lastIndexOf('\n', debut - 1) + 1;
+  if (ev.key === 'Tab') {
+    ev.preventDefault();
+    const multi = v.slice(debut, fin).includes('\n');
+    if (!ev.shiftKey && !multi) { inserer(zone, '    '); return; }
+    const finBloc = fin;
+    const bloc = v.slice(debutLigne, finBloc);
+    const nouveau = ev.shiftKey ? bloc.replace(/^ {1,4}/gm, '') : bloc.replace(/^/gm, '    ');
+    zone.setSelectionRange(debutLigne, finBloc);
+    inserer(zone, nouveau);
+    zone.setSelectionRange(debutLigne, debutLigne + nouveau.length);
+    return;
+  }
+  if (ev.key === 'Enter' && !ev.altKey && !ev.metaKey) {
+    ev.preventDefault();
+    const ligne = v.slice(debutLigne, debut);
+    let retrait = ligne.match(/^ */)[0];
+    if (/:\s*(#.*)?$/.test(ligne)) retrait += '    ';
+    inserer(zone, '\n' + retrait);
+  }
+}
+
+async function executerCellule(q, i) {
+  if (!SERVEUR) return false;
+  const c = E.cellules[q.id][i];
+  const div = document.querySelectorAll('#cellules .cellule')[i];
+  if (div) { div.querySelector('.numero').textContent = '[*]'; div.querySelector('pre.sortie').innerHTML = ''; }
+  let r;
+  try { r = await api('/api/executer', { session: SESSION, dossier: q.dossier, code: c.code, nom: 'cellule ' + (i + 1) }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  E.compteur = (E.compteur || 0) + 1;
+  c.numero = E.compteur;
+  let h = '';
+  if (r.sortie) h += esc(r.sortie);
+  if (r.valeur !== null && r.valeur !== undefined) h += (h && !h.endsWith('\n') ? '\n' : '') + esc(r.valeur);
+  if (r.erreur) h += (h && !h.endsWith('\n') ? '\n' : '') + '<span class="erreur">' + esc(r.erreur) + '</span>';
+  if (r.redemarre) { noyauxDemarres[q.id] = 'noyau redémarré : variables perdues'; const z = document.getElementById('versions'); if (z) z.textContent = noyauxDemarres[q.id]; }
+  c.sortie = h;
+  sauver();
+  const d = document.querySelectorAll('#cellules .cellule')[i];
+  if (d) { d.querySelector('.numero').textContent = '[' + c.numero + ']'; d.querySelector('pre.sortie').innerHTML = h; }
+  return !r.erreur;
+}
+
+function codeSource(q) { return E.cellules[q.id].map((c, i) => '# %% cellule ' + (i + 1) + '\n' + c.code).join('\n\n') + '\n'; }
+function afficherEtatSoumission(q) {
+  const s = E.code[q.id] || {};
+  const z = document.getElementById('etatSoumission');
+  if (z) z.textContent = s.soumissions ? s.soumissions + ' soumission(s) · dernière : ' + s.caches_reussis + '/' + s.caches_total + ' tests cachés réussis' : 'jamais soumis';
+}
+async function lancerTests(q, mode) {
+  const zone = document.getElementById('resultatsTests');
+  zone.innerHTML = '<p class="meta">' + (mode === 'visibles' ? 'Tests visibles' : 'Tests cachés') + ' en cours...</p>';
+  let r;
+  try { r = await api('/api/tests', { session: SESSION, dossier: q.dossier, module: q.module_tests, mode }); }
+  catch (e) { r = { erreur: 'Serveur injoignable : lancer.py est-il démarré ?' }; }
+  if (r.erreur) { zone.innerHTML = '<pre class="sans-math"><span class="erreur">' + esc(r.erreur) + '</span></pre>'; return; }
+  let h = '<p class="etiquette ' + (r.reussis === r.total ? 'bon' : 'faux') + '">' + (mode === 'visibles' ? 'Tests visibles : ' : 'Tests cachés : ') + r.reussis + '/' + r.total + ' réussis</p>';
+  if (mode === 'visibles') {
+    h += '<div class="defile"><table><tr><th>Test</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th><th class="nombre">Durée</th></tr>';
+    r.resultats.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? '') + '</code></td><td class="nombre">' + t.duree_s + ' s</td></tr>'; });
+    h += '</table></div>';
+    r.resultats.filter(t => t.erreur).forEach(t => { h += '<pre class="sans-math"><span class="erreur">' + esc(t.nom + ' :\n' + t.erreur) + '</span></pre>'; });
+    E.code[q.id] = Object.assign(E.code[q.id] || {}, { visibles_reussis: r.reussis });
+  } else {
+    h += '<div class="defile"><table><tr><th>Test caché</th><th>Résultat</th></tr>';
+    r.resultats.forEach((t, k) => { h += '<tr><td>Test ' + (k + 1) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec' + (t.erreur ? ' (exception ou temps dépassé)' : '')) + '</td></tr>'; });
+    h += '</table></div>';
+    const s = E.code[q.id] || {};
+    E.code[q.id] = Object.assign(s, { soumissions: (s.soumissions || 0) + 1, caches_reussis: r.reussis, caches_total: r.total, details: r.resultats, code_source: codeSource(q) });
+    afficherEtatSoumission(q);
+    const p = page.querySelector('.pastille.courante'); if (p) p.classList.add('faite');
+  }
+  sauver();
+  zone.innerHTML = h;
+}
+
+// ------------------------------------------------------------------ bilan
+function points(q) {
+  if (q.type === 'code') { const c = E.code[q.id]; return c && c.soumissions ? c.caches_reussis / c.caches_total : 0; }
+  const r = E.reponses[q.id];
+  if (r === undefined || r === 'nsp') return 0;
+  // Une question à plusieurs réponses est notée tout ou rien : l'ensemble coché doit être exactement l'ensemble juste.
+  const s = choisies(q), bonnes = q.options.filter(o => o.correcte).map(o => o.id);
+  return s.length === bonnes.length && bonnes.every(b => s.includes(b)) ? 1 : -D.options.penalite;
+}
+function choisies(q) { const r = E.reponses[q.id]; return r === undefined || r === 'nsp' ? [] : Array.isArray(r) ? r.slice() : [r]; }
+function texteOption(q, id) { const o = q.options.find(x => x.id === id); return o ? o.texte : null; }
+
+function resultatJSON(duree) {
+  return {
+    examen: D.id, debut: new Date(E.debut).toISOString(), duree_s: Math.round(duree), pauses_s: Math.round((E.pauseTotale || 0) / 1000), options: D.options,
+    lecons: ITEMS.filter(q => q.type === 'lecon').map(q => {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      return { id: q.id, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), controles_justes_du_premier_coup: justes, controles_total: ids.length };
+    }),
+    questions: NOTEES.map(q => {
+      const base = { id: q.id, type: q.type, section: q.section, theme: q.theme, temps_s: Math.round(E.temps[q.id] || 0), temps_cible_s: q.temps_cible_s, points: Number(points(q).toFixed(4)) };
+      if (q.type === 'code') {
+        const c = E.code[q.id] || {};
+        return Object.assign(base, { soumissions: c.soumissions || 0, caches_reussis: c.caches_reussis || 0, caches_total: c.caches_total || q.tests_caches, visibles_reussis: c.visibles_reussis ?? null, code_source: c.code_source || codeSource(q) });
+      }
+      const r = E.reponses[q.id] ?? null;
+      return Object.assign(base, { reponse: r, reponse_texte: r && r !== 'nsp' ? choisies(q).map(i => texteOption(q, i)).join(' ; ') : null, bonne_reponse_texte: q.options.filter(o => o.correcte).map(o => o.texte).join(' ; ') });
+    })
+  };
+}
+
+function bilan() {
+  page.className = '';
+  document.getElementById('position').textContent = 'Bilan';
+  const duree = dureeEcoulee(E.fin);
+  document.getElementById('chrono').textContent = mmss(duree);
+  let total = 0;
+  let h = '<div class="carte"><h2>Bilan</h2>@SCORE@<div class="defile"><table><tr><th>Section</th><th class="nombre">Score</th><th class="nombre">Temps passé</th><th class="nombre">Temps indicatif</th></tr>';
+  D.sections.forEach(s => {
+    const notees = s.questions.filter(q => q.type !== 'lecon');
+    const pts = notees.reduce((a, q) => a + points(q), 0);
+    const t = s.questions.reduce((a, q) => a + (E.temps[q.id] || 0), 0);
+    total += pts;
+    h += '<tr><td>' + esc(s.nom) + '</td><td class="nombre">' + (notees.length ? pts.toFixed(2).replace('.', ',') + ' / ' + notees.length : 'non notée') + '</td><td class="nombre">' + mmss(t) + '</td><td class="nombre">' + mmss(s.budget_min * 60) + '</td></tr>';
+  });
+  h += '<tr><th>Total</th><th class="nombre">' + total.toFixed(2).replace('.', ',') + ' / ' + NOTEES.length + '</th><th class="nombre">' + mmss(duree) + '</th><th class="nombre">' + mmss(D.duree_minutes * 60) + '</th></tr></table></div>';
+  h = h.replace('@SCORE@', '<div class="score-total"><strong>' + total.toFixed(2).replace('.', ',').replace(/,00$/, '') + ' / ' + NOTEES.length + '</strong><span class="meta">en ' + mmss(duree) + '</span></div>');
+  const barreFin = document.querySelector('#progression > span'); if (barreFin) barreFin.style.width = '100%';
+  h += '<p id="enregistrement" class="meta"></p>';
+  h += '<details><summary>Résultat brut (JSON)</summary><textarea readonly class="json sans-math" id="json"></textarea><div class="barre"><button id="telecharger">Enregistrer le fichier</button></div></details>';
+  h += '<div class="barre">' + (SERVEUR ? '<button class="principal" id="retourAccueil">Retour à l\'accueil (séance suivante)</button>' : '')
+    + '<button id="recommencer">Effacer et recommencer</button></div></div>';
+  ITEMS.forEach((q, i) => {
+    const temps = mmss(E.temps[q.id] || 0) + ' sur ' + mmss(q.temps_cible_s) + ' visés';
+    const tete = (classe, verdict) => '<article class="fiche ' + classe + '"><header class="fiche-tete"><span class="num">' + (q.type === 'lecon' ? 'Leçon' : 'Question ' + (i + 1)) + '</span><span class="titre">' + esc(q.theme)
+      + '</span><span class="temps">' + esc(q.nomSection) + ' · ' + temps + '</span>' + (verdict ? '<span class="verdict">' + verdict + '</span>' : '') + '</header><div class="fiche-corps">';
+    if (q.type === 'lecon') {
+      const ids = Object.keys(q.controles || {});
+      const justes = ids.filter(cid => { const c = E.controles[q.id + ':' + cid]; return c && q.controles[cid].options.find(o => o.id === c).correcte; }).length;
+      h += tete('', '') + '<p>Points de contrôle justes du premier coup : ' + justes + ' sur ' + ids.length + '. La leçon reste consultable depuis la séance.</p></div></article>';
+      return;
+    }
+    if (q.type === 'qcm') {
+      const r = E.reponses[q.id], juste = points(q) === 1;
+      const s = choisies(q), incomplete = !juste && q.multiple && s.length > 0 && s.every(id => q.options.find(o => o.id === id).correcte);
+      h += tete(juste ? 'v-juste' : incomplete ? 'v-incomplete' : r === undefined || r === 'nsp' ? '' : 'v-fausse',
+        juste ? 'Juste' : r === undefined ? 'Sans réponse' : r === 'nsp' ? 'Je ne sais pas' : incomplete ? 'Incomplète' : 'Fausse');
+      h += '<h5>Énoncé</h5>' + rendre(q.enonce) + '<h5>' + (q.multiple ? 'Options (plusieurs réponses, tout ou rien)' : 'Options') + '</h5>';
+      E.ordre[q.id].forEach((oid, k) => {
+        const o = q.options.find(x => x.id === oid), choisie = s.includes(oid);
+        const puces = (o.correcte ? '<span class="puce bon">' + (q.multiple ? 'Juste' : 'Bonne réponse') + '</span>' : '') + (choisie ? '<span class="puce' + (o.correcte ? ' bon' : ' faux') + '">Ta réponse</span>' : '');
+        h += '<div class="option ' + (o.correcte ? 'juste' : 'fausse') + (choisie ? ' choisie' : '') + '"><span class="lettre">' + 'ABCDE'[k] + '</span><div>' + puces + rendre(o.texte)
+          + '<div class="explication">' + (o.correcte && !q.multiple ? '' : rendre(o.explication)) + '</div></div></div>';
+      });
+      h += '<h5>Correction</h5>' + rendre(q.solution);
+    } else {
+      const c = E.code[q.id] || {};
+      const tout = c.soumissions && c.caches_reussis === c.caches_total;
+      h += tete(tout ? 'v-juste' : c.soumissions ? 'v-incomplete' : '', c.soumissions ? c.caches_reussis + ' / ' + c.caches_total + ' tests cachés' : 'Jamais soumis');
+      h += '<details><summary>Énoncé</summary>' + rendre(q.enonce) + '</details>';
+      if (c.details) {
+        h += '<h5>Tests cachés</h5><div class="defile"><table><tr><th>Test caché</th><th>Résultat</th><th>Attendu</th><th>Obtenu</th></tr>';
+        c.details.forEach(t => { h += '<tr><td>' + esc(t.nom) + '</td><td class="' + (t.ok ? 'bon">réussi' : 'faux">échec') + '</td><td><code class="sans-math">' + esc(t.attendu) + '</code></td><td><code class="sans-math">' + esc(t.obtenu ?? (t.erreur ? 'exception' : '')) + '</code></td></tr>'; });
+        h += '</table></div>';
+        c.details.filter(t => t.erreur).forEach(t => { h += '<details><summary>Erreur : ' + esc(t.nom) + '</summary><pre class="sans-math">' + esc(t.erreur) + '</pre></details>'; });
+      }
+      h += '<details><summary>Ton code soumis</summary><pre class="sans-math"><code>' + esc(c.code_source || codeSource(q)) + '</code></pre></details>';
+      h += '<details><summary>Correction</summary>' + rendre(q.solution) + '</details>';
+    }
+    h += '<p class="revoir">Vérification des nombres : <code class="sans-math">' + esc(q.verif.script) + '</code></p></div></article>';
+  });
+  page.innerHTML = h;
+  const resultat = resultatJSON(duree);
+  const zone = document.getElementById('json');
+  zone.value = JSON.stringify(resultat, null, 1);
+  document.getElementById('telecharger').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([zone.value], { type: 'application/json' }));
+    a.download = D.id + '_resultat.json'; a.click();
+  };
+  const retour = document.getElementById('retourAccueil'); if (retour) retour.onclick = () => { location.href = '/'; };
+  document.getElementById('recommencer').onclick = () => { if (confirm('Effacer ce passage ?')) { try { localStorage.removeItem(CLE); } catch (e) {} E = etatNeuf('accueil'); afficher(); } };
+  const info = document.getElementById('enregistrement');
+  if (E.enregistrement) info.textContent = E.enregistrement;
+  else if (!SERVEUR) info.textContent = 'Page ouverte comme un fichier : le résultat n\'est pas enregistré automatiquement. Copie le JSON ci-dessous dans la conversation.';
+  else {
+    info.textContent = 'Enregistrement du résultat...';
+    api('/api/resultat', resultat).then(r => {
+      E.enregistrement = r.erreur ? null : 'Résultat enregistré dans ' + r.fichier + ' ; ' + r.erreurs_ajoutees + ' erreur(s) ajoutée(s) au journal suivi/erreurs.md.';
+      info.textContent = E.enregistrement || 'Échec de l\'enregistrement : ' + r.erreur;
+      sauver();
+    }).catch(() => { info.textContent = 'Serveur injoignable : le résultat n\'est pas enregistré. Copie le JSON ci-dessous dans la conversation.'; });
+  }
+  composer();
+}
+
+function afficher() {
+  libererEditeurs();
+  document.getElementById('titre').textContent = D.titre;
+  document.title = D.titre;
+  if (E.phase === 'epreuve') epreuve(); else if (E.phase === 'bilan') bilan(); else accueil();
+  window.scrollTo(0, 0);
+}
+function completerEtat() {
+  ['reponses', 'temps', 'ordre', 'cellules', 'code', 'controles', 'ordreControles', 'vus', 'partie'].forEach(k => { if (!E[k] || typeof E[k] !== 'object') E[k] = {}; });
+  if (typeof E.courant !== 'number' || E.courant < 0 || E.courant >= ITEMS.length) E.courant = 0;
+  ITEMS.forEach(q => {
+    if (q.cellules_initiales && !Array.isArray(E.cellules[q.id])) E.cellules[q.id] = q.cellules_initiales.map(c => ({ code: c, sortie: '', numero: null }));
+    if (q.type === 'qcm') {
+      const ids = q.options.map(o => o.id);
+      const o = E.ordre[q.id];
+      if (!Array.isArray(o) || o.length !== ids.length || !ids.every(i => o.includes(i))) E.ordre[q.id] = melanger(ids);
+      const rep = E.reponses[q.id];
+      if (rep !== undefined && rep !== 'nsp' && (Array.isArray(rep) !== !!q.multiple || !choisies(q).length || !choisies(q).every(i => ids.includes(i)))) delete E.reponses[q.id];
+    }
+    if (q.type === 'lecon') Object.entries(q.controles || {}).forEach(([cid, c]) => {
+      const cle = q.id + ':' + cid;
+      if (!Array.isArray(E.ordreControles[cle])) E.ordreControles[cle] = melanger(c.options.map(o => o.id));
+    });
+  });
+}
+charger();
+completerEtat();
+if (SERVEUR && ITEMS.some(q => q.cellules_initiales)) chargerMonaco();
+afficher();
+</script>
+</body>
+</html>

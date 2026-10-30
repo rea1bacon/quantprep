@@ -1,0 +1,23 @@
+{
+ "pandas": "2.3.3",
+ "rolling_min_periods": "compte les valeurs non manquantes ; défaut = taille de la fenêtre",
+ "affectation_directe_groupby_rolling": "TypeError : incompatible index of inserted column with frame index",
+ "resample_M_avertissements": [
+  "FutureWarning"
+ ],
+ "resample_ME": "fonctionne",
+ "resample": "étiquette = dernier jour civil ; mois vides en NaN ; last saute les NaN colonne par colonne",
+ "merge_asof_erreurs": {
+  "cles_chaines": "MergeError : Incompatible merge dtype, dtype('O') and dtype('O'), both sides must have numeric dtype",
+  "gauche_non_triee": "ValueError : left keys must be sorted"
+ },
+ "merge_asof_gauche_vide_colonnes": [
+  "date",
+  "actif",
+  "x",
+  "signal"
+ ],
+ "quantile_defaut": "linéaire, h = (n - 1) q, 2000 tirages",
+ "std_trois_01": 1.6996749443881478e-17,
+ "backtest": "pivot trié ; shift(-1) sur le calendrier ; égalités départagées par colonne"
+}

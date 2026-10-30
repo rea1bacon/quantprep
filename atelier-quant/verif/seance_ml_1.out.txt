@@ -1,0 +1,42 @@
+Partie 1 : équations normales, matrice chapeau (symétrique, idempotente, trace 2), orthogonalité des résidus vérifiées en rationnels.
+L2_sans_biais_pente        exact=2.000000  MC=1.998897  se=0.001061  z=-1.04
+L2_var_pente_formule       exact=0.450000  MC=0.450010  se=0.001006  z=+0.01
+L2_esp_scr                 exact=4.500000  MC=4.492326  se=0.007067  z=-1.09
+Gauss-Markov : C C^T - (X^T X)^{-1} semi-définie positive pour 200 estimateurs linéaires sans biais aléatoires.
+C2_var_moy                 exact=0.033333  MC=0.033292  se=0.000072  z=-0.57
+C2_var_mil                 exact=0.015152  MC=0.015107  se=0.000044  z=-1.01
+C2_mil_sans_biais          exact=0.000000  MC=-0.000013  se=0.000194  z=-0.07
+Frisch-Waugh et formule du facteur d'inflation de la variance vérifiés sur 100 jeux aléatoires.
+L2_omise                   exact=3.165398  MC=3.165345  se=0.000269  z=-0.19
+L2_att                     exact=1.600000  MC=1.600421  se=0.000406  z=+1.04
+L2_hetero_var              exact=0.168498  MC=0.168773  se=0.001709  z=+0.16
+Hétéroscédasticité : écart-type exact 0.4105, erreur-type usuelle moyenne 0.3031, White 0.4049.
+L2_ac_var                  exact=0.027524  MC=0.027348  se=0.000193  z=-0.91
+Autocorrélation : rapport des variances exact pour cette série 4.011, approximation 4.556.
+R^2 : ne décroît jamais ; R^2 ajusté croît si et seulement si t^2 > 1 (300 jeux aléatoires).
+Expérience R^2 de la leçon : R^2 d'apprentissage croissant, R^2 de test négatif avec 25 colonnes de bruit.
+Ridge : exemple 2 x 2 exact, décomposition propre et scikit-learn (Ridge(alpha=lambda)) concordants.
+Ridge : aucun zéro exact (50 jeux, 4 valeurs de lambda), zéro exact pour une colonne nulle ; MAP gaussien = Ridge.
+Lasso orthonormal : seuillage doux confirmé par scikit-learn avec alpha = lambda / n ; Ridge = division par 1 + lambda.
+Lasso : conditions d'optimalité, formule sur l'ensemble actif et seuil lambda_max = max |x_j^T y| vérifiés.
+Lasso, colonnes dupliquées : solutions multiples de même critère.
+L6_v0                      exact=5.000000  MC=4.992801  se=0.011182  z=-0.64
+L6_e0                      exact=1.000000  MC=1.001404  se=0.003533  z=+0.40
+L6_v1                      exact=1.250000  MC=1.248200  se=0.002795  z=-0.64
+L6_e1                      exact=0.500000  MC=0.500702  se=0.001766  z=+0.40
+L6_v2                      exact=0.138889  MC=0.138689  se=0.000311  z=-0.64
+L6_e2                      exact=0.166667  MC=0.166901  se=0.000589  z=+0.40
+L6_v3                      exact=0.011338  MC=0.011322  se=0.000025  z=-0.64
+L6_e3                      exact=0.047619  MC=0.047686  se=0.000168  z=+0.40
+Biais-variance : tableau exact en x0 = (1, -1), optimum lambda = 1/2, dérivée de Hoerl et Kennard vérifiés.
+Q02                        exact=92.000000  MC=91.996205  se=0.060608  z=-0.06
+Q03_var_mco                exact=0.680000  MC=0.681313  se=0.001524  z=+0.86
+Q03_formule                exact=0.320000  MC=0.320402  se=0.000717  z=+0.56
+Q03_var_mcp                exact=0.500000  MC=0.500218  se=0.001117  z=+0.19
+Q03_sans_biais             exact=1.000000  MC=0.998993  se=0.001305  z=-0.77
+Q04                        exact=3.500000  MC=3.499745  se=0.000314  z=-0.81
+Q05_var                    exact=0.017526  MC=0.017507  se=0.000056  z=-0.35
+Q12_mse_opt                exact=0.800000  MC=0.802042  se=0.001756  z=+1.16
+Q12_mse0                   exact=1.000000  MC=1.003443  se=0.002241  z=+1.54
+414 valeurs exportées dans verif/seance_ml_1.out.json.
+Toutes les vérifications passent.

@@ -1,0 +1,36 @@
+E[SC] = (n-1) sigma^2 vérifié par énumération exacte (loi uniforme sur {0, 1, 3}, n = 2 à 5).
+E[Z^4] = 3, Var(khi-deux_k) = 2k vérifiés.
+EQM de c SC : formule, valeurs en 1/(n-1), 1/n, 1/(n+1) et minimum en 1/(n+1) vérifiés symboliquement.
+L1_eqm_nm1                 exact=0.500000  MC=0.498617  se=0.001757  z=-0.79
+L1_eqm_n                   exact=0.360000  MC=0.359303  se=0.000940  z=-0.74
+L1_eqm_np1                 exact=0.333333  MC=0.332981  se=0.000604  z=-0.58
+L1_biais_n                 exact=-0.200000  MC=-0.200471  se=0.000893  z=-0.53
+L1_biais_nm1               exact=0.000000  MC=-0.000589  se=0.001116  z=-0.53
+L2_bern_var                exact=0.011375  MC=0.011354  se=0.000025  z=-0.85
+E[1/S] = lambda/(n-1) vérifié par la transformée de Laplace et par la densité Gamma (n = 2, 3, 5).
+L2_exp_esp                 exact=1.500000  MC=1.506357  se=0.002653  z=+2.40
+L3_couv_t                  exact=0.950000  MC=0.948850  se=0.000487  z=-2.36
+L3_wald_01                 exact=0.876037  MC=0.875637  se=0.000521  z=-0.77
+L3_wald_05                 exact=0.958611  MC=0.958285  se=0.000315  z=-1.03
+L4_p                       exact=0.116319  MC=0.116148  se=0.000507  z=-0.34
+L4_unif_005                exact=0.050000  MC=0.049873  se=0.000345  z=-0.37
+L4_unif_020                exact=0.200000  MC=0.200288  se=0.000632  z=+0.45
+L4_puiss                   exact=0.803765  MC=0.803825  se=0.000628  z=+0.10
+L4_bayes                   exact=0.360000  MC=0.361071  se=0.000960  z=+1.12
+L5_fdr                     exact=0.075000  MC=0.074995  se=0.000256  z=-0.02
+L5_fwer_global             exact=0.100000  MC=0.100420  se=0.000671  z=+0.63
+L6_exp                     exact=0.006738  MC=0.006776  se=0.000058  z=+0.66
+L6_es                      exact=0.797885  MC=0.798533  se=0.000952  z=+0.68
+Q01                        exact=0.400000  MC=0.399727  se=0.000890  z=-0.31
+Q01_xbar                   exact=0.444444  MC=0.444257  se=0.000996  z=-0.19
+Q03                        exact=2.500000  MC=2.498590  se=0.002271  z=-0.62
+Q04_couv                   exact=0.950000  MC=0.949778  se=0.000345  z=-0.65
+Q04_couv_z                 exact=0.914337  MC=0.913972  se=0.000443  z=-0.82
+Q05                        exact=0.655172  MC=0.654832  se=0.001249  z=-0.27
+Q07_eqm_9                  exact=0.222222  MC=0.222996  se=0.000643  z=+1.20
+Q07_eqm_10                 exact=0.190000  MC=0.190421  se=0.000465  z=+0.90
+Q07_eqm_11                 exact=0.181818  MC=0.181996  se=0.000367  z=+0.48
+Q07_eqm_12                 exact=0.187500  MC=0.187506  se=0.000322  z=+0.02
+Q08_p_tcl                  exact=0.052646  MC=0.052759  se=0.000223  z=+0.51
+257 valeurs exportées dans verif/seance_math_3.out.json.
+Toutes les vérifications passent.

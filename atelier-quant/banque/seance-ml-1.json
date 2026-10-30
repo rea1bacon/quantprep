@@ -1,0 +1,851 @@
+{
+ "id": "seance-ml-1",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-REGLIN-1",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon régression linéaire : moindres carrés, hypothèses, R², Ridge, Lasso",
+   "difficulte": 4,
+   "temps_cible_s": 3000,
+   "dossier": "coding/lecons",
+   "contenu": "## Leçon : régression linéaire, Ridge et Lasso\n\nDurée visée : 50 minutes. La régression linéaire, Ridge et Lasso y sont traités au niveau démonstration, jusqu'à la question « existe-t-il une forme fermée pour Ridge et pour Lasso ? ». La leçon a six parties : moindres carrés, hypothèses du modèle, R², Ridge, Lasso, biais et variance. Chacune suit le même ordre : le problème, l'intuition, l'énoncé, la preuve, un exemple chiffré, les cas limites, les pièges. Chaque affirmation de machine learning a une preuve et une expérience ; le notebook de droite permet de relancer et de modifier chaque expérience. La partie « Réflexes en 30 secondes » est celle à relire juste avant un test ou un entretien.\n\nConventions de notation, valables pour toute la leçon. Une majuscule non grasse désigne une variable aléatoire réelle, une minuscule une valeur ou un paramètre fixe. En gras, une minuscule est un vecteur colonne et une majuscule une matrice ; pour un vecteur, la majuscule grasse signale qu'il est aléatoire (\\(\\mathbf{Y}\\) aléatoire, \\(\\mathbf{y}\\) sa valeur observée). Une matrice en gras est fixe sauf mention contraire. Les lettres grecques n'ont pas de casse utile : on dit en mots si elles sont aléatoires ; le bruit \\(\\boldsymbol{\\varepsilon}\\) et tout estimateur à chapeau calculé à partir de \\(\\mathbf{Y}\\) le sont. Exceptions d'usage : le coefficient de détermination R² et les sommes de carrés SCT, SCE, SCR gardent leur notation habituelle, et sont des nombres calculés sur des données observées. Pour gagner de la place, un vecteur colonne est écrit en ligne : \\((0, 1, 2, 3)\\).\n\nSymboles communs : \\(^\\top\\) est la transposée ; \\(\\lVert \\mathbf{v} \\rVert = \\sqrt{\\mathbf{v}^\\top \\mathbf{v}}\\) la norme euclidienne et \\(\\lVert \\mathbf{v} \\rVert_1 = \\sum_j \\lvert v_j \\rvert\\) la norme L1 ; \\(\\mathbf{I}\\) la matrice identité, \\(\\mathbf{I}_p\\) quand sa taille \\(p \\times p\\) compte ; \\(\\mathbf{1}\\) le vecteur dont toutes les coordonnées valent 1 ; \\(\\mathrm{tr}\\) la trace, somme des coefficients diagonaux. \\(\\mathbb{E}\\), \\(\\mathrm{Var}\\) et \\(\\mathrm{Cov}\\) désignent espérance, variance et covariance ; pour un vecteur aléatoire \\(\\mathbf{Z}\\), \\(\\mathrm{Var}(\\mathbf{Z}) = \\mathbb{E}[(\\mathbf{Z} - \\mathbb{E}\\mathbf{Z})(\\mathbf{Z} - \\mathbb{E}\\mathbf{Z})^\\top]\\) est sa matrice de covariance. Une matrice symétrique \\(\\mathbf{M}\\) est semi-définie positive si \\(\\mathbf{v}^\\top \\mathbf{M} \\mathbf{v} \\ge 0\\) pour tout vecteur \\(\\mathbf{v}\\), définie positive si l'inégalité est stricte pour \\(\\mathbf{v} \\ne \\mathbf{0}\\). Tous les nombres hors des sorties de code sont calculés par `verif/seance_ml_1.py`.\n\nLe premier bloc prépare l'affichage ; il est exécuté une fois, et les blocs suivants réutilisent ses variables.\n\n```python\nimport numpy as np\nfrom sklearn.linear_model import Lasso, Ridge\nfrom sklearn.metrics import r2_score\nnp.set_printoptions(precision=4, suppress=True)\nprint(\"prêt\")\n```\n\n```sortie\nprêt\n```\n\n## Partie 1 : les moindres carrés\n\n### Le problème\n\nOn observe \\(n\\) individus. Pour chacun, on connaît \\(p\\) variables explicatives et une réponse. On cherche les coefficients d'une combinaison linéaire des variables qui approche le mieux la réponse, au sens de la somme des carrés des écarts. Trois questions : la solution existe-t-elle, est-elle unique, a-t-elle une formule ?\n\n### Notations\n\n- \\(n \\ge 1\\) et \\(p \\ge 1\\) : entiers, nombre d'observations et nombre de colonnes.\n- \\(\\mathbf{X}\\) : matrice fixe \\(n \\times p\\). Sa ligne \\(i\\) contient les variables de l'observation \\(i\\) ; sa colonne \\(j\\), notée \\(\\mathbf{x}_j \\in \\mathbb{R}^n\\), contient la variable \\(j\\) pour toutes les observations. Si le modèle a une constante, c'est une colonne égale à \\(\\mathbf{1}\\), comptée dans \\(p\\).\n- \\(\\mathbf{y} \\in \\mathbb{R}^n\\) : les réponses observées ; \\(\\mathbf{b} \\in \\mathbb{R}^p\\) : un vecteur de coefficients candidat, variable du problème d'optimisation.\n- \\(s(\\mathbf{b}) = \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2\\) : la somme des carrés des résidus du candidat \\(\\mathbf{b}\\).\n- \\(\\mathrm{Im}(\\mathbf{X}) = \\{\\mathbf{X}\\mathbf{b} : \\mathbf{b} \\in \\mathbb{R}^p\\}\\) : l'image de \\(\\mathbf{X}\\), sous-espace de \\(\\mathbb{R}^n\\) engendré par les colonnes. \\(\\ker(\\mathbf{X}) = \\{\\mathbf{h} \\in \\mathbb{R}^p : \\mathbf{X}\\mathbf{h} = \\mathbf{0}\\}\\) : son noyau. Le rang de \\(\\mathbf{X}\\) est la dimension de son image ; il vaut au plus \\(\\min(n, p)\\), et le théorème du rang dit que rang plus dimension du noyau égale \\(p\\).\n\n### L'intuition\n\nQuand \\(\\mathbf{b}\\) parcourt \\(\\mathbb{R}^p\\), le vecteur \\(\\mathbf{X}\\mathbf{b}\\) parcourt le sous-espace \\(\\mathrm{Im}(\\mathbf{X})\\). Minimiser \\(s\\), c'est chercher le point de ce sous-espace le plus proche de \\(\\mathbf{y}\\) : le pied de la perpendiculaire abaissée de \\(\\mathbf{y}\\). L'écart \\(\\mathbf{y} - \\mathbf{X}\\mathbf{b}\\) doit donc être orthogonal au sous-espace, c'est-à-dire à chaque colonne : \\(\\mathbf{x}_j^\\top (\\mathbf{y} - \\mathbf{X}\\mathbf{b}) = 0\\) pour tout \\(j\\). Écrites ensemble, ces \\(p\\) équations sont les équations normales.\n\n### L'énoncé\n\n1. Un vecteur \\(\\mathbf{b}\\) minimise \\(s\\) si et seulement s'il vérifie les **équations normales** \\(\\mathbf{X}^\\top \\mathbf{X}\\,\\mathbf{b} = \\mathbf{X}^\\top \\mathbf{y}\\). Elles ont toujours au moins une solution : le minimum existe pour toute matrice \\(\\mathbf{X}\\) et tout \\(\\mathbf{y}\\).\n2. Le minimiseur est unique si et seulement si \\(\\mathbf{X}\\) est de rang \\(p\\) (colonnes linéairement indépendantes, ce qui exige \\(n \\ge p\\)), ce qui équivaut à l'inversibilité de \\(\\mathbf{X}^\\top \\mathbf{X}\\). Il vaut alors \\(\\hat{\\boldsymbol{\\beta}} = (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\mathbf{y}\\) : c'est la **forme fermée** des moindres carrés ordinaires (MCO ; OLS, ordinary least squares, en anglais).\n3. Tous les minimiseurs donnent les mêmes **valeurs ajustées** \\(\\hat{\\mathbf{y}}\\), égales à \\(\\mathbf{X}\\mathbf{b}\\) pour n'importe quel minimiseur \\(\\mathbf{b}\\) : c'est la projection orthogonale de \\(\\mathbf{y}\\) sur \\(\\mathrm{Im}(\\mathbf{X})\\). Le vecteur des **résidus** \\(\\mathbf{e} = \\mathbf{y} - \\hat{\\mathbf{y}}\\) vérifie \\(\\mathbf{X}^\\top \\mathbf{e} = \\mathbf{0}\\) : il est orthogonal à chaque colonne, donc à \\(\\hat{\\mathbf{y}}\\).\n4. Si \\(\\mathbf{X}\\) est de rang \\(p\\), \\(\\hat{\\mathbf{y}} = \\mathbf{H}\\mathbf{y}\\), où la **matrice chapeau** \\(\\mathbf{H} = \\mathbf{X}(\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top\\), de taille \\(n \\times n\\), est symétrique (\\(\\mathbf{H}^\\top = \\mathbf{H}\\)), idempotente (\\(\\mathbf{H}^2 = \\mathbf{H}\\)) et de trace \\(p\\). La matrice \\(\\mathbf{I} - \\mathbf{H}\\) est symétrique, idempotente, de trace \\(n - p\\), et \\(\\mathbf{e} = (\\mathbf{I} - \\mathbf{H})\\mathbf{y}\\).\n5. Si \\(\\mathbf{1}\\) est une colonne de \\(\\mathbf{X}\\), la somme des résidus est nulle, et la moyenne des valeurs ajustées égale celle des \\(y_i\\).\n\n### La preuve\n\n1. **Identité de développement (D).** Pour tous \\(\\mathbf{b}, \\mathbf{h} \\in \\mathbb{R}^p\\), on pose \\(\\mathbf{r} = \\mathbf{y} - \\mathbf{X}\\mathbf{b}\\). En développant \\(\\lVert \\mathbf{u} - \\mathbf{v} \\rVert^2 = \\lVert \\mathbf{u} \\rVert^2 - 2\\,\\mathbf{v}^\\top \\mathbf{u} + \\lVert \\mathbf{v} \\rVert^2\\) avec \\(\\mathbf{u} = \\mathbf{r}\\), \\(\\mathbf{v} = \\mathbf{X}\\mathbf{h}\\), et \\((\\mathbf{X}\\mathbf{h})^\\top \\mathbf{r} = \\mathbf{h}^\\top \\mathbf{X}^\\top \\mathbf{r}\\) : \\(s(\\mathbf{b} + \\mathbf{h}) = s(\\mathbf{b}) - 2\\,\\mathbf{h}^\\top \\mathbf{X}^\\top \\mathbf{r} + \\lVert \\mathbf{X}\\mathbf{h} \\rVert^2\\).\n2. **Condition suffisante.** Si \\(\\mathbf{b}\\) vérifie les équations normales, \\(\\mathbf{X}^\\top \\mathbf{r} = \\mathbf{0}\\), et (D) donne \\(s(\\mathbf{b} + \\mathbf{h}) = s(\\mathbf{b}) + \\lVert \\mathbf{X}\\mathbf{h} \\rVert^2 \\ge s(\\mathbf{b})\\) pour tout \\(\\mathbf{h}\\) : \\(\\mathbf{b}\\) est un minimiseur global, et \\(\\mathbf{b} + \\mathbf{h}\\) en est un autre si et seulement si \\(\\mathbf{X}\\mathbf{h} = \\mathbf{0}\\).\n3. **Condition nécessaire.** Soit \\(\\mathbf{b}\\) un minimiseur, \\(\\mathbf{g} = \\mathbf{X}^\\top \\mathbf{r}\\), et \\(t > 0\\) un réel. (D) avec \\(\\mathbf{h} = t\\,\\mathbf{g}\\) donne \\(s(\\mathbf{b} + t\\,\\mathbf{g}) - s(\\mathbf{b}) = -2t\\,\\lVert \\mathbf{g} \\rVert^2 + t^2 \\lVert \\mathbf{X}\\mathbf{g} \\rVert^2\\). Si \\(\\mathbf{g} \\ne \\mathbf{0}\\), ce nombre est strictement négatif pour \\(t\\) assez petit (pour tout \\(t\\) si \\(\\mathbf{X}\\mathbf{g} = \\mathbf{0}\\), pour \\(t < 2 \\lVert \\mathbf{g} \\rVert^2 / \\lVert \\mathbf{X}\\mathbf{g} \\rVert^2\\) sinon), ce qui contredit la minimalité. Donc \\(\\mathbf{g} = \\mathbf{0}\\).\n4. **Existence.** Il faut que \\(\\mathbf{X}^\\top \\mathbf{y}\\) soit dans l'image de \\(\\mathbf{X}^\\top \\mathbf{X}\\). D'abord \\(\\ker(\\mathbf{X}^\\top \\mathbf{X}) = \\ker(\\mathbf{X})\\) : si \\(\\mathbf{X}^\\top \\mathbf{X}\\mathbf{v} = \\mathbf{0}\\), alors \\(0 = \\mathbf{v}^\\top \\mathbf{X}^\\top \\mathbf{X}\\mathbf{v} = \\lVert \\mathbf{X}\\mathbf{v} \\rVert^2\\), donc \\(\\mathbf{X}\\mathbf{v} = \\mathbf{0}\\) ; l'inclusion inverse est immédiate. Par le théorème du rang, \\(\\mathbf{X}^\\top \\mathbf{X}\\) a donc le rang de \\(\\mathbf{X}\\), qui est aussi celui de \\(\\mathbf{X}^\\top\\). Or \\(\\mathrm{Im}(\\mathbf{X}^\\top \\mathbf{X}) \\subset \\mathrm{Im}(\\mathbf{X}^\\top)\\), puisque \\(\\mathbf{X}^\\top \\mathbf{X}\\mathbf{v} = \\mathbf{X}^\\top (\\mathbf{X}\\mathbf{v})\\) ; deux sous-espaces emboîtés de même dimension sont égaux. Donc \\(\\mathbf{X}^\\top \\mathbf{y} \\in \\mathrm{Im}(\\mathbf{X}^\\top) = \\mathrm{Im}(\\mathbf{X}^\\top \\mathbf{X})\\).\n5. **Unicité.** Par l'étape 2, les minimiseurs sont les \\(\\mathbf{b} + \\mathbf{h}\\), \\(\\mathbf{h} \\in \\ker(\\mathbf{X})\\), pour un minimiseur \\(\\mathbf{b}\\) fixé. Il y en a un seul si et seulement si \\(\\ker(\\mathbf{X}) = \\{\\mathbf{0}\\}\\), c'est-à-dire rang \\(p\\) par le théorème du rang ; par l'étape 4, c'est dire que la matrice carrée \\(\\mathbf{X}^\\top \\mathbf{X}\\), de taille \\(p \\times p\\), est de rang \\(p\\), donc inversible. Les équations normales donnent alors la forme fermée.\n6. **Projection.** Deux minimiseurs diffèrent d'un \\(\\mathbf{h}\\) avec \\(\\mathbf{X}\\mathbf{h} = \\mathbf{0}\\) : mêmes valeurs ajustées. \\(\\hat{\\mathbf{y}}\\) est dans \\(\\mathrm{Im}(\\mathbf{X})\\), et \\(\\mathbf{X}^\\top (\\mathbf{y} - \\hat{\\mathbf{y}}) = \\mathbf{0}\\) dit que \\(\\mathbf{y} - \\hat{\\mathbf{y}}\\) est orthogonal à chaque colonne, donc à toute combinaison des colonnes, en particulier à \\(\\hat{\\mathbf{y}}\\) : c'est la définition de la projection orthogonale.\n7. **Matrice chapeau.** \\(\\mathbf{H}^\\top = \\mathbf{X}\\big((\\mathbf{X}^\\top \\mathbf{X})^{-1}\\big)^\\top \\mathbf{X}^\\top = \\mathbf{H}\\), car l'inverse d'une matrice symétrique est symétrique. \\(\\mathbf{H}^2 = \\mathbf{X}(\\mathbf{X}^\\top \\mathbf{X})^{-1} (\\mathbf{X}^\\top \\mathbf{X}) (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top = \\mathbf{H}\\). Pour \\(\\mathbf{A}\\) de taille \\(n \\times p\\) et \\(\\mathbf{B}\\) de taille \\(p \\times n\\), \\(\\mathrm{tr}(\\mathbf{A}\\mathbf{B}) = \\sum_{i, k} a_{ik} b_{ki} = \\mathrm{tr}(\\mathbf{B}\\mathbf{A})\\) ; donc \\(\\mathrm{tr}(\\mathbf{H}) = \\mathrm{tr}\\big((\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\mathbf{X}\\big) = \\mathrm{tr}(\\mathbf{I}_p) = p\\). Enfin \\((\\mathbf{I} - \\mathbf{H})^2 = \\mathbf{I} - 2\\mathbf{H} + \\mathbf{H}^2 = \\mathbf{I} - \\mathbf{H}\\), de trace \\(n - p\\).\n8. **Constante.** Si \\(\\mathbf{1}\\) est une colonne, la coordonnée correspondante de \\(\\mathbf{X}^\\top \\mathbf{e} = \\mathbf{0}\\) s'écrit \\(\\sum_i e_i = 0\\), d'où \\(\\sum_i \\hat{y}_i = \\sum_i y_i\\).\n\n### Exemple chiffré\n\nQuatre observations (\\(n = 4\\)), une constante et une variable (\\(p = 2\\)) : \\(\\mathbf{x}_1 = \\mathbf{1}\\), \\(\\mathbf{x}_2 = (0, 1, 2, 3)\\) et \\(\\mathbf{y} = (1, 3, 2, 5)\\).\n\n1. \\(\\mathbf{X}^\\top \\mathbf{X} = \\begin{pmatrix} 4 & 6 \\\\ 6 & 14 \\end{pmatrix}\\) (nombre d'observations, somme des \\(x_{i2}\\), somme de leurs carrés) et \\(\\mathbf{X}^\\top \\mathbf{y} = (11, 22)\\) (somme des \\(y_i\\), somme des \\(x_{i2} y_i\\)).\n2. Déterminant \\(20\\), donc \\((\\mathbf{X}^\\top \\mathbf{X})^{-1} = \\tfrac{1}{20} \\begin{pmatrix} 14 & -6 \\\\ -6 & 4 \\end{pmatrix}\\).\n3. \\(\\hat{\\boldsymbol{\\beta}} = \\tfrac{1}{20} (22, 22) = (1{,}1 ; 1{,}1)\\) : constante et pente valent toutes deux \\(1{,}1\\).\n4. \\(\\hat{\\mathbf{y}} = (1{,}1 ; 2{,}2 ; 3{,}3 ; 4{,}4)\\) et \\(\\mathbf{e} = (-0{,}1 ; 0{,}8 ; -1{,}3 ; 0{,}6)\\). Contrôles : \\(\\sum_i e_i = 0\\) ; \\(\\mathbf{x}_2^\\top \\mathbf{e} = 0 \\times (-0{,}1) + 1 \\times 0{,}8 + 2 \\times (-1{,}3) + 3 \\times 0{,}6 = 0\\) ; \\(\\mathrm{tr}(\\mathbf{H}) = 2\\). En revanche \\(\\mathbf{y}^\\top \\mathbf{e} = \\lVert \\mathbf{e} \\rVert^2 = 2{,}7\\), non nul : les résidus ne sont pas orthogonaux à \\(\\mathbf{y}\\).\n\n```python\nx2 = np.array([0.0, 1.0, 2.0, 3.0])\ny = np.array([1.0, 3.0, 2.0, 5.0])\nX = np.column_stack([np.ones(4), x2])\nb_normales = np.linalg.solve(X.T.dot(X), X.T.dot(y))\nb_lstsq = np.linalg.lstsq(X, y, rcond=None)[0]\ne = y - X.dot(b_normales)\nH = X.dot(np.linalg.inv(X.T.dot(X))).dot(X.T)\nprint(\"b par les équations normales :\", b_normales)\nprint(\"b par lstsq (SVD)            :\", b_lstsq)\nprint(\"résidus e                    :\", e)\nprint(\"X^T e                        :\", X.T.dot(e))\nprint(\"H symétrique :\", np.allclose(H, H.T), \"; idempotente :\", np.allclose(H.dot(H), H), \"; trace :\", round(np.trace(H), 10))\n```\n\n```sortie\nb par les équations normales : [1.1 1.1]\nb par lstsq (SVD)            : [1.1 1.1]\nrésidus e                    : [-0.1  0.8 -1.3  0.6]\nX^T e                        : [ 0. -0.]\nH symétrique : True ; idempotente : True ; trace : 2.0\n```\n\n### Cas limites\n\n- Colonnes liées (rang inférieur à \\(p\\)) : une infinité de minimiseurs, mêmes valeurs ajustées. Exemple : deux colonnes égales \\(\\mathbf{x}_1 = \\mathbf{x}_2\\) ; seule la somme \\(b_1 + b_2\\) est déterminée. `np.linalg.lstsq` renvoie alors la solution de plus petite norme (ici \\(b_1 = b_2\\)), justifiée en partie 4.\n- \\(p > n\\) : le rang est au plus \\(n < p\\), le minimiseur n'est jamais unique.\n- \\(n = p\\) et \\(\\mathbf{X}\\) inversible : \\(\\mathrm{Im}(\\mathbf{X}) = \\mathbb{R}^n\\), donc \\(\\hat{\\mathbf{y}} = \\mathbf{y}\\), \\(\\mathbf{e} = \\mathbf{0}\\) et \\(\\mathbf{H} = \\mathbf{I}\\) : ajustement parfait, qui ne dit rien de la qualité de prédiction.\n- Constante seule (\\(\\mathbf{X} = \\mathbf{1}\\)) : \\(\\hat{\\beta} = \\mathbf{1}^\\top \\mathbf{y} / n\\), la moyenne des \\(y_i\\).\n\n### Pièges\n\n1. Les résidus sont orthogonaux aux colonnes et à \\(\\hat{\\mathbf{y}}\\), pas à \\(\\mathbf{y}\\) : \\(\\mathbf{y}^\\top \\mathbf{e} = (\\hat{\\mathbf{y}} + \\mathbf{e})^\\top \\mathbf{e} = \\lVert \\mathbf{e} \\rVert^2\\).\n2. « La somme des résidus est nulle » exige que \\(\\mathbf{1}\\) soit dans \\(\\mathrm{Im}(\\mathbf{X})\\), par exemple une colonne constante.\n3. Pour calculer, on ne forme pas l'inverse : `np.linalg.solve` sur les équations normales, ou mieux `np.linalg.lstsq` qui travaille sur \\(\\mathbf{X}\\) (par SVD) et évite d'élever le conditionnement au carré (partie 4).\n4. Oublier la colonne constante force l'hyperplan ajusté à passer par l'origine.\n\n[[controle:residus]]\n\n## Partie 2 : le modèle statistique et ce que garantit chaque hypothèse\n\n### Le problème\n\nLa partie 1 est de la géométrie : aucune probabilité. Pour dire si \\(\\hat{\\boldsymbol{\\beta}}\\) est proche des vrais coefficients, avec quelle précision, et pour tester, il faut un modèle qui décrit comment les données sont produites. Chaque hypothèse du modèle garantit une propriété précise ; quand elle tombe, c'est cette propriété qui tombe, et pas les autres.\n\n### Le modèle\n\n\\(\\mathbf{Y} = \\mathbf{X}\\boldsymbol{\\beta} + \\boldsymbol{\\varepsilon}\\), où \\(\\mathbf{X}\\) est la matrice fixe \\(n \\times p\\) de la partie 1, \\(\\boldsymbol{\\beta} \\in \\mathbb{R}^p\\) le vecteur fixe et inconnu des vrais coefficients, \\(\\boldsymbol{\\varepsilon}\\) un vecteur aléatoire de \\(\\mathbb{R}^n\\) (le bruit), et \\(\\mathbf{Y}\\) le vecteur aléatoire des réponses, dont \\(\\mathbf{y}\\) est une réalisation. \\(\\sigma^2 > 0\\) est un réel fixe. L'estimateur \\(\\hat{\\boldsymbol{\\beta}} = (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\mathbf{Y}\\) est désormais un vecteur aléatoire, de même que les résidus \\(\\hat{\\boldsymbol{\\varepsilon}} = \\mathbf{Y} - \\mathbf{X}\\hat{\\boldsymbol{\\beta}}\\).\n\n| Hypothèse | Énoncé |\n|---|---|\n| (A1) rang | \\(\\mathbf{X}\\) est de rang \\(p\\) |\n| (A2) exogénéité | \\(\\mathbb{E}[\\boldsymbol{\\varepsilon}] = \\mathbf{0}\\) : le modèle est bien spécifié, \\(\\mathbb{E}[\\mathbf{Y}] = \\mathbf{X}\\boldsymbol{\\beta}\\) |\n| (A3) homoscédasticité et non-corrélation | \\(\\mathrm{Var}(\\boldsymbol{\\varepsilon}) = \\sigma^2 \\mathbf{I}\\) : chaque \\(\\varepsilon_i\\) a la variance \\(\\sigma^2\\), et \\(\\mathrm{Cov}(\\varepsilon_i, \\varepsilon_m) = 0\\) pour \\(i \\ne m\\) |\n| (A4) normalité | \\(\\boldsymbol{\\varepsilon}\\) suit la loi normale \\(\\mathcal{N}(\\mathbf{0}, \\sigma^2 \\mathbf{I})\\) |\n\nPlan aléatoire : si \\(\\mathbf{X}\\) est aléatoire, on remplace (A2) par \\(\\mathbb{E}[\\boldsymbol{\\varepsilon} \\mid \\mathbf{X}] = \\mathbf{0}\\) et (A3) par \\(\\mathrm{Var}(\\boldsymbol{\\varepsilon} \\mid \\mathbf{X}) = \\sigma^2 \\mathbf{I}\\) ; les résultats ci-dessous valent alors conditionnellement à \\(\\mathbf{X}\\), avec les mêmes preuves.\n\n### L'énoncé\n\n1. Sous (A1) et (A2) : \\(\\mathbb{E}[\\hat{\\boldsymbol{\\beta}}] = \\boldsymbol{\\beta}\\) (estimateur sans biais).\n2. Sous (A1), (A2) et (A3) : \\(\\mathrm{Var}(\\hat{\\boldsymbol{\\beta}}) = \\sigma^2 (\\mathbf{X}^\\top \\mathbf{X})^{-1}\\), et, si \\(n > p\\), \\(\\hat{\\sigma}^2 = \\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2 / (n - p)\\) vérifie \\(\\mathbb{E}[\\hat{\\sigma}^2] = \\sigma^2\\).\n3. **Théorème de Gauss-Markov**, sous (A1), (A2) et (A3). Soit \\(\\mathbf{C}\\) une matrice fixe \\(p \\times n\\) telle que \\(\\tilde{\\boldsymbol{\\beta}} = \\mathbf{C}\\mathbf{Y}\\) soit sans biais pour toute valeur de \\(\\boldsymbol{\\beta}\\). Alors \\(\\mathrm{Var}(\\tilde{\\boldsymbol{\\beta}}) - \\mathrm{Var}(\\hat{\\boldsymbol{\\beta}})\\) est semi-définie positive ; en particulier, pour tout vecteur fixe \\(\\mathbf{a} \\in \\mathbb{R}^p\\), \\(\\mathrm{Var}(\\mathbf{a}^\\top \\tilde{\\boldsymbol{\\beta}}) \\ge \\mathrm{Var}(\\mathbf{a}^\\top \\hat{\\boldsymbol{\\beta}})\\). Les MCO sont le meilleur estimateur linéaire sans biais (BLUE, best linear unbiased estimator).\n4. Sous (A1) à (A4) : \\(\\hat{\\boldsymbol{\\beta}}\\) suit la loi \\(\\mathcal{N}\\big(\\boldsymbol{\\beta}, \\sigma^2 (\\mathbf{X}^\\top \\mathbf{X})^{-1}\\big)\\), et pour chaque \\(j\\), \\(T_j = (\\hat{\\beta}_j - \\beta_j) / \\sqrt{\\hat{\\sigma}^2 [(\\mathbf{X}^\\top \\mathbf{X})^{-1}]_{jj}}\\) suit une loi de Student à \\(n - p\\) degrés de liberté : c'est la base des tests t et des intervalles de confiance exacts. De plus, les MCO sont l'estimateur du maximum de vraisemblance de \\(\\boldsymbol{\\beta}\\).\n\n### La preuve\n\n1. **Sans biais.** \\(\\hat{\\boldsymbol{\\beta}} = (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top (\\mathbf{X}\\boldsymbol{\\beta} + \\boldsymbol{\\varepsilon}) = \\boldsymbol{\\beta} + \\mathbf{A}\\boldsymbol{\\varepsilon}\\), avec \\(\\mathbf{A} = (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top\\) fixe, de taille \\(p \\times n\\). Par linéarité de l'espérance, coordonnée par coordonnée, et (A2) : \\(\\mathbb{E}[\\hat{\\boldsymbol{\\beta}}] = \\boldsymbol{\\beta} + \\mathbf{A}\\,\\mathbb{E}[\\boldsymbol{\\varepsilon}] = \\boldsymbol{\\beta}\\). Seules (A1), pour que \\(\\mathbf{A}\\) existe, et (A2) ont servi.\n2. **Règle de calcul.** Pour une matrice fixe \\(\\mathbf{M}\\) et un vecteur aléatoire \\(\\mathbf{Z}\\) : \\(\\mathbf{M}\\mathbf{Z} - \\mathbb{E}[\\mathbf{M}\\mathbf{Z}] = \\mathbf{M}(\\mathbf{Z} - \\mathbb{E}\\mathbf{Z})\\), donc \\(\\mathrm{Var}(\\mathbf{M}\\mathbf{Z}) = \\mathbb{E}[\\mathbf{M}(\\mathbf{Z} - \\mathbb{E}\\mathbf{Z})(\\mathbf{Z} - \\mathbb{E}\\mathbf{Z})^\\top \\mathbf{M}^\\top] = \\mathbf{M}\\,\\mathrm{Var}(\\mathbf{Z})\\,\\mathbf{M}^\\top\\) par linéarité. Avec (A3) : \\(\\mathrm{Var}(\\hat{\\boldsymbol{\\beta}}) = \\sigma^2 \\mathbf{A}\\mathbf{A}^\\top = \\sigma^2 (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\mathbf{X} (\\mathbf{X}^\\top \\mathbf{X})^{-1} = \\sigma^2 (\\mathbf{X}^\\top \\mathbf{X})^{-1}\\).\n3. **Variance résiduelle.** \\(\\hat{\\boldsymbol{\\varepsilon}} = (\\mathbf{I} - \\mathbf{H})\\mathbf{Y} = (\\mathbf{I} - \\mathbf{H})\\boldsymbol{\\varepsilon}\\), car \\((\\mathbf{I} - \\mathbf{H})\\mathbf{X} = \\mathbf{X} - \\mathbf{X} = \\mathbf{0}\\). Avec \\(\\mathbf{M} = \\mathbf{I} - \\mathbf{H}\\), symétrique et idempotente (partie 1) : \\(\\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2 = \\boldsymbol{\\varepsilon}^\\top \\mathbf{M}^\\top \\mathbf{M}\\boldsymbol{\\varepsilon} = \\boldsymbol{\\varepsilon}^\\top \\mathbf{M}\\boldsymbol{\\varepsilon}\\). Un nombre est sa propre trace, et \\(\\mathrm{tr}(\\mathbf{A}\\mathbf{B}) = \\mathrm{tr}(\\mathbf{B}\\mathbf{A})\\) : \\(\\boldsymbol{\\varepsilon}^\\top \\mathbf{M}\\boldsymbol{\\varepsilon} = \\mathrm{tr}(\\mathbf{M}\\boldsymbol{\\varepsilon}\\boldsymbol{\\varepsilon}^\\top)\\). L'espérance passe à travers la trace, qui est linéaire, et \\(\\mathbb{E}[\\boldsymbol{\\varepsilon}\\boldsymbol{\\varepsilon}^\\top] = \\mathrm{Var}(\\boldsymbol{\\varepsilon}) = \\sigma^2 \\mathbf{I}\\) car \\(\\mathbb{E}\\boldsymbol{\\varepsilon} = \\mathbf{0}\\) : \\(\\mathbb{E}\\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2 = \\sigma^2\\,\\mathrm{tr}(\\mathbf{I} - \\mathbf{H}) = \\sigma^2 (n - p)\\).\n4. **Gauss-Markov.** \\(\\mathbb{E}[\\mathbf{C}\\mathbf{Y}] = \\mathbf{C}\\mathbf{X}\\boldsymbol{\\beta}\\) doit valoir \\(\\boldsymbol{\\beta}\\) pour tout \\(\\boldsymbol{\\beta}\\) ; en prenant pour \\(\\boldsymbol{\\beta}\\) chaque vecteur de la base canonique, \\(\\mathbf{C}\\mathbf{X} = \\mathbf{I}_p\\). On pose \\(\\mathbf{D} = \\mathbf{C} - \\mathbf{A}\\) ; alors \\(\\mathbf{D}\\mathbf{X} = \\mathbf{I}_p - \\mathbf{I}_p = \\mathbf{0}\\). Par l'étape 2 : \\(\\mathrm{Var}(\\mathbf{C}\\mathbf{Y}) = \\sigma^2 \\mathbf{C}\\mathbf{C}^\\top = \\sigma^2 (\\mathbf{A}\\mathbf{A}^\\top + \\mathbf{A}\\mathbf{D}^\\top + \\mathbf{D}\\mathbf{A}^\\top + \\mathbf{D}\\mathbf{D}^\\top)\\). Or \\(\\mathbf{A}\\mathbf{D}^\\top = (\\mathbf{X}^\\top \\mathbf{X})^{-1} (\\mathbf{D}\\mathbf{X})^\\top = \\mathbf{0}\\), et \\(\\mathbf{D}\\mathbf{A}^\\top\\) est sa transposée. Donc \\(\\mathrm{Var}(\\tilde{\\boldsymbol{\\beta}}) - \\mathrm{Var}(\\hat{\\boldsymbol{\\beta}}) = \\sigma^2 \\mathbf{D}\\mathbf{D}^\\top\\), et \\(\\mathbf{a}^\\top \\mathbf{D}\\mathbf{D}^\\top \\mathbf{a} = \\lVert \\mathbf{D}^\\top \\mathbf{a} \\rVert^2 \\ge 0\\).\n5. **Normalité.** \\(\\hat{\\boldsymbol{\\beta}} = \\boldsymbol{\\beta} + \\mathbf{A}\\boldsymbol{\\varepsilon}\\) est une transformation affine d'un vecteur gaussien, donc gaussienne (admis), d'espérance et de variance données par les étapes 1 et 2. La loi de Student est admise : elle repose sur l'indépendance de \\(\\hat{\\boldsymbol{\\beta}}\\) et \\(\\hat{\\boldsymbol{\\varepsilon}}\\), qui sont non corrélés (\\(\\mathbf{A}(\\mathbf{I} - \\mathbf{H}) = \\mathbf{A} - \\mathbf{A} = \\mathbf{0}\\), car \\(\\mathbf{A}\\mathbf{H} = \\mathbf{A}\\)) et conjointement gaussiens, et sur la loi du khi-deux à \\(n - p\\) degrés de liberté de \\(\\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2 / \\sigma^2\\).\n6. **Maximum de vraisemblance.** Sous (A4), la densité de \\(\\mathbf{Y}\\) en \\(\\mathbf{y}\\), pour des paramètres \\(\\mathbf{b}\\) et \\(\\sigma^2\\), vaut \\((2\\pi\\sigma^2)^{-n/2} \\exp\\big(-s(\\mathbf{b})/(2\\sigma^2)\\big)\\). Son logarithme est \\(-\\tfrac{n}{2} \\ln(2\\pi\\sigma^2) - s(\\mathbf{b})/(2\\sigma^2)\\) : à \\(\\sigma^2\\) fixé, la maximiser en \\(\\mathbf{b}\\) revient à minimiser \\(s(\\mathbf{b})\\).\n\n### Exemple chiffré, suite\n\nSur l'exemple à quatre points : \\(\\lVert \\mathbf{e} \\rVert^2 = 2{,}7\\), donc la valeur observée de \\(\\hat{\\sigma}^2\\) est \\(2{,}7 / (4 - 2) = 1{,}35\\). Variance estimée de la pente : \\(1{,}35 \\times [(\\mathbf{X}^\\top \\mathbf{X})^{-1}]_{22} = 1{,}35 \\times 0{,}2 = 0{,}27\\), d'où une erreur-type de \\(0{,}5196\\) et une statistique \\(t = 1{,}1 / 0{,}5196 \\approx 2{,}117\\), à comparer à une loi de Student à 2 degrés de liberté sous (A4).\n\nL'expérience suivante compare les MCO à un autre estimateur linéaire sans biais de la pente, la pente entre le premier et le dernier point, \\((Y_n - Y_1)/(x_{n2} - x_{12})\\). Les deux sont sans biais ; Gauss-Markov prédit que les MCO ont la plus petite variance.\n\n```python\nrng = np.random.default_rng(0)\nn, sigma = 20, 1.0\nx2 = np.linspace(0, 1, n)\nX = np.column_stack([np.ones(n), x2])\nY = X.dot(np.array([1.0, 2.0])) + sigma * rng.standard_normal((20000, n))   # une ligne par échantillon simulé\nB = np.linalg.solve(X.T.dot(X), X.T.dot(Y.T)).T                           # MCO pour chaque échantillon\nextremes = (Y[:, -1] - Y[:, 0]) / (x2[-1] - x2[0])\ns2 = ((Y - B.dot(X.T)) ** 2).sum(axis=1) / (n - 2)\nprint(\"moyenne des pentes MCO       :\", round(B[:, 1].mean(), 4), \"(vraie pente : 2)\")\nprint(\"moyenne des pentes extrêmes  :\", round(extremes.mean(), 4))\nprint(\"variance MCO simulée         :\", round(B[:, 1].var(), 4), \"; formule sigma^2 [(X^T X)^-1]_22 :\", round(sigma**2 * np.linalg.inv(X.T.dot(X))[1, 1], 4))\nprint(\"variance extrêmes simulée    :\", round(extremes.var(), 4), \"; formule 2 sigma^2 / (x_n - x_1)^2 :\", round(2 * sigma**2 / (x2[-1] - x2[0]) ** 2, 4))\nprint(\"moyenne de sigma^2 chapeau   :\", round(s2.mean(), 4), \"(sigma^2 = 1)\")\n```\n\n```sortie\nmoyenne des pentes MCO       : 2.0002 (vraie pente : 2)\nmoyenne des pentes extrêmes  : 2.001\nvariance MCO simulée         : 0.541 ; formule sigma^2 [(X^T X)^-1]_22 : 0.5429\nvariance extrêmes simulée    : 2.0093 ; formule 2 sigma^2 / (x_n - x_1)^2 : 2.0\nmoyenne de sigma^2 chapeau   : 1.003 (sigma^2 = 1)\n```\n\n[[controle:gauss_markov]]\n\n### Les violations, une par une\n\n**Hétéroscédasticité** : (A3) tombe parce que les variances diffèrent, \\(\\mathrm{Var}(\\boldsymbol{\\varepsilon}) = \\boldsymbol{\\Sigma}\\), matrice diagonale de coefficients \\(\\sigma_1^2, \\dots, \\sigma_n^2\\) non tous égaux.\n\n1. Les MCO restent sans biais : l'étape 1 n'utilise que (A1) et (A2).\n2. Par l'étape 2, \\(\\mathrm{Var}(\\hat{\\boldsymbol{\\beta}}) = \\mathbf{A}\\boldsymbol{\\Sigma}\\mathbf{A}^\\top = (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\boldsymbol{\\Sigma}\\mathbf{X} (\\mathbf{X}^\\top \\mathbf{X})^{-1}\\) (forme « sandwich »), différente de \\(\\sigma^2 (\\mathbf{X}^\\top \\mathbf{X})^{-1}\\) sauf si \\(\\mathbf{X}^\\top \\boldsymbol{\\Sigma}\\mathbf{X} = \\sigma^2 \\mathbf{X}^\\top \\mathbf{X}\\) pour un réel \\(\\sigma^2\\) : les erreurs-types usuelles, les tests t et les intervalles sont faux.\n3. Sens de l'erreur, en régression simple avec constante. Notons \\(\\bar{x}\\) la moyenne des \\(x_{i2}\\) et \\(S_{xx} = \\sum_i (x_{i2} - \\bar{x})^2\\). Les équations normales donnent \\(\\hat{\\beta}_2 = \\sum_i (x_{i2} - \\bar{x}) Y_i / S_{xx}\\) (première équation : \\(\\hat{\\beta}_1 = \\bar{Y} - \\hat{\\beta}_2 \\bar{x}\\), où \\(\\bar{Y}\\) est la moyenne des \\(Y_i\\) ; on la reporte dans la seconde), donc \\(\\hat{\\beta}_2 - \\beta_2 = \\sum_i c_i \\varepsilon_i\\) avec \\(c_i = (x_{i2} - \\bar{x}) / S_{xx}\\). Alors \\(\\mathrm{Var}(\\hat{\\beta}_2) = \\sum_i c_i^2 \\sigma_i^2 = \\big(\\sum_i w_i \\sigma_i^2\\big) / S_{xx}\\), où les poids \\(w_i = (x_{i2} - \\bar{x})^2 / S_{xx}\\) sont positifs et de somme 1. La formule usuelle remplace les \\(\\sigma_i^2\\) par une variance commune, estimée par \\(\\hat{\\sigma}^2\\). Par l'étape 3 avec \\(\\boldsymbol{\\Sigma}\\) à la place de \\(\\sigma^2 \\mathbf{I}\\), \\(\\mathbb{E}[\\hat{\\sigma}^2] = \\mathrm{tr}((\\mathbf{I} - \\mathbf{H})\\boldsymbol{\\Sigma}) / (n - 2) = \\sum_i (1 - h_{ii})\\,\\sigma_i^2 / (n - 2)\\), où les \\(h_{ii}\\), coefficients diagonaux de \\(\\mathbf{H}\\), sont positifs et de somme 2 : quand \\(n\\) est grand devant 2 et qu'aucun \\(h_{ii}\\) n'est proche de 1, c'est presque la moyenne simple des \\(\\sigma_i^2\\). La formule usuelle **sous-estime** alors la variance quand le bruit est plus fort loin de \\(\\bar{x}\\) (moyenne des \\(\\sigma_i^2\\) pondérée par les \\(w_i\\) supérieure à leur moyenne simple), et la surestime dans le cas contraire.\n4. Gauss-Markov ne s'applique plus. Si les \\(\\sigma_i\\) sont connus, les moindres carrés pondérés (MCP), qui minimisent \\(\\sum_i (y_i - (\\mathbf{X}\\mathbf{b})_i)^2 / \\sigma_i^2\\), sont le meilleur estimateur linéaire sans biais : ce sont les MCO du modèle transformé \\(Y_i / \\sigma_i = (\\mathbf{X}\\boldsymbol{\\beta})_i / \\sigma_i + \\varepsilon_i / \\sigma_i\\), dont le bruit vérifie (A3) avec \\(\\sigma^2 = 1\\), et Gauss-Markov s'y applique.\n5. Si les \\(\\sigma_i\\) sont inconnus : on garde les MCO et l'on remplace \\(\\boldsymbol{\\Sigma}\\) dans le sandwich par la matrice diagonale des \\(e_i^2\\) (erreurs-types de White) ; leur convergence quand \\(n\\) grandit, sous des conditions de moments, est admise.\n\n```python\nrng = np.random.default_rng(1)\nn = 200\nx2 = rng.uniform(0, 1, n)\nX = np.column_stack([np.ones(n), x2])\necart = 0.1 + 4 * np.abs(x2 - 0.5)                  # écart-type du bruit, plus grand loin du centre\nXtX_inv = np.linalg.inv(X.T.dot(X))\nY = 1 + 2 * x2 + ecart * rng.standard_normal((20000, n))\nB = XtX_inv.dot(X.T.dot(Y.T)).T\nR = Y - B.dot(X.T)\nse_usuelle = np.sqrt((R**2).sum(axis=1) / (n - 2) * XtX_inv[1, 1])\nviande = np.einsum(\"si,ij,ik->sjk\", R**2, X, X)        # X^T diag(e_i^2) X pour chaque échantillon\nse_white = np.sqrt(np.einsum(\"j,sjk,k->s\", XtX_inv[1], viande, XtX_inv[1]))\nprint(\"moyenne des pentes            :\", round(B[:, 1].mean(), 4), \"(vraie pente : 2)\")\nprint(\"écart-type réel des pentes    :\", round(B[:, 1].std(), 4))\nprint(\"erreur-type usuelle, moyenne  :\", round(se_usuelle.mean(), 4))\nprint(\"erreur-type de White, moyenne :\", round(se_white.mean(), 4))\n```\n\n```sortie\nmoyenne des pentes            : 1.9984 (vraie pente : 2)\nécart-type réel des pentes    : 0.407\nerreur-type usuelle, moyenne  : 0.3039\nerreur-type de White, moyenne : 0.4026\n```\n\nLecture : la moyenne des pentes reste à la vraie valeur (sans biais), l'erreur-type usuelle est plus petite que l'écart-type réel (le bruit est plus fort aux extrémités, là où les poids \\(w_i\\) sont grands), et l'erreur-type de White s'en approche.\n\n**Autocorrélation** : (A3) tombe parce que des bruits sont corrélés, \\(\\mathrm{Cov}(\\varepsilon_i, \\varepsilon_m) \\ne 0\\) pour certains \\(i \\ne m\\), par exemple entre dates voisines d'une série temporelle.\n\n1. Les MCO restent sans biais, et \\(\\mathrm{Var}(\\hat{\\boldsymbol{\\beta}}) = \\mathbf{A}\\boldsymbol{\\Sigma}\\mathbf{A}^\\top\\) avec \\(\\boldsymbol{\\Sigma} = \\mathrm{Var}(\\boldsymbol{\\varepsilon})\\) non diagonale : la formule usuelle est fausse.\n2. Cas précis : régression simple avec constante, observations indexées par le temps, bruit stationnaire de type AR(1), \\(\\mathrm{Cov}(\\varepsilon_i, \\varepsilon_m) = \\sigma^2 \\phi^{\\lvert i - m \\rvert}\\) avec \\(\\phi\\) réel, \\(\\lvert \\phi \\rvert < 1\\). Avec les \\(c_i\\) ci-dessus, \\(\\mathrm{Var}(\\hat{\\beta}_2) = \\sum_{i, m} c_i c_m \\sigma^2 \\phi^{\\lvert i - m \\rvert}\\) ; en regroupant les couples selon l'écart \\(h = \\lvert i - m \\rvert\\) : \\(\\mathrm{Var}(\\hat{\\beta}_2) = \\dfrac{\\sigma^2}{S_{xx}} \\Big(1 + 2 \\sum_{h \\ge 1} \\phi^h \\rho_h\\Big)\\), où \\(\\rho_h = \\sum_i (x_{i2} - \\bar{x})(x_{i+h,2} - \\bar{x}) / S_{xx}\\) (somme sur \\(i\\) de 1 à \\(n - h\\)) est l'autocorrélation empirique du régresseur au retard \\(h\\).\n3. Conséquence : si \\(\\phi > 0\\) et si tous les \\(\\rho_h\\) sont positifs (régresseur lui-même positivement autocorrélé), la vraie variance dépasse \\(\\sigma^2 / S_{xx}\\) : la formule usuelle, même avec la vraie \\(\\sigma^2\\), sous-estime la variance, et les tests rejettent trop. Ordre de grandeur : pour un régresseur AR(1) de coefficient \\(\\phi\\) lui aussi et une longue série, \\(\\rho_h\\) est proche de \\(\\phi^h\\) (admis), et le facteur vaut environ \\((1 + \\phi^2)/(1 - \\phi^2)\\) ; pour \\(\\phi = 0{,}8\\), environ \\(4{,}56\\) sur la variance, soit \\(2{,}13\\) sur l'erreur-type.\n4. Une source de cette autocorrélation en finance quantitative : des étiquettes qui se chevauchent. Un rendement sur 5 jours calculé chaque jour partage 4 rendements quotidiens avec celui du lendemain ; si les rendements quotidiens sont non corrélés et de même variance \\(v\\), leur covariance vaut \\(4v\\) pour une variance \\(5v\\), donc une corrélation de 4/5.\n5. Remèdes : erreurs-types de Newey-West, qui pondèrent les autocovariances empiriques des \\(e_i\\) (convergence admise), ou une modélisation explicite de la dépendance.\n\n```python\nrng = np.random.default_rng(2)\ndef ar1(nsim, n, phi):\n    u = rng.standard_normal((nsim, n))\n    z = np.empty((nsim, n))\n    z[:, 0] = u[:, 0] / np.sqrt(1 - phi**2)           # loi stationnaire\n    for t in range(1, n):\n        z[:, t] = phi * z[:, t - 1] + u[:, t]\n    return z\nn, phi = 200, 0.8\nx2 = ar1(1, n, phi)[0]\nxc = x2 - x2.mean()\neps = ar1(20000, n, phi)\npentes = eps.dot(xc) / xc.dot(xc)                      # pente estimée moins la vraie pente\nsigma2 = 1 / (1 - phi**2)                              # variance marginale du bruit\nprint(\"écart-type réel des pentes             :\", round(pentes.std(), 4))\nprint(\"formule usuelle sqrt(sigma^2 / S_xx)   :\", round(np.sqrt(sigma2 / xc.dot(xc)), 4))\nrho_h = np.array([xc[:-h].dot(xc[h:]) for h in range(1, n)]) / xc.dot(xc)\nfacteur = 1 + 2 * np.sum(phi ** np.arange(1, n) * rho_h)\nprint(\"formule exacte de l'étape 2            :\", round(np.sqrt(sigma2 / xc.dot(xc) * facteur), 4))\n```\n\n```sortie\nécart-type réel des pentes             : 0.1517\nformule usuelle sqrt(sigma^2 / S_xx)   : 0.0969\nformule exacte de l'étape 2            : 0.1517\n```\n\nLecture : l'écart-type réel dépasse la formule usuelle, et la formule exacte de l'étape 2, calculée avec les autocorrélations empiriques \\(\\rho_h\\) de cette série, le retrouve. Le rapport observé dépend de la série tirée : sur 200 dates, les \\(\\rho_h\\) empiriques peuvent être plus petits que \\(\\phi^h\\), et l'ordre de grandeur de l'étape 3 ne vaut que pour une série longue.\n\n**Variable omise.** Le vrai modèle est \\(\\mathbf{Y} = \\mathbf{X}\\boldsymbol{\\beta} + \\gamma\\,\\mathbf{z} + \\boldsymbol{\\varepsilon}\\), avec \\(\\mathbf{z} \\in \\mathbb{R}^n\\) un vecteur fixe (la variable omise), \\(\\gamma\\) un réel fixe et \\(\\mathbb{E}[\\boldsymbol{\\varepsilon}] = \\mathbf{0}\\) ; on régresse \\(\\mathbf{Y}\\) sur \\(\\mathbf{X}\\) seul. On note \\(\\boldsymbol{\\delta} = (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\mathbf{z}\\) les coefficients MCO de la régression de \\(\\mathbf{z}\\) sur \\(\\mathbf{X}\\).\n\n1. \\(\\mathbb{E}[\\hat{\\boldsymbol{\\beta}}] = \\mathbf{A}(\\mathbf{X}\\boldsymbol{\\beta} + \\gamma\\,\\mathbf{z}) = \\boldsymbol{\\beta} + \\gamma\\,\\boldsymbol{\\delta}\\). Le biais du coefficient \\(j\\) vaut \\(\\gamma\\,\\delta_j\\) : il a le signe du produit de l'effet de la variable omise et de sa pente sur la variable \\(j\\).\n2. Le biais est nul si et seulement si \\(\\gamma = 0\\) ou \\(\\mathbf{X}^\\top \\mathbf{z} = \\mathbf{0}\\) (variable omise orthogonale aux colonnes ; avec constante, de moyenne nulle et non corrélée empiriquement aux autres variables).\n3. Ce biais ne disparaît pas quand \\(n\\) grandit tant que \\(\\boldsymbol{\\delta}\\) ne tend pas vers 0 : il ne se corrige pas avec plus de données, seulement en incluant \\(\\mathbf{z}\\).\n\n```python\nrng = np.random.default_rng(3)\nn = 100\nx2 = rng.standard_normal(n)\nz = 0.5 * x2 + rng.standard_normal(n)                 # z corrélée à x2\nX = np.column_stack([np.ones(n), x2])\ndelta = np.linalg.lstsq(X, z, rcond=None)[0][1]        # pente de z sur (1, x2) dans l'échantillon\nY = 1 + 2 * x2 + 3 * z + rng.standard_normal((20000, n))\npentes = np.linalg.lstsq(X, Y.T, rcond=None)[0][1]\nprint(\"delta (pente de z sur x2)      :\", round(delta, 4))\nprint(\"moyenne des pentes estimées    :\", round(pentes.mean(), 4))\nprint(\"prédiction 2 + 3 * delta       :\", round(2 + 3 * delta, 4))\n```\n\n```sortie\ndelta (pente de z sur x2)      : 0.5449\nmoyenne des pentes estimées    : 3.634\nprédiction 2 + 3 * delta       : 3.6346\n```\n\n**Endogénéité.** Plan aléatoire (la matrice \\(\\mathbf{X}\\) est alors aléatoire), et (A2) conditionnelle tombe : \\(\\mathbb{E}[\\boldsymbol{\\varepsilon} \\mid \\mathbf{X}] \\ne \\mathbf{0}\\) ; le cas qui pose problème est celui d'une variable explicative corrélée au bruit de la même observation. Causes classiques : variable omise corrélée aux régresseurs, erreur de mesure sur un régresseur, causalité dans les deux sens. Conséquence, démontrée ci-dessous sur l'erreur de mesure : un biais qui ne disparaît pas quand \\(n\\) grandit (estimateur non convergent).\n\nExemple démontré, l'erreur de mesure. Pour \\(i = 1, \\dots, n\\), indépendamment : \\(Y_i = \\beta Z_i + \\varepsilon_i\\), mais on observe \\(W_i = Z_i + U_i\\) au lieu de \\(Z_i\\). \\(Z_i\\), \\(U_i\\), \\(\\varepsilon_i\\) sont indépendantes, centrées, de variances \\(v_Z > 0\\), \\(v_U \\ge 0\\) et \\(\\sigma^2\\) ; \\(\\beta\\) est un réel fixe. La pente MCO sans constante \\(\\hat{\\beta} = \\sum_i W_i Y_i / \\sum_i W_i^2\\) converge presque sûrement vers \\(\\beta\\,v_Z / (v_Z + v_U)\\).\n\n1. \\(\\mathbb{E}[W_i Y_i] = \\mathbb{E}[(Z_i + U_i)(\\beta Z_i + \\varepsilon_i)] = \\beta\\,v_Z\\) : les trois autres produits sont des produits de variables indépendantes centrées, d'espérance nulle.\n2. \\(\\mathbb{E}[W_i^2] = v_Z + 2\\,\\mathbb{E}[Z_i U_i] + v_U = v_Z + v_U\\).\n3. Par la loi forte des grands nombres (admise), \\(\\tfrac1n \\sum_i W_i Y_i\\) et \\(\\tfrac1n \\sum_i W_i^2\\) convergent presque sûrement vers ces espérances ; le quotient converge vers le quotient des limites, car la limite du dénominateur est non nulle.\n4. Lecture : \\(Y_i = \\beta W_i + (\\varepsilon_i - \\beta U_i)\\), et le bruit composite est corrélé au régresseur observé : \\(\\mathrm{Cov}(W_i, \\varepsilon_i - \\beta U_i) = -\\beta\\,v_U \\ne 0\\) si \\(\\beta \\ne 0\\) et \\(v_U > 0\\). La pente est tirée vers 0 (biais d'atténuation). Avec \\(\\beta = 2\\), \\(v_Z = 1\\), \\(v_U = 0{,}25\\) : limite \\(1{,}6\\).\n5. Remède : variables instrumentales (non traité ici).\n\n```python\nrng = np.random.default_rng(4)\nn = 200000\nZ = rng.standard_normal(n)                     # vraie variable, variance 1\nW = Z + 0.5 * rng.standard_normal(n)           # mesurée avec une erreur de variance 0,25\nY = 2 * Z + rng.standard_normal(n)\nprint(\"pente de Y sur la variable mesurée :\", round(W.dot(Y) / W.dot(W), 4))\nprint(\"limite 2 x 1 / (1 + 0,25)          :\", 2 / 1.25)\n```\n\n```sortie\npente de Y sur la variable mesurée : 1.6012\nlimite 2 x 1 / (1 + 0,25)          : 1.6\n```\n\n**Multicolinéarité.** Parfaite, c'est la violation de (A1) : les coefficients ne sont pas identifiables (infinité de minimiseurs), mais les valeurs ajustées restent uniques (partie 1). Imparfaite (colonnes presque liées) : (A1) à (A3) tiennent, donc les MCO restent sans biais et BLUE, mais leur variance est grande. Formule exacte :\n\nSoit \\(j\\) l'indice d'une colonne, \\(\\mathbf{X}_{-j}\\) la matrice des autres colonnes, supposée contenir la constante, et \\(\\tilde{\\mathbf{x}}_j\\) le résidu de la régression MCO de \\(\\mathbf{x}_j\\) sur \\(\\mathbf{X}_{-j}\\). On note \\(\\mathrm{SCT}_j = \\sum_i (x_{ij} - \\bar{x}_j)^2\\), où \\(\\bar{x}_j\\) est la moyenne de la colonne \\(j\\), et \\(R_j^2 = 1 - \\lVert \\tilde{\\mathbf{x}}_j \\rVert^2 / \\mathrm{SCT}_j\\), le coefficient de détermination de cette régression auxiliaire (partie 3). Alors, sous (A1) à (A3) :\n\n\\(\\displaystyle \\mathrm{Var}(\\hat{\\beta}_j) = \\frac{\\sigma^2}{\\lVert \\tilde{\\mathbf{x}}_j \\rVert^2} = \\frac{\\sigma^2}{\\mathrm{SCT}_j\\,(1 - R_j^2)}.\\)\n\nLe facteur \\(1/(1 - R_j^2)\\) est le **facteur d'inflation de la variance** (VIF, variance inflation factor) : la variance est multipliée par ce facteur par rapport à une colonne de même dispersion non corrélée aux autres.\n\nPreuve (théorème de Frisch-Waugh) :\n\n1. Soit \\(\\mathbf{P}\\) la matrice de projection orthogonale sur le complément orthogonal de \\(\\mathrm{Im}(\\mathbf{X}_{-j})\\), c'est-à-dire \\(\\mathbf{I}\\) moins la matrice chapeau de \\(\\mathbf{X}_{-j}\\) ; elle est symétrique, idempotente (partie 1), et \\(\\tilde{\\mathbf{x}}_j = \\mathbf{P}\\mathbf{x}_j\\), \\(\\mathbf{P}\\mathbf{X}_{-j} = \\mathbf{0}\\).\n2. On écrit \\(\\mathbf{y} = \\mathbf{X}_{-j}\\hat{\\mathbf{b}}_{-j} + \\hat{b}_j \\mathbf{x}_j + \\mathbf{e}\\), décomposition des MCO sur toutes les colonnes. On applique \\(\\mathbf{P}\\) : \\(\\mathbf{P}\\mathbf{y} = \\hat{b}_j \\tilde{\\mathbf{x}}_j + \\mathbf{P}\\mathbf{e}\\), et \\(\\mathbf{P}\\mathbf{e} = \\mathbf{e}\\) car \\(\\mathbf{e}\\) est orthogonal aux colonnes de \\(\\mathbf{X}_{-j}\\).\n3. On multiplie à gauche par \\(\\tilde{\\mathbf{x}}_j^\\top\\) : \\(\\tilde{\\mathbf{x}}_j^\\top \\mathbf{e} = \\mathbf{x}_j^\\top \\mathbf{P}\\mathbf{e} = \\mathbf{x}_j^\\top \\mathbf{e} = 0\\) et \\(\\tilde{\\mathbf{x}}_j^\\top \\mathbf{P}\\mathbf{y} = \\mathbf{x}_j^\\top \\mathbf{P}^2 \\mathbf{y} = \\tilde{\\mathbf{x}}_j^\\top \\mathbf{y}\\). D'où \\(\\hat{b}_j = \\tilde{\\mathbf{x}}_j^\\top \\mathbf{y} / \\lVert \\tilde{\\mathbf{x}}_j \\rVert^2\\) : le coefficient \\(j\\) est la pente de \\(\\mathbf{y}\\) sur la partie de \\(\\mathbf{x}_j\\) que les autres colonnes n'expliquent pas.\n4. Dans le modèle, \\(\\hat{\\beta}_j = \\tilde{\\mathbf{x}}_j^\\top \\mathbf{Y} / \\lVert \\tilde{\\mathbf{x}}_j \\rVert^2\\), et l'étape 2 de la preuve générale donne \\(\\mathrm{Var}(\\hat{\\beta}_j) = \\sigma^2 \\lVert \\tilde{\\mathbf{x}}_j \\rVert^2 / \\lVert \\tilde{\\mathbf{x}}_j \\rVert^4\\). Comme \\(\\mathbf{X}_{-j}\\) contient la constante, \\(\\mathrm{SCT}_j\\) est la somme des carrés totale de la régression auxiliaire et \\(\\lVert \\tilde{\\mathbf{x}}_j \\rVert^2 = \\mathrm{SCT}_j (1 - R_j^2)\\) par définition de \\(R_j^2\\). En comparant avec l'énoncé 2, on obtient aussi \\([(\\mathbf{X}^\\top \\mathbf{X})^{-1}]_{jj} = 1/\\lVert \\tilde{\\mathbf{x}}_j \\rVert^2\\).\n\nExemple : \\(R_j^2 = 0{,}99\\) donne un VIF de \\(100\\) et une erreur-type multipliée par \\(10\\).\n\n```python\nrng = np.random.default_rng(5)\nn = 100\nx3 = rng.standard_normal(n)\nfor rho in [0.0, 0.9, 0.99]:\n    x2 = rho * x3 + np.sqrt(1 - rho**2) * rng.standard_normal(n)\n    X = np.column_stack([np.ones(n), x2, x3])\n    autres = X[:, [0, 2]]\n    tilde = x2 - autres.dot(np.linalg.lstsq(autres, x2, rcond=None)[0])\n    R2_j = 1 - tilde.dot(tilde) / ((x2 - x2.mean()) ** 2).sum()\n    print(f\"rho={rho:4.2f}  R2_j={R2_j:.4f}  VIF={1 / (1 - R2_j):7.2f}  [(X^T X)^-1]_22={np.linalg.inv(X.T.dot(X))[1, 1]:.5f}  1/norme(tilde)^2={1 / tilde.dot(tilde):.5f}\")\n```\n\n```sortie\nrho=0.00  R2_j=0.0053  VIF=   1.01  [(X^T X)^-1]_22=0.00985  1/norme(tilde)^2=0.00985\nrho=0.90  R2_j=0.8000  VIF=   5.00  [(X^T X)^-1]_22=0.05843  1/norme(tilde)^2=0.05843\nrho=0.99  R2_j=0.9759  VIF=  41.55  [(X^T X)^-1]_22=0.52899  1/norme(tilde)^2=0.52899\n```\n\n[[controle:omise]]\n\n### Pièges\n\n1. « Hétéroscédasticité ou autocorrélation implique un biais » : faux, seules les variances et les tests sont faux ; c'est (A2) qui garantit l'absence de biais.\n2. « La multicolinéarité biaise les coefficients » : faux, elle les rend imprécis. Les valeurs ajustées aléatoires \\(\\hat{\\mathbf{Y}} = \\mathbf{H}\\mathbf{Y}\\), elles, n'en souffrent pas : \\(\\mathrm{Var}(\\hat{\\mathbf{Y}}) = \\sigma^2 \\mathbf{H}\\mathbf{H}^\\top = \\sigma^2 \\mathbf{H}\\), de trace \\(\\sigma^2 p\\) quelle que soit la colinéarité.\n3. Gauss-Markov ne dit pas que les MCO ont la plus petite erreur quadratique : la comparaison est limitée aux estimateurs **linéaires et sans biais**. Un estimateur biaisé comme Ridge peut faire mieux (partie 6).\n4. La normalité (A4) ne sert ni au caractère sans biais ni à Gauss-Markov ; elle sert aux lois exactes des tests en petit échantillon.\n5. Ajouter des données ne corrige ni la variable omise ni l'endogénéité.\n\n## Partie 3 : R² et R² ajusté\n\n### Le problème\n\nMesurer la part de la variabilité de \\(\\mathbf{y}\\) que le modèle restitue, et comparer des modèles qui n'ont pas le même nombre de colonnes.\n\n### Définitions\n\n\\(\\bar{y} = \\tfrac1n \\sum_i y_i\\). Somme des carrés totale \\(\\mathrm{SCT} = \\lVert \\mathbf{y} - \\bar{y}\\,\\mathbf{1} \\rVert^2\\), expliquée \\(\\mathrm{SCE} = \\lVert \\hat{\\mathbf{y}} - \\bar{y}\\,\\mathbf{1} \\rVert^2\\), résiduelle \\(\\mathrm{SCR} = \\lVert \\mathbf{e} \\rVert^2\\). Coefficient de détermination \\(R^2 = 1 - \\mathrm{SCR}/\\mathrm{SCT}\\) et R² ajusté \\(R^2_{\\mathrm{aj}} = 1 - \\dfrac{\\mathrm{SCR}/(n - p)}{\\mathrm{SCT}/(n - 1)}\\), où \\(p\\) compte la constante. On suppose \\(\\mathrm{SCT} > 0\\).\n\n### L'intuition\n\n\\(\\mathrm{SCT}\\) est l'erreur du modèle le plus bête, la constante \\(\\bar{y}\\) ; \\(\\mathrm{SCR}\\) est l'erreur du modèle. R² mesure la fraction de l'erreur du modèle bête que le modèle supprime. Le R² ajusté remplace les deux sommes par des estimateurs sans biais de variance, ce qui fait payer chaque colonne ajoutée.\n\n### L'énoncé\n\n1. Avec une constante dans \\(\\mathbf{X}\\) : \\(\\mathrm{SCT} = \\mathrm{SCE} + \\mathrm{SCR}\\), donc \\(0 \\le R^2 \\le 1\\) et \\(R^2 = \\mathrm{SCE}/\\mathrm{SCT}\\) ; de plus \\(R^2\\) est le carré de la corrélation empirique entre \\(\\mathbf{y}\\) et \\(\\hat{\\mathbf{y}}\\).\n2. Ajouter une colonne ne fait jamais décroître R² sur l'échantillon d'apprentissage. Précisément, si \\(\\mathbf{x}_{\\mathrm{new}} \\notin \\mathrm{Im}(\\mathbf{X})\\) et \\(\\tilde{\\mathbf{x}} = (\\mathbf{I} - \\mathbf{H})\\mathbf{x}_{\\mathrm{new}}\\) est son résidu sur les anciennes colonnes, alors \\(\\mathrm{SCR}_{\\mathrm{nouveau}} = \\mathrm{SCR}_{\\mathrm{ancien}} - c^2 \\lVert \\tilde{\\mathbf{x}} \\rVert^2\\), où \\(c = \\tilde{\\mathbf{x}}^\\top \\mathbf{y} / \\lVert \\tilde{\\mathbf{x}} \\rVert^2\\) est le coefficient de la nouvelle colonne dans le nouveau modèle.\n3. Le R² ajusté augmente si et seulement si \\(t^2 > 1\\), où \\(t\\) est la statistique t de la nouvelle colonne dans le nouveau modèle (supposé avec \\(n > p + 1\\) et \\(\\mathrm{SCR}_{\\mathrm{nouveau}} > 0\\)).\n4. R² peut être négatif : sans constante, ou hors de l'échantillon d'apprentissage.\n\n### La preuve\n\n1. \\(\\mathbf{y} - \\bar{y}\\,\\mathbf{1} = (\\hat{\\mathbf{y}} - \\bar{y}\\,\\mathbf{1}) + \\mathbf{e}\\). Le premier terme est dans \\(\\mathrm{Im}(\\mathbf{X})\\), puisque \\(\\mathbf{1}\\) en fait partie ; \\(\\mathbf{e}\\) est orthogonal à \\(\\mathrm{Im}(\\mathbf{X})\\). Pythagore donne \\(\\mathrm{SCT} = \\mathrm{SCE} + \\mathrm{SCR}\\). Pour la corrélation : la moyenne des \\(\\hat{y}_i\\) est \\(\\bar{y}\\) (partie 1, énoncé 5), et \\((\\mathbf{y} - \\bar{y}\\,\\mathbf{1})^\\top (\\hat{\\mathbf{y}} - \\bar{y}\\,\\mathbf{1}) = (\\hat{\\mathbf{y}} - \\bar{y}\\,\\mathbf{1} + \\mathbf{e})^\\top (\\hat{\\mathbf{y}} - \\bar{y}\\,\\mathbf{1}) = \\mathrm{SCE}\\), d'où un carré de corrélation \\(\\mathrm{SCE}^2 / (\\mathrm{SCT} \\cdot \\mathrm{SCE}) = \\mathrm{SCE}/\\mathrm{SCT}\\) (si \\(\\mathrm{SCE} > 0\\)).\n2. On note \\(\\mathbf{X}^{+}\\) la matrice augmentée de la colonne \\(\\mathbf{x}_{\\mathrm{new}} = \\mathbf{H}\\mathbf{x}_{\\mathrm{new}} + \\tilde{\\mathbf{x}}\\) ; son image est la somme orthogonale de \\(\\mathrm{Im}(\\mathbf{X})\\) et de la droite engendrée par \\(\\tilde{\\mathbf{x}}\\), qui est non nul et orthogonal à \\(\\mathrm{Im}(\\mathbf{X})\\). Le candidat \\(\\mathbf{q} = \\mathbf{H}\\mathbf{y} + c\\,\\tilde{\\mathbf{x}}\\) est dans cette image, et \\(\\mathbf{y} - \\mathbf{q} = \\mathbf{e} - c\\,\\tilde{\\mathbf{x}}\\) est orthogonal à \\(\\mathrm{Im}(\\mathbf{X})\\) (comme \\(\\mathbf{e}\\) et \\(\\tilde{\\mathbf{x}}\\)) et à \\(\\tilde{\\mathbf{x}}\\) dès que \\(\\tilde{\\mathbf{x}}^\\top \\mathbf{e} = c\\,\\lVert \\tilde{\\mathbf{x}} \\rVert^2\\). Or \\(\\tilde{\\mathbf{x}}^\\top \\mathbf{e} = \\mathbf{x}_{\\mathrm{new}}^\\top (\\mathbf{I} - \\mathbf{H})^2 \\mathbf{y} = \\tilde{\\mathbf{x}}^\\top \\mathbf{y}\\), ce qui est la définition de \\(c\\). Donc \\(\\mathbf{q}\\) est la projection, et le nouveau résidu est \\(\\mathbf{e} - c\\,\\tilde{\\mathbf{x}}\\) ; en développant, \\(\\lVert \\mathbf{e} - c\\,\\tilde{\\mathbf{x}} \\rVert^2 = \\lVert \\mathbf{e} \\rVert^2 - 2c\\,\\tilde{\\mathbf{x}}^\\top \\mathbf{e} + c^2 \\lVert \\tilde{\\mathbf{x}} \\rVert^2 = \\lVert \\mathbf{e} \\rVert^2 - c^2 \\lVert \\tilde{\\mathbf{x}} \\rVert^2\\). \\(\\mathrm{SCT}\\) ne change pas : R² ne décroît pas, et il croît strictement si \\(c \\ne 0\\). Enfin \\(\\mathbf{q} = \\mathbf{X}(\\cdots) + c\\,\\mathbf{x}_{\\mathrm{new}}\\), donc \\(c\\) est bien le nouveau coefficient (c'est Frisch-Waugh, partie 2).\n3. Par Frisch-Waugh, la variance estimée du nouveau coefficient est \\(\\hat{\\sigma}_+^2 / \\lVert \\tilde{\\mathbf{x}} \\rVert^2\\), avec \\(\\hat{\\sigma}_+^2 = \\mathrm{SCR}_{\\mathrm{nouveau}} / (n - p - 1)\\) ; donc \\(t^2 = c^2 \\lVert \\tilde{\\mathbf{x}} \\rVert^2 / \\hat{\\sigma}_+^2\\), et l'étape 2 s'écrit \\(\\mathrm{SCR}_{\\mathrm{ancien}} = \\mathrm{SCR}_{\\mathrm{nouveau}} \\big(1 + t^2/(n - p - 1)\\big)\\). Le R² ajusté augmente si et seulement si \\(\\mathrm{SCR}_{\\mathrm{nouveau}}/(n - p - 1) < \\mathrm{SCR}_{\\mathrm{ancien}}/(n - p)\\), c'est-à-dire \\((n - p)\\,\\mathrm{SCR}_{\\mathrm{nouveau}} < (n - p - 1)\\,\\mathrm{SCR}_{\\mathrm{nouveau}} + t^2\\,\\mathrm{SCR}_{\\mathrm{nouveau}}\\), soit \\(1 < t^2\\).\n4. Sans constante, la décomposition de l'étape 1 n'a plus lieu. Exemple : \\(\\mathbf{x} = (1, 2, 3)\\), \\(\\mathbf{y} = (3, 2, 1)\\), régression sans constante : pente \\(10/14 = \\tfrac{5}{7}\\), \\(\\mathrm{SCR} = \\tfrac{48}{7}\\), \\(\\mathrm{SCT} = 2\\), donc \\(R^2 = \\tfrac{-17}{7} \\approx -2{,}43\\). Hors échantillon, avec \\(R^2_{\\mathrm{test}} = 1 - \\sum_i (y_i - \\hat{y}_i)^2 / \\sum_i (y_i - \\bar{y}_{\\mathrm{test}})^2\\) sur les points de test, \\(R^2_{\\mathrm{test}} < 0\\) exactement quand le modèle prédit moins bien que la moyenne des réponses de test, que rien n'interdit.\n\n### Exemple chiffré\n\nExemple à quatre points de la partie 1 : \\(\\bar{y} = 2{,}75\\), \\(\\mathrm{SCT} = 8{,}75\\), \\(\\mathrm{SCE} = 6{,}05\\), \\(\\mathrm{SCR} = 2{,}7\\), et l'on vérifie \\(6{,}05 + 2{,}7 = 8{,}75\\). Donc \\(R^2 = 1 - 2{,}7/8{,}75 \\approx 0{,}691\\) et \\(R^2_{\\mathrm{aj}} = 1 - (2{,}7/2)/(8{,}75/3) \\approx 0{,}537\\).\n\nL'expérience suivante ajoute à une régression simple (30 observations d'apprentissage, 1000 de test) des colonnes de bruit pur, indépendantes de tout.\n\n```python\nrng = np.random.default_rng(6)\nx_app = rng.standard_normal(30)\ny_app = 1 + x_app + rng.standard_normal(30)\nx_tst = rng.standard_normal(1000)\ny_tst = 1 + x_tst + rng.standard_normal(1000)\nbruit_app = rng.standard_normal((30, 25))\nbruit_tst = rng.standard_normal((1000, 25))\nfor k in [0, 5, 15, 25]:\n    Xa = np.column_stack([np.ones(30), x_app, bruit_app[:, :k]])\n    Xt = np.column_stack([np.ones(1000), x_tst, bruit_tst[:, :k]])\n    b = np.linalg.lstsq(Xa, y_app, rcond=None)[0]\n    p = Xa.shape[1]\n    R2 = r2_score(y_app, Xa.dot(b))\n    R2aj = 1 - (1 - R2) * (30 - 1) / (30 - p)\n    print(f\"{k:2d} colonnes de bruit, p={p:2d} : R2={R2:.3f}  R2 ajusté={R2aj:.3f}  R2 test={r2_score(y_tst, Xt.dot(b)):.3f}\")\n```\n\n```sortie\n 0 colonnes de bruit, p= 2 : R2=0.616  R2 ajusté=0.602  R2 test=0.519\n 5 colonnes de bruit, p= 7 : R2=0.686  R2 ajusté=0.604  R2 test=0.410\n15 colonnes de bruit, p=17 : R2=0.825  R2 ajusté=0.609  R2 test=-0.061\n25 colonnes de bruit, p=27 : R2=0.947  R2 ajusté=0.489  R2 test=-9.906\n```\n\nLecture : le R² d'apprentissage croît à chaque ajout (énoncé 2) ; le R² ajusté ne suit pas ; le R² de test devient négatif quand le nombre de colonnes approche le nombre d'observations. `r2_score` de scikit-learn calcule \\(1 - \\mathrm{SCR}/\\mathrm{SCT}\\) avec la moyenne des réponses passées en premier argument : sur des données de test, c'est \\(R^2_{\\mathrm{test}}\\).\n\n### Cas limites\n\n- \\(R^2 = 1\\) si et seulement si \\(\\mathbf{e} = \\mathbf{0}\\) (par exemple \\(n = p\\) et \\(\\mathbf{X}\\) inversible) ; \\(R^2 = 0\\) si et seulement si \\(\\hat{\\mathbf{y}} = \\bar{y}\\,\\mathbf{1}\\).\n- Régression simple avec constante : R² est le carré de la corrélation empirique entre \\(\\mathbf{x}_2\\) et \\(\\mathbf{y}\\), puisque \\(\\hat{\\mathbf{y}}\\) est une fonction affine de \\(\\mathbf{x}_2\\) de pente non nulle (si la pente est nulle, les deux valent 0).\n\n### Pièges\n\n1. Comparer des modèles par leur R² d'apprentissage favorise toujours le plus gros : utiliser le R² ajusté, un critère pénalisé ou une erreur hors échantillon.\n2. \\(R^2_{\\mathrm{aj}}\\) peut être négatif, et n'est pas le carré de quoi que ce soit.\n3. Un R² élevé ne dit rien des hypothèses (A2) ou (A3), ni de causalité.\n\n[[controle:r2]]\n\n## Partie 4 : Ridge\n\n### Le problème\n\nQuand \\(\\mathbf{X}^\\top \\mathbf{X}\\) n'est pas inversible (\\(p > n\\), colonnes liées), les MCO n'ont pas de solution unique ; quand elle est presque singulière (colonnes presque liées), leur variance explose (VIF, partie 2). Idée : pénaliser la taille des coefficients.\n\n### Définitions\n\nPour un réel \\(\\lambda > 0\\) fixé, le critère Ridge est \\(r_\\lambda(\\mathbf{b}) = \\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\tfrac{\\lambda}{2} \\lVert \\mathbf{b} \\rVert^2\\). Les facteurs \\(\\tfrac12\\) ne changent pas le minimiseur ; `Ridge(alpha=a)` de scikit-learn minimise \\(\\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + a\\,\\lVert \\mathbf{b} \\rVert^2\\), qui a le même minimiseur pour \\(a = \\lambda\\) (multiplier \\(r_\\lambda\\) par 2).\n\n**Décomposition en valeurs singulières** (SVD, singular value decomposition), d'existence admise : si \\(\\mathbf{X}\\) est de rang \\(q \\ge 1\\), \\(\\mathbf{X} = \\mathbf{U}\\mathbf{D}\\mathbf{V}^\\top\\), où \\(\\mathbf{U}\\) (\\(n \\times q\\)) a des colonnes orthonormées \\(\\mathbf{u}_1, \\dots, \\mathbf{u}_q\\), \\(\\mathbf{V}\\) (\\(p \\times q\\)) des colonnes orthonormées \\(\\mathbf{v}_1, \\dots, \\mathbf{v}_q\\), et \\(\\mathbf{D}\\) est diagonale de coefficients \\(d_1 \\ge \\dots \\ge d_q > 0\\), les valeurs singulières. Comme \\(\\mathbf{U}^\\top \\mathbf{U} = \\mathbf{I}_q\\) : \\(\\mathbf{X}^\\top \\mathbf{X} = \\mathbf{V}\\mathbf{D}^2 \\mathbf{V}^\\top\\), donc \\(\\mathbf{X}^\\top \\mathbf{X}\\,\\mathbf{v}_j = d_j^2\\,\\mathbf{v}_j\\) et \\(\\mathbf{X}\\mathbf{v}_j = d_j\\,\\mathbf{u}_j\\) ; les autres valeurs propres de \\(\\mathbf{X}^\\top \\mathbf{X}\\), s'il y en a (\\(q < p\\)), sont nulles.\n\n**Conditionnement.** Pour une matrice symétrique définie positive \\(\\mathbf{M}\\), \\(\\kappa(\\mathbf{M})\\) est le rapport de sa plus grande à sa plus petite valeur propre. Il mesure de combien une erreur relative sur le second membre de \\(\\mathbf{M}\\mathbf{b} = \\mathbf{c}\\) peut être amplifiée sur la solution (au plus d'un facteur \\(\\kappa\\), admis). Pour \\(\\mathbf{X}\\) de rang \\(p\\), on pose \\(\\kappa(\\mathbf{X}) = d_1/d_p\\).\n\n### L'intuition\n\nLes données déterminent mal certaines directions de \\(\\mathbb{R}^p\\) : celles où les colonnes varient peu ensemble, les \\(\\mathbf{v}_j\\) de petite valeur singulière. Les MCO divisent par \\(d_j\\) dans ces directions et amplifient le bruit. Ridge ajoute \\(\\lambda\\) à chaque \\(d_j^2\\) : les directions bien déterminées (\\(d_j^2\\) grand devant \\(\\lambda\\)) sont presque intactes, les directions mal déterminées sont écrasées.\n\n### L'énoncé\n\n1. **Forme fermée.** Pour tout \\(\\lambda > 0\\), quels que soient \\(n\\), \\(p\\) et le rang de \\(\\mathbf{X}\\), \\(\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I}\\) est définie positive, donc inversible, et \\(r_\\lambda\\) a un unique minimiseur \\(\\hat{\\boldsymbol{\\beta}}_\\lambda = (\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})^{-1} \\mathbf{X}^\\top \\mathbf{y}\\).\n2. **Lecture par la SVD.** \\(\\displaystyle \\hat{\\boldsymbol{\\beta}}_\\lambda = \\sum_{j=1}^q \\frac{d_j}{d_j^2 + \\lambda} (\\mathbf{u}_j^\\top \\mathbf{y})\\,\\mathbf{v}_j\\) et \\(\\displaystyle \\mathbf{X}\\hat{\\boldsymbol{\\beta}}_\\lambda = \\sum_{j=1}^q \\frac{d_j^2}{d_j^2 + \\lambda} (\\mathbf{u}_j^\\top \\mathbf{y})\\,\\mathbf{u}_j\\). Pour \\(q = p\\), les MCO correspondent à des facteurs égaux à 1 : Ridge multiplie la composante des valeurs ajustées selon \\(\\mathbf{u}_j\\) par \\(d_j^2/(d_j^2 + \\lambda)\\), d'autant plus petit que \\(d_j\\) est petit.\n3. **Valeurs propres et conditionnement.** \\(\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I}\\) a les mêmes vecteurs propres que \\(\\mathbf{X}^\\top \\mathbf{X}\\), et ses valeurs propres sont celles de \\(\\mathbf{X}^\\top \\mathbf{X}\\) augmentées de \\(\\lambda\\). Si \\(\\mu_{\\max}\\) et \\(\\mu_{\\min}\\) sont la plus grande et la plus petite valeur propre de \\(\\mathbf{X}^\\top \\mathbf{X}\\) (\\(\\mu_{\\min} = 0\\) possible), \\(\\kappa(\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I}) = (\\mu_{\\max} + \\lambda)/(\\mu_{\\min} + \\lambda)\\), fini, strictement décroissant en \\(\\lambda\\) si \\(\\mu_{\\min} < \\mu_{\\max}\\), et de limite 1. Pour \\(\\mathbf{X}\\) de rang \\(p\\), \\(\\kappa(\\mathbf{X}^\\top \\mathbf{X}) = \\kappa(\\mathbf{X})^2\\).\n4. **Interprétation bayésienne.** Si \\(\\mathbf{B}\\) est un vecteur aléatoire de loi a priori \\(\\mathcal{N}(\\mathbf{0}, \\tau^2 \\mathbf{I})\\), et si, sachant \\(\\mathbf{B} = \\mathbf{b}\\), \\(\\mathbf{Y}\\) suit \\(\\mathcal{N}(\\mathbf{X}\\mathbf{b}, \\sigma^2 \\mathbf{I})\\) (\\(\\sigma, \\tau > 0\\) fixés), alors la loi a posteriori de \\(\\mathbf{B}\\) sachant \\(\\mathbf{Y} = \\mathbf{y}\\) est gaussienne, de moyenne et de mode \\(\\hat{\\boldsymbol{\\beta}}_\\lambda\\) avec \\(\\lambda = \\sigma^2/\\tau^2\\).\n5. **Interprétation géométrique.** \\(\\hat{\\boldsymbol{\\beta}}_\\lambda\\) minimise aussi \\(\\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2\\) sous la contrainte \\(\\lVert \\mathbf{b} \\rVert^2 \\le t\\), avec \\(t = \\lVert \\hat{\\boldsymbol{\\beta}}_\\lambda \\rVert^2\\) : c'est le point où les ellipsoïdes de niveau de \\(s\\) touchent la boule.\n6. **Ridge ne met jamais un coefficient exactement à zéro, aux conditions suivantes.** Fixons \\(\\lambda > 0\\) et \\(j\\). Il existe un vecteur fixe \\(\\mathbf{w}_j \\in \\mathbb{R}^n\\) tel que \\(\\hat{\\beta}_{\\lambda, j} = \\mathbf{w}_j^\\top \\mathbf{y}\\) pour tout \\(\\mathbf{y}\\), et \\(\\mathbf{w}_j = \\mathbf{0}\\) si et seulement si la colonne \\(\\mathbf{x}_j\\) est nulle. Donc : si \\(\\mathbf{x}_j = \\mathbf{0}\\), le coefficient est nul pour tout \\(\\mathbf{y}\\) ; sinon, il est nul exactement quand \\(\\mathbf{y}\\) appartient à l'hyperplan \\(\\{\\mathbf{v} : \\mathbf{w}_j^\\top \\mathbf{v} = 0\\}\\), ce qui a probabilité 0 dès que \\(\\mathbf{Y}\\) a une densité sur \\(\\mathbb{R}^n\\), par exemple sous (A4). Enfin le vecteur entier \\(\\hat{\\boldsymbol{\\beta}}_\\lambda\\) est nul si et seulement si \\(\\mathbf{X}^\\top \\mathbf{y} = \\mathbf{0}\\), quel que soit \\(\\lambda\\) : il n'existe pas de seuil de \\(\\lambda\\) qui annule les coefficients, contrairement au Lasso.\n\n### La preuve\n\n1. **Forme fermée.** Pour \\(\\mathbf{v} \\ne \\mathbf{0}\\) : \\(\\mathbf{v}^\\top (\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})\\mathbf{v} = \\lVert \\mathbf{X}\\mathbf{v} \\rVert^2 + \\lambda \\lVert \\mathbf{v} \\rVert^2 > 0\\) : définie positive, donc noyau nul, donc inversible. En divisant (D) par 2 et avec \\(\\tfrac{\\lambda}{2}\\lVert \\mathbf{b} + \\mathbf{h} \\rVert^2 = \\tfrac{\\lambda}{2}\\lVert \\mathbf{b} \\rVert^2 + \\lambda\\,\\mathbf{h}^\\top \\mathbf{b} + \\tfrac{\\lambda}{2}\\lVert \\mathbf{h} \\rVert^2\\) : \\(r_\\lambda(\\mathbf{b} + \\mathbf{h}) = r_\\lambda(\\mathbf{b}) - \\mathbf{h}^\\top \\big(\\mathbf{X}^\\top \\mathbf{y} - (\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})\\mathbf{b}\\big) + \\tfrac12 \\lVert \\mathbf{X}\\mathbf{h} \\rVert^2 + \\tfrac{\\lambda}{2} \\lVert \\mathbf{h} \\rVert^2\\). Pour \\(\\mathbf{b} = \\hat{\\boldsymbol{\\beta}}_\\lambda\\), le terme linéaire est nul et le reste est strictement positif pour \\(\\mathbf{h} \\ne \\mathbf{0}\\) : minimiseur global unique.\n2. **SVD.** \\((\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})\\mathbf{v}_j = (d_j^2 + \\lambda)\\mathbf{v}_j\\). Appliquée au vecteur proposé \\(\\mathbf{b}^\\star = \\sum_j \\frac{d_j}{d_j^2 + \\lambda} (\\mathbf{u}_j^\\top \\mathbf{y})\\mathbf{v}_j\\), la matrice donne \\(\\sum_j d_j (\\mathbf{u}_j^\\top \\mathbf{y})\\mathbf{v}_j = \\mathbf{V}\\mathbf{D}\\mathbf{U}^\\top \\mathbf{y} = \\mathbf{X}^\\top \\mathbf{y}\\) : \\(\\mathbf{b}^\\star\\) est la solution, unique par l'étape 1. Avec \\(\\mathbf{X}\\mathbf{v}_j = d_j \\mathbf{u}_j\\), on obtient les valeurs ajustées. Pour \\(q = p\\) et \\(\\lambda = 0\\), la même vérification vaut avec \\(\\mathbf{X}^\\top \\mathbf{X}\\) inversible : facteurs \\(1/d_j\\) sur les coefficients, 1 sur les valeurs ajustées.\n3. **Conditionnement.** Si \\(\\mathbf{X}^\\top \\mathbf{X}\\mathbf{v} = \\mu\\,\\mathbf{v}\\), alors \\((\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})\\mathbf{v} = (\\mu + \\lambda)\\mathbf{v}\\), et toutes les valeurs propres sont obtenues ainsi (base orthonormée de vecteurs propres de la matrice symétrique \\(\\mathbf{X}^\\top \\mathbf{X}\\), théorème spectral admis). La dérivée de \\(\\lambda \\mapsto (\\mu_{\\max} + \\lambda)/(\\mu_{\\min} + \\lambda)\\) vaut \\((\\mu_{\\min} - \\mu_{\\max})/(\\mu_{\\min} + \\lambda)^2 < 0\\). Les valeurs propres de \\(\\mathbf{X}^\\top \\mathbf{X}\\) étant les \\(d_j^2\\), \\(\\kappa(\\mathbf{X}^\\top \\mathbf{X}) = d_1^2/d_p^2\\).\n4. **Bayes.** Par la formule de Bayes, la densité a posteriori est proportionnelle à \\(\\exp\\big(-\\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2/(2\\sigma^2)\\big)\\exp\\big(-\\lVert \\mathbf{b} \\rVert^2/(2\\tau^2)\\big) = \\exp\\big(-r_\\lambda(\\mathbf{b})/\\sigma^2\\big)\\) avec \\(\\lambda = \\sigma^2/\\tau^2\\). Notons \\(\\mathbf{M} = \\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I}\\). En complétant le carré avec \\(\\mathbf{M}\\hat{\\boldsymbol{\\beta}}_\\lambda = \\mathbf{X}^\\top \\mathbf{y}\\) : \\(2\\,r_\\lambda(\\mathbf{b}) = \\mathbf{b}^\\top \\mathbf{M}\\mathbf{b} - 2\\,\\mathbf{b}^\\top \\mathbf{M}\\hat{\\boldsymbol{\\beta}}_\\lambda + \\lVert \\mathbf{y} \\rVert^2 = (\\mathbf{b} - \\hat{\\boldsymbol{\\beta}}_\\lambda)^\\top \\mathbf{M}(\\mathbf{b} - \\hat{\\boldsymbol{\\beta}}_\\lambda) + \\text{constante}\\). La densité a posteriori est donc proportionnelle à celle de \\(\\mathcal{N}(\\hat{\\boldsymbol{\\beta}}_\\lambda, \\sigma^2 \\mathbf{M}^{-1})\\), dont la moyenne et le mode valent \\(\\hat{\\boldsymbol{\\beta}}_\\lambda\\).\n5. **Contrainte.** Soit \\(\\mathbf{b}\\) avec \\(\\lVert \\mathbf{b} \\rVert^2 \\le t\\). Par optimalité de \\(\\hat{\\boldsymbol{\\beta}}_\\lambda\\) pour \\(r_\\lambda\\) : \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 \\ge \\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\hat{\\boldsymbol{\\beta}}_\\lambda \\rVert^2 + \\tfrac{\\lambda}{2}(t - \\lVert \\mathbf{b} \\rVert^2) \\ge \\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\hat{\\boldsymbol{\\beta}}_\\lambda \\rVert^2\\), la dernière inégalité car \\(\\lambda > 0\\) et \\(t - \\lVert \\mathbf{b} \\rVert^2 \\ge 0\\).\n6. **Zéros.** On note \\(\\mathbf{k}_j\\) le \\(j\\)-ième vecteur de la base canonique de \\(\\mathbb{R}^p\\) et \\(\\mathbf{M} = \\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I}\\). \\(\\hat{\\beta}_{\\lambda, j} = \\mathbf{k}_j^\\top \\mathbf{M}^{-1} \\mathbf{X}^\\top \\mathbf{y} = \\mathbf{w}_j^\\top \\mathbf{y}\\) avec \\(\\mathbf{w}_j = \\mathbf{X}\\mathbf{M}^{-1}\\mathbf{k}_j\\) (\\(\\mathbf{M}^{-1}\\) est symétrique). Si \\(\\mathbf{x}_j = \\mathbf{X}\\mathbf{k}_j = \\mathbf{0}\\) : \\(\\mathbf{M}\\mathbf{k}_j = \\lambda \\mathbf{k}_j\\), donc \\(\\mathbf{M}^{-1}\\mathbf{k}_j = \\mathbf{k}_j/\\lambda\\) et \\(\\mathbf{w}_j = \\mathbf{x}_j/\\lambda = \\mathbf{0}\\). Réciproquement, si \\(\\mathbf{w}_j = \\mathbf{0}\\), le vecteur \\(\\mathbf{v} = \\mathbf{M}^{-1}\\mathbf{k}_j\\) vérifie \\(\\mathbf{X}\\mathbf{v} = \\mathbf{0}\\), donc \\(\\mathbf{k}_j = \\mathbf{M}\\mathbf{v} = \\lambda \\mathbf{v}\\), et \\(\\mathbf{x}_j = \\mathbf{X}\\mathbf{k}_j = \\lambda \\mathbf{X}\\mathbf{v} = \\mathbf{0}\\). Un hyperplan de \\(\\mathbb{R}^n\\) est de mesure de Lebesgue nulle, donc de probabilité nulle pour une loi à densité. Enfin \\(\\hat{\\boldsymbol{\\beta}}_\\lambda = \\mathbf{M}^{-1}\\mathbf{X}^\\top \\mathbf{y}\\) est nul si et seulement si \\(\\mathbf{X}^\\top \\mathbf{y} = \\mathbf{0}\\), puisque \\(\\mathbf{M}^{-1}\\) est inversible. Mécanisme : la dérivée de la pénalité \\(\\tfrac{\\lambda}{2} b_j^2\\) vaut \\(\\lambda b_j\\), qui tend vers 0 avec \\(b_j\\) ; près de 0, la pénalité ne pousse plus, et le moindre gain d'ajustement suffit à quitter 0.\n\n### Exemple chiffré\n\nDeux variables de norme 1 dont le produit scalaire vaut 0,9 : \\(\\mathbf{X}^\\top \\mathbf{X} = \\begin{pmatrix} 1 & 0{,}9 \\\\ 0{,}9 & 1 \\end{pmatrix}\\), et \\(\\mathbf{X}^\\top \\mathbf{y} = (1 ; 0{,}8)\\). Les solutions MCO et Ridge ne dépendent des données qu'à travers ces deux quantités.\n\n1. Vecteurs propres : \\((1, 1)\\) de valeur propre \\(1{,}9\\), et \\((1, -1)\\) de valeur propre \\(0{,}1\\). Conditionnement \\(19\\).\n2. \\(\\mathbf{X}^\\top \\mathbf{y} = 0{,}9\\,(1, 1) + 0{,}1\\,(1, -1)\\).\n3. MCO : on divise chaque composante par sa valeur propre : \\(\\tfrac{0{,}9}{1{,}9}(1, 1) + \\tfrac{0{,}1}{0{,}1}(1, -1) \\approx (1{,}474 ; -0{,}526)\\). Les deux coefficients, de signes opposés, viennent surtout de la direction mal déterminée \\((1, -1)\\), la différence des deux variables.\n4. Ridge, \\(\\lambda = 0{,}1\\) : on divise par la valeur propre augmentée de \\(\\lambda\\) : \\(\\tfrac{0{,}9}{2{,}0}(1, 1) + \\tfrac{0{,}1}{0{,}2}(1, -1) = (0{,}95 ; -0{,}05)\\).\n5. Facteurs de rétrécissement par direction : \\(1{,}9/2{,}0 = 0{,}95\\) selon \\((1, 1)\\), \\(0{,}1/0{,}2 = 0{,}5\\) selon \\((1, -1)\\). Conditionnement : \\(2{,}0/0{,}2 = 10\\) au lieu de \\(19\\).\n\n```python\nrng = np.random.default_rng(7)\nn, p, lam = 50, 5, 3.0\nX = rng.standard_normal((n, p))\nX[:, 4] = X[:, 3] + 0.01 * rng.standard_normal(n)       # deux colonnes presque égales\ny = X.dot(np.array([1.0, -1.0, 0.5, 2.0, 0.0])) + rng.standard_normal(n)\nforme_fermee = np.linalg.solve(X.T.dot(X) + lam * np.eye(p), X.T.dot(y))\nU, d, Vt = np.linalg.svd(X, full_matrices=False)\npar_svd = Vt.T.dot(d / (d**2 + lam) * U.T.dot(y))\nprint(\"forme fermée              :\", forme_fermee)\nprint(\"par la SVD                :\", par_svd)\nprint(\"Ridge(alpha=lam) sklearn  :\", Ridge(alpha=lam, fit_intercept=False).fit(X, y).coef_)\nprint(\"MCO                       :\", np.linalg.lstsq(X, y, rcond=None)[0])\nprint(\"valeurs singulières d     :\", d)\nprint(\"facteurs d^2/(d^2 + lam)  :\", d**2 / (d**2 + lam))\nmu = np.linalg.eigvalsh(X.T.dot(X))\nprint(\"conditionnement de X^T X           :\", round(mu.max() / mu.min(), 1), \"; kappa(X)^2 :\", round((d[0] / d[-1]) ** 2, 1))\nprint(\"conditionnement de X^T X + lam I   :\", round((mu.max() + lam) / (mu.min() + lam), 1))\n# Avec constante : scikit-learn centre X et y et ne pénalise pas la constante.\nXc, yc = X - X.mean(axis=0), y - y.mean()\nprint(\"fit_intercept=True        :\", Ridge(alpha=lam).fit(X, y).coef_)\nprint(\"données centrées          :\", np.linalg.solve(Xc.T.dot(Xc) + lam * np.eye(p), Xc.T.dot(yc)))\n```\n\n```sortie\nforme fermée              : [ 0.9293 -0.8965  0.4903  0.9411  0.9333]\npar la SVD                : [ 0.9293 -0.8965  0.4903  0.9411  0.9333]\nRidge(alpha=lam) sklearn  : [ 0.9293 -0.8965  0.4903  0.9411  0.9333]\nMCO                       : [ 1.008  -0.9465  0.5558  4.814  -2.8682]\nvaleurs singulières d     : [9.9589 7.4775 5.4867 5.1294 0.0491]\nfacteurs d^2/(d^2 + lam)  : [0.9706 0.9491 0.9094 0.8976 0.0008]\nconditionnement de X^T X           : 41096.1 ; kappa(X)^2 : 41096.1\nconditionnement de X^T X + lam I   : 34.0\nfit_intercept=True        : [ 0.9498 -0.8839  0.5019  0.9478  0.94  ]\ndonnées centrées          : [ 0.9498 -0.8839  0.5019  0.9478  0.94  ]\n```\n\nLecture : les trois calculs Ridge coïncident ; les MCO donnent aux deux dernières colonnes, presque égales, des coefficients instables, alors que Ridge les partage ; le facteur de la plus petite valeur singulière est proche de 0.\n\n### Cas limites\n\n- \\(\\lambda \\to 0^+\\) : si \\(\\mathbf{X}\\) est de rang \\(p\\), \\(\\hat{\\boldsymbol{\\beta}}_\\lambda\\) tend vers les MCO. Sinon, il tend vers \\(\\sum_j (\\mathbf{u}_j^\\top \\mathbf{y}/d_j)\\,\\mathbf{v}_j\\), la solution des moindres carrés de plus petite norme : elle vérifie les équations normales (étape 2 de la preuve avec \\(\\lambda = 0\\)) et elle est orthogonale à \\(\\ker(\\mathbf{X})\\), car les \\(\\mathbf{v}_j\\) le sont ; toute autre solution s'écrit elle plus \\(\\mathbf{h} \\in \\ker(\\mathbf{X})\\), de norme au carré augmentée de \\(\\lVert \\mathbf{h} \\rVert^2\\) par Pythagore. C'est ce que renvoie `np.linalg.lstsq`.\n- \\(\\lambda \\to \\infty\\) : \\(\\hat{\\boldsymbol{\\beta}}_\\lambda \\approx \\mathbf{X}^\\top \\mathbf{y}/\\lambda \\to \\mathbf{0}\\), sans l'atteindre si \\(\\mathbf{X}^\\top \\mathbf{y} \\ne \\mathbf{0}\\).\n- Deux colonnes identiques : par unicité, elles reçoivent le même coefficient (échanger les deux coordonnées d'une solution donne une solution, qui est donc la même).\n- Colonnes orthonormées (\\(\\mathbf{X}^\\top \\mathbf{X} = \\mathbf{I}\\)) : \\(\\hat{\\boldsymbol{\\beta}}_\\lambda = \\mathbf{X}^\\top \\mathbf{y}/(1 + \\lambda)\\), une simple division.\n\n### Pièges\n\n1. Ridge n'est pas invariant par changement d'échelle : multiplier une colonne par 10 change sa pénalité effective. On standardise les colonnes avant, avec les moyennes et écarts-types de l'apprentissage seul.\n2. On ne pénalise pas la constante : on centre \\(\\mathbf{X}\\) et \\(\\mathbf{y}\\), ce que fait scikit-learn avec `fit_intercept=True` (vérifié ci-dessus).\n3. Conventions d'échelle de \\(\\lambda\\) : lire la définition du critère (facteurs \\(\\tfrac12\\), division par \\(n\\)).\n4. Ridge ne sélectionne pas de variables.\n\n[[controle:conditionnement]]\n\n## Partie 5 : Lasso\n\n### Le problème\n\nOn veut un modèle avec peu de coefficients non nuls : sélection de variables, lisibilité, robustesse quand une partie des variables est inutile. Ridge ne met jamais de zéro exact.\n\n### Définition\n\nPour \\(\\lambda > 0\\) : \\(\\ell_\\lambda(\\mathbf{b}) = \\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\lambda \\lVert \\mathbf{b} \\rVert_1\\). `Lasso(alpha=a)` de scikit-learn minimise \\(\\tfrac{1}{2n} \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + a\\,\\lVert \\mathbf{b} \\rVert_1\\) : même minimiseur pour \\(a = \\lambda/n\\) (multiplier par \\(n\\)). On note \\(\\mathrm{signe}(u)\\) le signe d'un réel non nul \\(u\\), et pour un vecteur \\(\\mathbf{b}\\), \\(\\mathbf{g}(\\mathbf{b}) = \\mathbf{X}^\\top (\\mathbf{y} - \\mathbf{X}\\mathbf{b})\\) : sa coordonnée \\(g_j\\) est le produit scalaire de la colonne \\(j\\) avec le résidu, c'est-à-dire le gain d'ajustement par unité de déplacement de \\(b_j\\).\n\n### L'intuition\n\nEn une dimension, près de 0, la pénalité L2 \\(\\tfrac{\\lambda}{2} b^2\\) a une pente \\(\\lambda b\\) qui s'annule : aucune force ne retient en 0. La pénalité L1 \\(\\lambda \\lvert b \\rvert\\) a une pente \\(\\pm \\lambda\\) aussi près de 0 qu'on veut : un coefficient reste en 0 tant que le gain d'ajustement à le déplacer, \\(\\lvert g_j \\rvert\\), ne dépasse pas \\(\\lambda\\). Géométriquement, la boule L1 \\(\\{\\lVert \\mathbf{b} \\rVert_1 \\le t\\}\\) a des coins sur les axes, et les ellipsoïdes de niveau de \\(s\\) la touchent en un coin, où des coordonnées sont nulles, pour toute une plage de positions de \\(\\mathbf{y}\\) ; la boule L2 est ronde, sans coin, et le contact n'a lieu sur un axe que pour un ensemble de \\(\\mathbf{y}\\) de probabilité nulle (partie 4, énoncé 6).\n\n### L'énoncé\n\n1. **Existence.** \\(\\ell_\\lambda\\) atteint son minimum (fonction continue et \\(\\ell_\\lambda(\\mathbf{b}) \\ge \\lambda \\lVert \\mathbf{b} \\rVert_1 \\to \\infty\\) quand \\(\\lVert \\mathbf{b} \\rVert \\to \\infty\\) ; le minimum d'une telle fonction est atteint, admis).\n2. **Conditions d'optimalité.** \\(\\hat{\\mathbf{b}}\\) minimise \\(\\ell_\\lambda\\) si et seulement si, avec \\(\\mathbf{g} = \\mathbf{g}(\\hat{\\mathbf{b}})\\), pour chaque \\(j\\) : \\(g_j = \\lambda\\,\\mathrm{signe}(\\hat{b}_j)\\) si \\(\\hat{b}_j \\ne 0\\), et \\(\\lvert g_j \\rvert \\le \\lambda\\) si \\(\\hat{b}_j = 0\\).\n3. Tous les minimiseurs ont les mêmes valeurs ajustées \\(\\mathbf{X}\\hat{\\mathbf{b}}\\) et la même norme \\(\\lVert \\hat{\\mathbf{b}} \\rVert_1\\).\n4. **Seuil.** \\(\\mathbf{0}\\) est un minimiseur si et seulement si \\(\\lambda \\ge \\lambda_{\\max} = \\max_j \\lvert \\mathbf{x}_j^\\top \\mathbf{y} \\rvert\\), et c'est alors l'unique minimiseur.\n5. **Cas orthonormal** (\\(\\mathbf{X}^\\top \\mathbf{X} = \\mathbf{I}\\), donc \\(n \\ge p\\)). Avec \\(\\mathbf{z} = \\mathbf{X}^\\top \\mathbf{y}\\) (les MCO), l'unique solution est le **seuillage doux** \\(\\hat{b}_j = \\mathrm{signe}(z_j) \\max(\\lvert z_j \\rvert - \\lambda, 0)\\) (et 0 si \\(z_j = 0\\)). Ridge, dans le même cas, divise : \\(z_j/(1 + \\lambda)\\).\n6. **Pas de forme fermée en général.** Si l'on connaît l'ensemble actif \\(\\mathcal{A} = \\{j : \\hat{b}_j \\ne 0\\}\\) et les signes \\(\\mathbf{s}_{\\mathcal{A}}\\), et si la matrice \\(\\mathbf{X}_{\\mathcal{A}}\\) des colonnes actives est de rang plein, alors \\(\\hat{\\mathbf{b}}_{\\mathcal{A}} = (\\mathbf{X}_{\\mathcal{A}}^\\top \\mathbf{X}_{\\mathcal{A}})^{-1} (\\mathbf{X}_{\\mathcal{A}}^\\top \\mathbf{y} - \\lambda\\,\\mathbf{s}_{\\mathcal{A}})\\) et les autres coordonnées sont nulles. Mais \\(\\mathcal{A}\\) et les signes sont inconnus : chaque coordonnée peut être négative, nulle ou positive, soit \\(3^p\\) configurations, et la bonne n'est donnée par aucune formule ; on la trouve par un algorithme (descente par coordonnées, comme scikit-learn, ou LARS). Formules fermées dans les cas particuliers \\(p = 1\\) et \\(\\mathbf{X}^\\top \\mathbf{X}\\) diagonale (seuillage doux de \\(\\mathbf{x}_j^\\top \\mathbf{y}\\) au niveau \\(\\lambda\\), divisé par \\(\\lVert \\mathbf{x}_j \\rVert^2\\)).\n7. **Interprétation bayésienne.** Si les coordonnées de \\(\\mathbf{B}\\) sont indépendantes de loi de Laplace, de densité \\(\\tfrac{1}{2\\tau} e^{-\\lvert b \\rvert/\\tau}\\) (\\(\\tau > 0\\)), et si \\(\\mathbf{Y}\\) sachant \\(\\mathbf{B} = \\mathbf{b}\\) suit \\(\\mathcal{N}(\\mathbf{X}\\mathbf{b}, \\sigma^2 \\mathbf{I})\\), le mode a posteriori est la solution du Lasso avec \\(\\lambda = \\sigma^2/\\tau\\). La moyenne a posteriori, elle, n'est pas la solution du Lasso.\n8. **Non-unicité possible.** Avec deux colonnes égales, et plus largement quand \\(\\ker(\\mathbf{X})\\) n'est pas réduit à \\(\\mathbf{0}\\) (ce qui est toujours le cas si \\(p > n\\)), le minimiseur peut ne pas être unique. Quand les colonnes sont « en position générale », ce qui a lieu avec probabilité 1 si \\(\\mathbf{X}\\) a une densité, la solution est unique et a au plus \\(\\min(n, p)\\) coefficients non nuls (Tibshirani, 2013, admis).\n\n### La preuve\n\n1. **Développement.** En divisant (D) par 2 : \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}(\\hat{\\mathbf{b}} + \\mathbf{h}) \\rVert^2 = \\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\hat{\\mathbf{b}} \\rVert^2 - \\mathbf{h}^\\top \\mathbf{g} + \\tfrac12 \\lVert \\mathbf{X}\\mathbf{h} \\rVert^2\\).\n2. **Conditions suffisantes.** On suppose les conditions vérifiées, et \\(\\mathbf{b} = \\hat{\\mathbf{b}} + \\mathbf{h}\\) quelconque. Pour chaque \\(j\\), \\(\\lambda \\lvert b_j \\rvert \\ge \\lambda \\lvert \\hat{b}_j \\rvert + g_j h_j\\). Si \\(\\hat{b}_j \\ne 0\\), avec \\(s = \\mathrm{signe}(\\hat{b}_j)\\) et \\(g_j = \\lambda s\\) : \\(\\lambda \\lvert b_j \\rvert \\ge \\lambda s\\,b_j = \\lambda s\\,\\hat{b}_j + \\lambda s\\,h_j = \\lambda \\lvert \\hat{b}_j \\rvert + g_j h_j\\). Si \\(\\hat{b}_j = 0\\) : \\(\\lambda \\lvert b_j \\rvert = \\lambda \\lvert h_j \\rvert \\ge \\lvert g_j \\rvert \\lvert h_j \\rvert \\ge g_j h_j\\). En sommant sur \\(j\\) et avec le développement : \\(\\ell_\\lambda(\\mathbf{b}) - \\ell_\\lambda(\\hat{\\mathbf{b}}) \\ge -\\mathbf{h}^\\top \\mathbf{g} + \\tfrac12 \\lVert \\mathbf{X}\\mathbf{h} \\rVert^2 + \\mathbf{h}^\\top \\mathbf{g} \\ge 0\\).\n3. **Conditions nécessaires.** Soit \\(\\hat{\\mathbf{b}}\\) un minimiseur, \\(j\\) fixé, et \\(f(u) = \\ell_\\lambda(\\hat{\\mathbf{b}} + u\\,\\mathbf{k}_j)\\) pour \\(u\\) réel (\\(\\mathbf{k}_j\\) : vecteur de base, partie 4). Par le développement, \\(f(u) - f(0) = -u\\,g_j + \\tfrac12 u^2 \\lVert \\mathbf{x}_j \\rVert^2 + \\lambda(\\lvert \\hat{b}_j + u \\rvert - \\lvert \\hat{b}_j \\rvert)\\), positif pour tout \\(u\\). Si \\(\\hat{b}_j \\ne 0\\), pour \\(\\lvert u \\rvert < \\lvert \\hat{b}_j \\rvert\\) le dernier terme vaut \\(\\lambda\\,\\mathrm{signe}(\\hat{b}_j)\\,u\\) : \\(f\\) est dérivable en 0, de dérivée \\(-g_j + \\lambda\\,\\mathrm{signe}(\\hat{b}_j)\\), qui doit être nulle en un minimum. Si \\(\\hat{b}_j = 0\\) : \\(f(u) - f(0) = \\lvert u \\rvert (\\lambda - g_j\\,\\mathrm{signe}(u)) + \\tfrac12 u^2 \\lVert \\mathbf{x}_j \\rVert^2\\) ; en divisant par \\(\\lvert u \\rvert\\) et en faisant tendre \\(u\\) vers 0 par valeurs positives puis négatives : \\(\\lambda - g_j \\ge 0\\) et \\(\\lambda + g_j \\ge 0\\), soit \\(\\lvert g_j \\rvert \\le \\lambda\\).\n4. **Mêmes valeurs ajustées.** Pour tous vecteurs \\(\\mathbf{u}_1, \\mathbf{u}_2\\) : \\(\\tfrac12 (\\lVert \\mathbf{y} - \\mathbf{u}_1 \\rVert^2 + \\lVert \\mathbf{y} - \\mathbf{u}_2 \\rVert^2) - \\lVert \\mathbf{y} - \\tfrac{\\mathbf{u}_1 + \\mathbf{u}_2}{2} \\rVert^2 = \\tfrac14 \\lVert \\mathbf{u}_1 - \\mathbf{u}_2 \\rVert^2\\) (identité du parallélogramme). Si deux minimiseurs \\(\\mathbf{b}_1, \\mathbf{b}_2\\) avaient \\(\\mathbf{X}\\mathbf{b}_1 \\ne \\mathbf{X}\\mathbf{b}_2\\), leur milieu aurait une partie quadratique strictement plus petite que la moyenne des deux, et une norme L1 au plus égale à la moyenne (inégalité triangulaire) : un critère strictement plus petit, contradiction. Mêmes valeurs ajustées et même critère imposent la même norme L1.\n5. **Seuil.** Pour \\(\\hat{\\mathbf{b}} = \\mathbf{0}\\), \\(\\mathbf{g} = \\mathbf{X}^\\top \\mathbf{y}\\), et les conditions se réduisent à \\(\\lvert \\mathbf{x}_j^\\top \\mathbf{y} \\rvert \\le \\lambda\\) pour tout \\(j\\). Unicité : par l'étape 4, tout minimiseur a la norme L1 de \\(\\mathbf{0}\\), donc est nul.\n6. **Cas orthonormal.** Par (D) en \\(\\mathbf{z}\\) avec \\(\\mathbf{h} = \\mathbf{b} - \\mathbf{z}\\) : \\(\\mathbf{X}^\\top (\\mathbf{y} - \\mathbf{X}\\mathbf{z}) = \\mathbf{z} - \\mathbf{z} = \\mathbf{0}\\) et \\(\\lVert \\mathbf{X}\\mathbf{h} \\rVert^2 = \\mathbf{h}^\\top \\mathbf{X}^\\top \\mathbf{X}\\mathbf{h} = \\lVert \\mathbf{h} \\rVert^2\\), donc \\(\\ell_\\lambda(\\mathbf{b}) = \\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{z} \\rVert^2 + \\sum_j \\big(\\tfrac12 (z_j - b_j)^2 + \\lambda \\lvert b_j \\rvert\\big)\\) : le problème se découple en \\(p\\) problèmes d'une variable. Pour l'un d'eux, \\(g = z_j - b_j\\) et les conditions de l'étape 2 donnent : si \\(b_j \\ne 0\\), \\(b_j = z_j - \\lambda\\,\\mathrm{signe}(b_j)\\), possible seulement si \\(\\lvert z_j \\rvert > \\lambda\\), avec le signe de \\(z_j\\) ; si \\(b_j = 0\\), \\(\\lvert z_j \\rvert \\le \\lambda\\). Les deux cas s'excluent : la solution est unique et c'est le seuillage doux.\n7. **Forme sur l'ensemble actif.** Les conditions de l'étape 2 sur les coordonnées actives s'écrivent \\(\\mathbf{X}_{\\mathcal{A}}^\\top (\\mathbf{y} - \\mathbf{X}_{\\mathcal{A}}\\hat{\\mathbf{b}}_{\\mathcal{A}}) = \\lambda\\,\\mathbf{s}_{\\mathcal{A}}\\), système linéaire dont on tire \\(\\hat{\\mathbf{b}}_{\\mathcal{A}}\\). Ce qui empêche une formule générale : les conditions sur les coordonnées nulles sont des inégalités, et le terme \\(\\lambda\\,\\mathbf{s}_{\\mathcal{A}}\\) dépend des signes ; la non-dérivabilité de \\(\\lvert \\cdot \\rvert\\) en 0 interdit d'écrire un seul système linéaire valable pour tout \\(\\mathbf{y}\\). Les termes non diagonaux de \\(\\mathbf{X}^\\top \\mathbf{X}\\) couplent les coordonnées : le gain \\(g_j\\) de chacune dépend des autres, et le seuil de l'une change quand une autre entre ou sort. Sans couplage (\\(\\mathbf{X}^\\top \\mathbf{X}\\) diagonale), le problème se découple comme à l'étape 6.\n8. **Bayes.** Moins le logarithme de la densité a posteriori vaut, à une constante près, \\(\\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2/(2\\sigma^2) + \\lVert \\mathbf{b} \\rVert_1/\\tau = \\tfrac{1}{\\sigma^2}\\big(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\tfrac{\\sigma^2}{\\tau} \\lVert \\mathbf{b} \\rVert_1\\big)\\) : son minimiseur, le mode, est la solution du Lasso.\n9. **Non-unicité.** Si \\(\\mathbf{x}_1 = \\mathbf{x}_2\\), le critère ne dépend de \\((b_1, b_2)\\) qu'à travers \\(b_1 + b_2\\) pour l'ajustement, et \\(\\lvert b_1 \\rvert + \\lvert b_2 \\rvert \\ge \\lvert b_1 + b_2 \\rvert\\), avec égalité si \\(b_1\\) et \\(b_2\\) ont le même signe. Si un minimiseur a \\(b_1 + b_2 = m \\ne 0\\), tous les partages \\((u\\,m, (1 - u)\\,m)\\), \\(u \\in [0, 1]\\), donnent le même critère : une infinité de minimiseurs.\n\n### Exemple chiffré\n\nColonnes orthonormées, \\(\\mathbf{z} = \\mathbf{X}^\\top \\mathbf{y} = (1{,}5 ; -0{,}3 ; 0{,}7)\\), \\(\\lambda = 0{,}5\\). Lasso : \\((1{,}0 ; 0{,}0 ; 0{,}2)\\) (la deuxième coordonnée, de valeur absolue sous \\(\\lambda\\), est mise à 0 ; les autres perdent \\(\\lambda\\) en valeur absolue). Ridge, même \\(\\lambda\\) : \\((1{,}000 ; -0{,}200 ; 0{,}467)\\), aucun zéro.\n\nL'expérience suivante compte les coefficients exactement nuls de Ridge et du Lasso (100 observations, 10 colonnes, 3 utiles), pour plusieurs \\(\\lambda\\), avec la correspondance `alpha = lambda / n` du Lasso de scikit-learn.\n\n```python\nrng = np.random.default_rng(8)\nn, p = 100, 10\nX = rng.standard_normal((n, p))\ny = X[:, :3].dot(np.array([3.0, -2.0, 1.0])) + rng.standard_normal(n)\nprint(\"lambda_max = max_j |x_j^T y| =\", round(np.abs(X.T.dot(y)).max(), 2))\nfor lam in [1.0, 10.0, 100.0, 1000.0]:\n    r = Ridge(alpha=lam, fit_intercept=False).fit(X, y).coef_\n    l = Lasso(alpha=lam / n, fit_intercept=False, tol=1e-12, max_iter=1000000).fit(X, y).coef_\n    print(f\"lambda={lam:6.0f}  zéros Ridge : {np.sum(r == 0):2d}   zéros Lasso : {np.sum(l == 0):2d}   plus petit |coef| Ridge : {np.abs(r).min():.2e}\")\n```\n\n```sortie\nlambda_max = max_j |x_j^T y| = 330.12\nlambda=     1  zéros Ridge :  0   zéros Lasso :  0   plus petit |coef| Ridge : 2.71e-02\nlambda=    10  zéros Ridge :  0   zéros Lasso :  3   plus petit |coef| Ridge : 3.23e-02\nlambda=   100  zéros Ridge :  0   zéros Lasso :  7   plus petit |coef| Ridge : 3.34e-02\nlambda=  1000  zéros Ridge :  0   zéros Lasso : 10   plus petit |coef| Ridge : 8.28e-03\n```\n\nContrôle des conditions d'optimalité sur la solution de scikit-learn pour \\(\\lambda = 30\\), puis formule sur l'ensemble actif :\n\n```python\nlam = 30.0\nb = Lasso(alpha=lam / n, fit_intercept=False, tol=1e-12, max_iter=1000000).fit(X, y).coef_\ng = X.T.dot(y - X.dot(b))\nfor j in range(p):\n    print(f\"j={j}  {'actif' if b[j] != 0 else 'nul  '}  b_j={b[j]: .4f}   g_j = x_j^T (y - X b) = {g[j]: .4f}\")\nA = b != 0\nXA = X[:, A]\nprint(\"formule sur l'ensemble actif :\", np.linalg.solve(XA.T.dot(XA), XA.T.dot(y) - lam * np.sign(b[A])))\nprint(\"coefficients actifs sklearn  :\", b[A])\n```\n\n```sortie\nj=0  actif  b_j= 2.5394   g_j = x_j^T (y - X b) =  30.0000\nj=1  actif  b_j=-1.8267   g_j = x_j^T (y - X b) = -30.0000\nj=2  actif  b_j= 0.8022   g_j = x_j^T (y - X b) =  30.0000\nj=3  nul    b_j= 0.0000   g_j = x_j^T (y - X b) =  12.9640\nj=4  nul    b_j= 0.0000   g_j = x_j^T (y - X b) =  6.8674\nj=5  nul    b_j= 0.0000   g_j = x_j^T (y - X b) =  10.5952\nj=6  nul    b_j= 0.0000   g_j = x_j^T (y - X b) =  8.8914\nj=7  nul    b_j= 0.0000   g_j = x_j^T (y - X b) =  1.5219\nj=8  nul    b_j= 0.0000   g_j = x_j^T (y - X b) =  19.5814\nj=9  nul    b_j= 0.0000   g_j = x_j^T (y - X b) =  11.7361\nformule sur l'ensemble actif : [ 2.5394 -1.8267  0.8022]\ncoefficients actifs sklearn  : [ 2.5394 -1.8267  0.8022]\n```\n\nLecture : les coordonnées actives ont \\(g_j = \\pm 30\\), du signe de \\(b_j\\) ; les coordonnées nulles ont \\(\\lvert g_j \\rvert \\le 30\\) ; la formule sur l'ensemble actif redonne la solution, une fois l'ensemble connu.\n\nDeux colonnes identiques : la solution de scikit-learn et un partage différent ont le même critère.\n\n```python\nx = rng.standard_normal(n)\nX2 = np.column_stack([x, x])\ny2 = 2 * x + rng.standard_normal(n)\nlam = 10.0\nb_sk = Lasso(alpha=lam / n, fit_intercept=False, tol=1e-12, max_iter=1000000).fit(X2, y2).coef_\ndef critere(b):\n    return 0.5 * np.sum((y2 - X2.dot(b)) ** 2) + lam * np.abs(b).sum()\npartage = np.array([b_sk.sum() / 2, b_sk.sum() / 2])\nprint(\"solution scikit-learn :\", b_sk, \"; critère :\", round(critere(b_sk), 6))\nprint(\"partage en deux       :\", partage, \"; critère :\", round(critere(partage), 6))\n```\n\n```sortie\nsolution scikit-learn : [1.8903 0.    ] ; critère : 66.541768\npartage en deux       : [0.9452 0.9452] ; critère : 66.541768\n```\n\n### Cas limites\n\n- \\(\\lambda \\ge \\lambda_{\\max}\\) : solution nulle, unique.\n- \\(p = 1\\) : \\(\\hat{b} = \\mathrm{signe}(c)\\max(\\lvert c \\rvert - \\lambda, 0)/\\lVert \\mathbf{x}_1 \\rVert^2\\) avec \\(c = \\mathbf{x}_1^\\top \\mathbf{y}\\), par les conditions d'optimalité (étape 2) avec une seule coordonnée, où \\(g = c - \\hat{b}\\,\\lVert \\mathbf{x}_1 \\rVert^2\\).\n- Colonnes identiques : une infinité de partages sont optimaux, et scikit-learn en renvoie un qui met tout le poids sur une seule colonne (expérience ci-dessus). Colonnes très corrélées mais distinctes : la solution est unique en position générale, mais la colonne retenue peut changer avec une petite perturbation des données.\n\n### Pièges\n\n1. `Lasso(alpha=a)` de scikit-learn correspond à \\(\\lambda = n\\,a\\) dans la convention de cette leçon ; `Ridge(alpha=a)` à \\(\\lambda = a\\), sans facteur \\(n\\).\n2. « Pas de forme fermée » ne veut pas dire « pas de solution » ni « pas unique » : la solution existe toujours, et elle est unique dans le cas orthonormal ou en position générale.\n3. Les coefficients actifs sont rétrécis : dans le cas orthonormal, ils perdent exactement \\(\\lambda\\) en valeur absolue. On peut réestimer par MCO sur les variables sélectionnées.\n4. Comme Ridge, le Lasso exige des colonnes standardisées et une constante non pénalisée.\n\n[[controle:seuil]]\n\n## Partie 6 : biais, variance et rôle de lambda\n\n### Le problème\n\nPourquoi accepter un estimateur biaisé ? Parce que l'erreur qui compte, l'erreur de prédiction ou l'erreur quadratique sur les coefficients, se décompose en biais au carré plus variance, et qu'une petite hausse du biais peut acheter une forte baisse de la variance.\n\n### Notations\n\nOn se place dans le modèle de la partie 2 sous (A1), (A2), (A3). \\(\\mathbf{x}_0 \\in \\mathbb{R}^p\\) est un point fixe ; la réponse future en ce point est \\(Y_0 = \\mathbf{x}_0^\\top \\boldsymbol{\\beta} + \\varepsilon_0\\), où \\(\\varepsilon_0\\) est centrée, de variance \\(\\sigma^2\\), indépendante de \\(\\boldsymbol{\\varepsilon}\\). La prédiction Ridge est \\(\\hat{Y}_0 = \\mathbf{x}_0^\\top \\hat{\\boldsymbol{\\beta}}_\\lambda\\), aléatoire à travers \\(\\mathbf{Y}\\). On note \\(\\mu_1, \\dots, \\mu_p > 0\\) les valeurs propres de \\(\\mathbf{X}^\\top \\mathbf{X}\\), \\(\\mathbf{v}_1, \\dots, \\mathbf{v}_p\\) des vecteurs propres orthonormés associés, et \\(\\theta_j = \\mathbf{v}_j^\\top \\boldsymbol{\\beta}\\) la coordonnée du vrai \\(\\boldsymbol{\\beta}\\) selon \\(\\mathbf{v}_j\\).\n\n### L'énoncé\n\n1. **Décomposition.** Pour tout prédicteur \\(\\hat{Y}_0\\) fonction des seules données d'apprentissage, de variance finie, et avec \\(m_0 = \\mathbb{E}[Y_0]\\) : \\(\\mathbb{E}[(Y_0 - \\hat{Y}_0)^2] = \\sigma^2 + (\\mathbb{E}[\\hat{Y}_0] - m_0)^2 + \\mathrm{Var}(\\hat{Y}_0)\\) : bruit irréductible, biais au carré, variance.\n2. **Ridge.** \\(\\mathbb{E}[\\hat{\\boldsymbol{\\beta}}_\\lambda] - \\boldsymbol{\\beta} = -\\lambda (\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})^{-1} \\boldsymbol{\\beta}\\) et \\(\\mathrm{Var}(\\hat{\\boldsymbol{\\beta}}_\\lambda) = \\sigma^2 (\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})^{-1} \\mathbf{X}^\\top \\mathbf{X} (\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})^{-1}\\). Selon \\(\\mathbf{v}_j\\) : biais \\(-\\lambda \\theta_j/(\\mu_j + \\lambda)\\), variance \\(\\sigma^2 \\mu_j/(\\mu_j + \\lambda)^2\\), et les coordonnées selon des \\(\\mathbf{v}_j\\) différents sont non corrélées. Quand \\(\\lambda\\) croît, chaque biais croît en valeur absolue (si \\(\\theta_j \\ne 0\\)) et chaque variance décroît.\n3. **Ridge bat les MCO (Hoerl et Kennard).** \\(\\displaystyle \\mathbb{E}\\lVert \\hat{\\boldsymbol{\\beta}}_\\lambda - \\boldsymbol{\\beta} \\rVert^2 = \\sum_{j=1}^p \\frac{\\lambda^2 \\theta_j^2 + \\sigma^2 \\mu_j}{(\\mu_j + \\lambda)^2}\\). Chaque terme décroît strictement sur \\([0, \\sigma^2/\\theta_j^2]\\) et croît ensuite (décroît sur tout \\([0, \\infty[\\) si \\(\\theta_j = 0\\)). Donc tout \\(\\lambda\\) de \\(]0, \\sigma^2/\\max_j \\theta_j^2]\\) donne une erreur quadratique strictement plus petite que les MCO (\\(\\lambda = 0\\)).\n4. **Rôle de \\(\\lambda\\).** \\(\\lambda = 0\\) : MCO, sans biais, variance maximale. \\(\\lambda \\to \\infty\\) : variance tendant vers 0, biais tendant vers \\(-\\boldsymbol{\\beta}\\). Le meilleur \\(\\lambda\\) dépend de \\(\\boldsymbol{\\beta}\\) et \\(\\sigma^2\\), inconnus : on le choisit sur des données non utilisées pour l'ajustement (validation, validation croisée), jamais sur l'erreur d'apprentissage, qui est minimale en \\(\\lambda = 0\\) puisque les MCO minimisent \\(s\\).\n\n### La preuve\n\n1. \\(Y_0 - \\hat{Y}_0 = \\varepsilon_0 + (m_0 - \\mathbb{E}\\hat{Y}_0) + (\\mathbb{E}\\hat{Y}_0 - \\hat{Y}_0)\\). On développe le carré et on prend l'espérance. Termes croisés : \\(\\mathbb{E}[\\varepsilon_0]\\,(m_0 - \\mathbb{E}\\hat{Y}_0) = 0\\) ; \\(\\mathbb{E}[\\varepsilon_0 (\\mathbb{E}\\hat{Y}_0 - \\hat{Y}_0)] = \\mathbb{E}[\\varepsilon_0]\\,\\mathbb{E}[\\mathbb{E}\\hat{Y}_0 - \\hat{Y}_0] = 0\\) par indépendance, \\(\\hat{Y}_0\\) ne dépendant que de \\(\\boldsymbol{\\varepsilon}\\) ; \\((m_0 - \\mathbb{E}\\hat{Y}_0)\\,\\mathbb{E}[\\mathbb{E}\\hat{Y}_0 - \\hat{Y}_0] = 0\\). Restent \\(\\sigma^2\\), le biais au carré et la variance.\n2. Avec \\(\\mathbf{M} = \\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I}\\) : \\(\\hat{\\boldsymbol{\\beta}}_\\lambda = \\mathbf{M}^{-1} \\mathbf{X}^\\top (\\mathbf{X}\\boldsymbol{\\beta} + \\boldsymbol{\\varepsilon})\\). Espérance : \\(\\mathbf{M}^{-1} \\mathbf{X}^\\top \\mathbf{X}\\boldsymbol{\\beta} = \\mathbf{M}^{-1} (\\mathbf{M} - \\lambda \\mathbf{I})\\boldsymbol{\\beta} = \\boldsymbol{\\beta} - \\lambda \\mathbf{M}^{-1}\\boldsymbol{\\beta}\\). Variance : règle de calcul de la partie 2 avec la matrice \\(\\mathbf{M}^{-1}\\mathbf{X}^\\top\\). Comme \\(\\mathbf{M}^{-1}\\mathbf{v}_j = \\mathbf{v}_j/(\\mu_j + \\lambda)\\) et \\(\\mathbf{X}^\\top \\mathbf{X}\\mathbf{v}_j = \\mu_j \\mathbf{v}_j\\) : \\(\\mathbf{v}_j^\\top (\\text{biais}) = -\\lambda \\theta_j/(\\mu_j + \\lambda)\\) et \\(\\mathbf{v}_j^\\top \\mathrm{Var}(\\hat{\\boldsymbol{\\beta}}_\\lambda)\\mathbf{v}_k = \\sigma^2 \\mu_j/(\\mu_j + \\lambda)^2\\) si \\(j = k\\), 0 sinon. Monotonie : \\(\\lambda/(\\mu_j + \\lambda)\\) croît et \\(\\mu_j/(\\mu_j + \\lambda)^2\\) décroît en \\(\\lambda \\ge 0\\).\n3. \\(\\mathbb{E}\\lVert \\hat{\\boldsymbol{\\beta}}_\\lambda - \\boldsymbol{\\beta} \\rVert^2 = \\lVert \\mathbb{E}\\hat{\\boldsymbol{\\beta}}_\\lambda - \\boldsymbol{\\beta} \\rVert^2 + \\mathrm{tr}\\,\\mathrm{Var}(\\hat{\\boldsymbol{\\beta}}_\\lambda)\\) (énoncé 1 coordonnée par coordonnée, sans le terme de bruit) ; on calcule norme et trace dans la base orthonormée des \\(\\mathbf{v}_j\\), ce qui donne la somme annoncée. Pour un terme \\(g_j(\\lambda) = (\\lambda^2 \\theta_j^2 + \\sigma^2 \\mu_j)/(\\mu_j + \\lambda)^2\\), la dérivée vaut \\(\\dfrac{2\\lambda \\theta_j^2 (\\mu_j + \\lambda) - 2(\\lambda^2 \\theta_j^2 + \\sigma^2 \\mu_j)}{(\\mu_j + \\lambda)^3} = \\dfrac{2\\mu_j (\\lambda \\theta_j^2 - \\sigma^2)}{(\\mu_j + \\lambda)^3}\\), du signe de \\(\\lambda \\theta_j^2 - \\sigma^2\\).\n4. Limites : facteurs \\(\\lambda/(\\mu_j + \\lambda) \\to 1\\) et \\(\\mu_j/(\\mu_j + \\lambda)^2 \\to 0\\).\n\n### Exemple chiffré\n\nMême \\(\\mathbf{X}^\\top \\mathbf{X}\\) qu'en partie 4 (valeurs propres \\(1{,}9\\) et \\(0{,}1\\)), vrai \\(\\boldsymbol{\\beta} = (1, 0)\\), \\(\\sigma^2 = 0{,}25\\). Les vecteurs propres normés sont \\((1, 1)/\\sqrt{2}\\) et \\((1, -1)/\\sqrt{2}\\), donc \\(\\theta_1^2 = \\theta_2^2 = 0{,}5\\), et chaque terme est minimal en \\(\\lambda = \\sigma^2/\\theta_j^2 = 0{,}5\\). Erreur quadratique des coefficients : \\(2{,}632\\) pour les MCO, \\(0{,}521\\) pour \\(\\lambda = 0{,}5\\).\n\nPrédiction en \\(\\mathbf{x}_0 = (1, -1)\\), la direction mal déterminée (\\(\\mathbf{x}_0^\\top \\boldsymbol{\\beta} = 1\\)) :\n\n| \\(\\lambda\\) | bruit | biais au carré | variance | erreur totale |\n|---|---|---|---|---|\n| \\(0\\) | \\(0{,}25\\) | \\(0{,}0000\\) | \\(5{,}0000\\) | \\(5{,}2500\\) |\n| \\(0{,}1\\) | \\(0{,}25\\) | \\(0{,}2500\\) | \\(1{,}2500\\) | \\(1{,}7500\\) |\n| \\(0{,}5\\) | \\(0{,}25\\) | \\(0{,}6944\\) | \\(0{,}1389\\) | \\(1{,}0833\\) |\n| \\(2\\) | \\(0{,}25\\) | \\(0{,}9070\\) | \\(0{,}0113\\) | \\(1{,}1684\\) |\n\nL'erreur totale est minimale en \\(\\lambda = 0{,}5\\) (dérivée calculée par le script). Simulation de ces quatre lignes :\n\n```python\nG = np.array([[1.0, 0.9], [0.9, 1.0]])\nX = np.linalg.cholesky(G).T                     # matrice 2 x 2 telle que X^T X = G\nbeta, sigma, x0 = np.array([1.0, 0.0]), 0.5, np.array([1.0, -1.0])\nrng = np.random.default_rng(9)\nY = X.dot(beta) + sigma * rng.standard_normal((200000, 2))\nfor lam in [0.0, 0.1, 0.5, 2.0]:\n    A = np.linalg.solve(X.T.dot(X) + lam * np.eye(2), X.T)     # beta_lambda = A y\n    pred = Y.dot(A.T).dot(x0)\n    biais2 = (pred.mean() - x0.dot(beta)) ** 2\n    print(f\"lambda={lam:3.1f}  biais^2={biais2:.4f}  variance={pred.var():.4f}  erreur totale={sigma**2 + biais2 + pred.var():.4f}\")\n```\n\n```sortie\nlambda=0.0  biais^2=0.0000  variance=5.0095  erreur totale=5.2595\nlambda=0.1  biais^2=0.2507  variance=1.2524  erreur totale=1.7531\nlambda=0.5  biais^2=0.6949  variance=0.1392  erreur totale=1.0840\nlambda=2.0  biais^2=0.9072  variance=0.0114  erreur totale=1.1685\n```\n\n### Cas limites\n\n- \\(\\sigma = 0\\) : les MCO sont exacts, et \\(\\sigma^2/\\theta_j^2 = 0\\) : aucun \\(\\lambda > 0\\) n'aide.\n- \\(\\boldsymbol{\\beta}\\) aligné sur une direction bien déterminée (\\(\\mu_j\\) grand) : le biais selon \\(\\mathbf{v}_j\\), \\(-\\lambda \\theta_j/(\\mu_j + \\lambda)\\), reste petit tant que \\(\\lambda\\) est petit devant \\(\\mu_j\\), et le gain de variance vient des directions de petite valeur propre.\n- Le Lasso obéit au même arbitrage, sans formule fermée du biais et de la variance.\n\n### Pièges\n\n1. Choisir \\(\\lambda\\) sur l'erreur d'apprentissage donne toujours \\(\\lambda = 0\\).\n2. La standardisation et le choix de \\(\\lambda\\) doivent être faits à l'intérieur de chaque pli de validation, avec les seules données d'apprentissage du pli ; sinon de l'information des données de validation fuit dans l'ajustement.\n3. Gauss-Markov n'est pas contredit : Ridge est biaisé, hors de la classe où les MCO sont optimaux.\n\n[[controle:biais_variance]]\n\n## Réflexes en 30 secondes\n\n| Indice dans l'énoncé | Réflexe |\n|---|---|\n| « forme fermée de Ridge ? » | oui : \\((\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})^{-1} \\mathbf{X}^\\top \\mathbf{y}\\), unique pour tout \\(\\lambda > 0\\), quel que soit le rang |\n| « forme fermée du Lasso ? » | non en général : non-dérivabilité en 0 et couplage par \\(\\mathbf{X}^\\top \\mathbf{X}\\) ; oui si \\(\\mathbf{X}^\\top \\mathbf{X}\\) diagonale (seuillage doux) ou \\(p = 1\\) |\n| « MCO unique ? » | si et seulement si \\(\\mathbf{X}\\) est de rang \\(p\\) |\n| « matrice chapeau » | symétrique, idempotente, trace \\(p\\) ; \\(\\mathbb{E}\\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2 = \\sigma^2 (n - p)\\) |\n| hétéroscédasticité, autocorrélation | sans biais ; variance usuelle fausse ; plus BLUE ; White, Newey-West |\n| variable omise | biais \\(\\gamma\\,\\boldsymbol{\\delta}\\) ; signe de l'effet fois signe de la pente |\n| erreur de mesure | atténuation \\(\\beta\\,v_Z/(v_Z + v_U)\\) |\n| multicolinéarité | sans biais ; variance multipliée par \\(1/(1 - R_j^2)\\) |\n| ajout d'une variable | R² ne baisse pas ; R² ajusté monte si et seulement si \\(t^2 > 1\\) |\n| pourquoi des zéros avec L1 | pente \\(\\lambda\\) en 0 ; nul tant que \\(\\lvert g_j \\rvert \\le \\lambda\\) ; coins de la boule |\n| a priori | gaussien : Ridge, \\(\\lambda = \\sigma^2/\\tau^2\\) ; Laplace : Lasso (mode), \\(\\lambda = \\sigma^2/\\tau\\) |\n| scikit-learn | `Ridge(alpha)` : \\(\\lambda = \\) alpha ; `Lasso(alpha)` : \\(\\lambda = n \\times\\) alpha |\n| choisir \\(\\lambda\\) | biais contre variance ; validation hors échantillon |\n\n## À savoir refaire sans notes\n\n- Les équations normales par l'identité (D), l'existence par \\(\\ker(\\mathbf{X}^\\top \\mathbf{X}) = \\ker(\\mathbf{X})\\), l'unicité par le rang, et les propriétés de \\(\\mathbf{H}\\).\n- Sans biais, \\(\\mathrm{Var}(\\hat{\\boldsymbol{\\beta}}) = \\sigma^2 (\\mathbf{X}^\\top \\mathbf{X})^{-1}\\), \\(\\mathbb{E}\\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2 = \\sigma^2 (n - p)\\) par la trace, et Gauss-Markov par \\(\\mathbf{C} = \\mathbf{A} + \\mathbf{D}\\).\n- Le biais de variable omise, l'atténuation par erreur de mesure, la formule du VIF par Frisch-Waugh.\n- \\(\\mathrm{SCT} = \\mathrm{SCE} + \\mathrm{SCR}\\), la non-décroissance de R², et le critère \\(t^2 > 1\\) du R² ajusté.\n- Ridge : forme fermée, lecture SVD, conditionnement, a priori gaussien, absence de zéros exacts et sa condition.\n- Lasso : conditions d'optimalité (les deux sens), seuil \\(\\lambda_{\\max}\\), seuillage doux, formule sur l'ensemble actif et raison de l'absence de forme fermée.\n- Décomposition biais-variance et dérivée de Hoerl et Kennard.\n",
+   "controles": {
+    "residus": {
+     "question": "Régression MCO **avec constante**, \\(\\mathbf{X}\\) de rang \\(p < n\\). Laquelle de ces affirmations est toujours vraie ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "La somme des résidus est nulle, et le vecteur des résidus est orthogonal au vecteur des valeurs ajustées.",
+       "correcte": true,
+       "explication": "Oui : \\(\\mathbf{X}^\\top \\mathbf{e} = \\mathbf{0}\\) donne la somme nulle (ligne de la constante) et l'orthogonalité à toute combinaison des colonnes, dont \\(\\hat{\\mathbf{y}}\\)."
+      },
+      {
+       "id": "b",
+       "texte": "Le vecteur des résidus est orthogonal au vecteur \\(\\mathbf{y}\\) des réponses.",
+       "correcte": false,
+       "explication": "Faux : \\(\\mathbf{y}^\\top \\mathbf{e} = (\\hat{\\mathbf{y}} + \\mathbf{e})^\\top \\mathbf{e} = \\lVert \\mathbf{e} \\rVert^2\\), nul seulement si l'ajustement est parfait. Dans l'exemple à quatre points, \\(\\mathbf{y}^\\top \\mathbf{e} = 2{,}7\\)."
+      },
+      {
+       "id": "c",
+       "texte": "La somme des résidus serait nulle aussi sans la constante.",
+       "correcte": false,
+       "explication": "Pas toujours vrai : la somme nulle vient de la ligne \\(\\mathbf{1}^\\top \\mathbf{e} = 0\\) des équations normales, qui n'existe que si \\(\\mathbf{1}\\) est dans l'image de \\(\\mathbf{X}\\)."
+      },
+      {
+       "id": "d",
+       "texte": "La matrice chapeau \\(\\mathbf{H}\\) est inversible.",
+       "correcte": false,
+       "explication": "Faux : l'image de \\(\\mathbf{H}\\) est \\(\\mathrm{Im}(\\mathbf{X})\\), de dimension \\(p\\), donc \\(\\mathbf{H}\\) n'est pas inversible dès que \\(p < n\\). Elle n'est inversible que si \\(p = n\\), auquel cas \\(\\mathbf{H} = \\mathbf{I}\\)."
+      }
+     ]
+    },
+    "gauss_markov": {
+     "question": "Sous (A1), (A2) et (A3), **sans** supposer la normalité, laquelle de ces affirmations est un énoncé exact ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Pour tout vecteur fixe \\(\\mathbf{a}\\) et tout estimateur \\(\\tilde{\\boldsymbol{\\beta}} = \\mathbf{C}\\mathbf{Y}\\) linéaire et sans biais, \\(\\mathrm{Var}(\\mathbf{a}^\\top \\hat{\\boldsymbol{\\beta}}) \\le \\mathrm{Var}(\\mathbf{a}^\\top \\tilde{\\boldsymbol{\\beta}})\\).",
+       "correcte": true,
+       "explication": "Oui : c'est Gauss-Markov, prouvé par \\(\\mathbf{C} = \\mathbf{A} + \\mathbf{D}\\) avec \\(\\mathbf{D}\\mathbf{X} = \\mathbf{0}\\), qui donne une différence de variances égale à \\(\\sigma^2 \\mathbf{D}\\mathbf{D}^\\top\\)."
+      },
+      {
+       "id": "b",
+       "texte": "\\(\\hat{\\boldsymbol{\\beta}}\\) a la plus petite variance parmi tous les estimateurs sans biais, linéaires ou non.",
+       "correcte": false,
+       "explication": "Faux sans normalité. Exemple : \\(Y_i = \\beta + \\varepsilon_i\\), \\(i = 1, \\dots, 10\\), bruits indépendants uniformes sur \\([-1, 1]\\). La moyenne (MCO) a pour variance \\(0{,}0333\\) ; le milieu de l'étendue \\((\\min_i Y_i + \\max_i Y_i)/2\\), sans biais par symétrie mais non linéaire, a pour variance \\(0{,}0152\\) (calcul exact et simulation dans le script)."
+      },
+      {
+       "id": "c",
+       "texte": "\\(\\hat{\\boldsymbol{\\beta}}\\) a la plus petite erreur quadratique moyenne parmi tous les estimateurs linéaires en \\(\\mathbf{Y}\\).",
+       "correcte": false,
+       "explication": "Faux : Ridge est linéaire en \\(\\mathbf{Y}\\), biaisé, et peut avoir une erreur quadratique strictement plus petite (partie 6, Hoerl et Kennard). Gauss-Markov ne compare qu'aux estimateurs sans biais."
+      },
+      {
+       "id": "d",
+       "texte": "Le théorème n'est valable que si les bruits sont gaussiens.",
+       "correcte": false,
+       "explication": "Faux : la preuve n'utilise que \\(\\mathbb{E}[\\boldsymbol{\\varepsilon}] = \\mathbf{0}\\) et \\(\\mathrm{Var}(\\boldsymbol{\\varepsilon}) = \\sigma^2 \\mathbf{I}\\). La normalité sert aux lois exactes des tests."
+      }
+     ]
+    },
+    "omise": {
+     "question": "Vrai modèle : \\(Y_i = \\beta_1 + \\beta_2 x_{i2} + \\gamma z_i + \\varepsilon_i\\), avec \\(\\gamma > 0\\), bruits centrés, plan fixe. Dans l'échantillon, la régression MCO de \\(\\mathbf{z}\\) sur \\((\\mathbf{1}, \\mathbf{x}_2)\\) a une pente \\(\\delta > 0\\). On régresse \\(\\mathbf{Y}\\) sur \\((\\mathbf{1}, \\mathbf{x}_2)\\) seulement. Que vaut l'espérance de la pente estimée ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "\\(\\beta_2 + \\gamma\\,\\delta\\) : la pente est surestimée.",
+       "correcte": true,
+       "explication": "Oui : \\(\\mathbb{E}[\\hat{\\boldsymbol{\\beta}}] = \\boldsymbol{\\beta} + \\gamma\\,\\boldsymbol{\\delta}\\), et \\(\\gamma\\,\\delta > 0\\). La variable \\(\\mathbf{x}_2\\) « capte » une partie de l'effet de \\(\\mathbf{z}\\), qui varie avec elle."
+      },
+      {
+       "id": "b",
+       "texte": "\\(\\beta_2\\), car les bruits sont centrés.",
+       "correcte": false,
+       "explication": "Le bruit du modèle estimé n'est plus \\(\\varepsilon_i\\) mais \\(\\gamma z_i + \\varepsilon_i\\), qui n'est pas centré et varie avec \\(\\mathbf{x}_2\\) : l'hypothèse (A2) est violée pour le modèle estimé."
+      },
+      {
+       "id": "c",
+       "texte": "\\(\\beta_2 - \\gamma\\,\\delta\\) : la pente est sous-estimée.",
+       "correcte": false,
+       "explication": "Erreur de signe : \\(\\mathbb{E}[\\hat{\\boldsymbol{\\beta}}] = \\mathbf{A}(\\mathbf{X}\\boldsymbol{\\beta} + \\gamma\\,\\mathbf{z}) = \\boldsymbol{\\beta} + \\gamma\\,\\mathbf{A}\\mathbf{z}\\), et \\(\\mathbf{A}\\mathbf{z} = \\boldsymbol{\\delta}\\) s'ajoute."
+      },
+      {
+       "id": "d",
+       "texte": "\\(\\beta_2 + \\gamma\\) : tout l'effet de \\(\\mathbf{z}\\) passe dans la pente.",
+       "correcte": false,
+       "explication": "Seule la partie de \\(\\mathbf{z}\\) alignée sur \\(\\mathbf{x}_2\\) passe dans la pente, dans la proportion \\(\\delta\\). Si \\(\\mathbf{z}\\) était orthogonale à \\((\\mathbf{1}, \\mathbf{x}_2)\\), il n'y aurait aucun biais."
+      }
+     ]
+    },
+    "r2": {
+     "question": "On ajoute à une régression avec constante une colonne de bruit pur, tirée indépendamment de tout le reste. Qu'est-ce qui est vrai **à coup sûr** sur l'échantillon d'apprentissage ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Le R² ne diminue pas.",
+       "correcte": true,
+       "explication": "Oui : \\(\\mathrm{SCR}\\) diminue de \\(c^2 \\lVert \\tilde{\\mathbf{x}} \\rVert^2 \\ge 0\\) et \\(\\mathrm{SCT}\\) ne change pas. Le minimum sur un ensemble plus grand ne peut pas être plus grand."
+      },
+      {
+       "id": "b",
+       "texte": "Le R² diminue, car la colonne n'a aucun pouvoir explicatif.",
+       "correcte": false,
+       "explication": "Faux : sur l'échantillon d'apprentissage, la nouvelle colonne s'ajuste au bruit ; elle ne peut pas faire monter \\(\\mathrm{SCR}\\), puisque le coefficient 0 reste disponible."
+      },
+      {
+       "id": "c",
+       "texte": "Le R² ajusté augmente aussi.",
+       "correcte": false,
+       "explication": "Pas à coup sûr : il augmente si et seulement si la statistique t de la nouvelle colonne vérifie \\(t^2 > 1\\). Pour une colonne de bruit, cela arrive pour une partie seulement des tirages."
+      },
+      {
+       "id": "d",
+       "texte": "Le R² sur des données de test augmente aussi.",
+       "correcte": false,
+       "explication": "Pas garanti : le coefficient de la colonne de bruit est ajusté au bruit d'apprentissage ; sur des données nouvelles, il ajoute de la variance de prédiction sans réduire le biais, et l'expérience de la partie 3 montre un R² de test qui baisse jusqu'à devenir négatif."
+      }
+     ]
+    },
+    "conditionnement": {
+     "question": "\\(\\mathbf{X}^\\top \\mathbf{X}\\) a pour valeurs propres 9 et 0,01. Quel est le conditionnement de \\(\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I}\\) pour \\(\\lambda = 1\\) ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "\\((9{,}90)\\), contre \\(900\\) sans pénalité.",
+       "correcte": true,
+       "explication": "Oui : les valeurs propres deviennent \\(9 + 1\\) et \\(0{,}01 + 1\\), d'où \\(10/1{,}01 \\approx 9{,}90\\)."
+      },
+      {
+       "id": "b",
+       "texte": "\\(900\\), inchangé, car ajouter \\(\\lambda \\mathbf{I}\\) ne change pas les vecteurs propres.",
+       "correcte": false,
+       "explication": "Les vecteurs propres ne changent pas, mais toutes les valeurs propres augmentent de \\(\\lambda\\), et le rapport \\((9 + 1)/(0{,}01 + 1)\\) est bien plus petit que \\(9/0{,}01\\)."
+      },
+      {
+       "id": "c",
+       "texte": "\\((8{,}91)\\)",
+       "correcte": false,
+       "explication": "C'est \\(9/(0{,}01 + 1)\\) : \\(\\lambda\\) n'a été ajouté qu'à la petite valeur propre. Il s'ajoute à toutes."
+      },
+      {
+       "id": "d",
+       "texte": "\\(30\\)",
+       "correcte": false,
+       "explication": "C'est \\(\\sqrt{9/0{,}01}\\), le conditionnement de \\(\\mathbf{X}\\) sans pénalité (\\(\\kappa(\\mathbf{X}^\\top \\mathbf{X}) = \\kappa(\\mathbf{X})^2\\)). La question porte sur \\(\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I}\\)."
+      }
+     ]
+    },
+    "seuil": {
+     "question": "Lasso \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\lambda \\lVert \\mathbf{b} \\rVert_1\\) avec \\(\\mathbf{X}^\\top \\mathbf{y} = (0{,}3 ; -1{,}2 ; 0{,}5)\\). Pour quels \\(\\lambda\\) la solution est-elle le vecteur nul ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Exactement pour \\(\\lambda \\ge 1{,}2\\), le plus grand \\(\\lvert \\mathbf{x}_j^\\top \\mathbf{y} \\rvert\\).",
+       "correcte": true,
+       "explication": "Oui : en \\(\\mathbf{b} = \\mathbf{0}\\), \\(\\mathbf{g} = \\mathbf{X}^\\top \\mathbf{y}\\), et les conditions d'optimalité demandent \\(\\lvert g_j \\rvert \\le \\lambda\\) pour chaque \\(j\\)."
+      },
+      {
+       "id": "b",
+       "texte": "Exactement pour \\(\\lambda \\ge 2{,}0\\), la somme des \\(\\lvert \\mathbf{x}_j^\\top \\mathbf{y} \\rvert\\).",
+       "correcte": false,
+       "explication": "Cette condition est suffisante mais pas nécessaire : pour \\(\\lambda\\) entre \\(1{,}2\\) et \\(2{,}0\\), chaque \\(\\lvert g_j \\rvert\\) est déjà sous \\(\\lambda\\), et la solution est nulle."
+      },
+      {
+       "id": "c",
+       "texte": "Exactement pour \\(\\lambda \\ge 1{,}334\\), la norme euclidienne de \\(\\mathbf{X}^\\top \\mathbf{y}\\).",
+       "correcte": false,
+       "explication": "Les conditions portent sur chaque coordonnée séparément (norme du maximum), pas sur la norme euclidienne ; pour \\(\\lambda\\) entre \\(1{,}2\\) et \\(1{,}334\\), la solution est déjà nulle."
+      },
+      {
+       "id": "d",
+       "texte": "Pour aucun \\(\\lambda\\) fini : la solution tend vers 0 sans l'atteindre.",
+       "correcte": false,
+       "explication": "C'est le comportement de Ridge. La pénalité L1 garde une pente \\(\\lambda\\) en 0, ce qui crée un seuil fini au-delà duquel tout est nul."
+      }
+     ]
+    },
+    "biais_variance": {
+     "question": "Ridge, \\(\\mathbf{X}\\) de rang \\(p\\), \\(\\sigma > 0\\), \\(\\boldsymbol{\\beta} \\ne \\mathbf{0}\\). Quand \\(\\lambda\\) augmente de 0 vers l'infini, que se passe-t-il ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "La norme du biais croît de 0 vers \\(\\lVert \\boldsymbol{\\beta} \\rVert\\), la variance décroît vers 0, et l'erreur quadratique commence par décroître.",
+       "correcte": true,
+       "explication": "Oui : facteurs \\(\\lambda/(\\mu_j + \\lambda)\\) croissants sur le biais, \\(\\mu_j/(\\mu_j + \\lambda)^2\\) décroissants sur la variance, et chaque terme de l'erreur décroît tant que \\(\\lambda < \\sigma^2/\\theta_j^2\\) (Hoerl et Kennard)."
+      },
+      {
+       "id": "b",
+       "texte": "Le biais et la variance décroissent tous les deux.",
+       "correcte": false,
+       "explication": "Le biais vaut \\(-\\lambda (\\mathbf{X}^\\top \\mathbf{X} + \\lambda \\mathbf{I})^{-1}\\boldsymbol{\\beta}\\) : nul en \\(\\lambda = 0\\), il croît en norme. C'est cet arbitrage qui fait exister un \\(\\lambda\\) optimal."
+      },
+      {
+       "id": "c",
+       "texte": "Le biais décroît et la variance croît.",
+       "correcte": false,
+       "explication": "C'est l'inverse : \\(\\lambda = 0\\) donne les MCO, sans biais et de variance maximale ; la pénalité rétrécit vers 0, ce qui réduit la variance et crée du biais."
+      },
+      {
+       "id": "d",
+       "texte": "L'erreur quadratique croît dès \\(\\lambda > 0\\), car les MCO sont sans biais et optimaux.",
+       "correcte": false,
+       "explication": "Les MCO ne sont optimaux que parmi les estimateurs linéaires sans biais. La dérivée de l'erreur en \\(\\lambda = 0\\) vaut \\(-2\\sigma^2 \\sum_j 1/\\mu_j^2 < 0\\) : un petit \\(\\lambda\\) fait toujours mieux."
+      }
+     ]
+    }
+   },
+   "cellules_initiales": [
+    "import numpy as np\nfrom sklearn.linear_model import Lasso, Ridge\nfrom sklearn.metrics import r2_score\nnp.set_printoptions(precision=4, suppress=True)",
+    "# Essaie ici les expériences de la leçon, en les modifiant.\nrng = np.random.default_rng(0)\nX = rng.standard_normal((50, 5))\ny = X.dot(np.array([1.0, 0.0, 0.0, -2.0, 0.5])) + rng.standard_normal(50)\nfor lam in [1.0, 10.0, 100.0]:\n    print(lam, Ridge(alpha=lam, fit_intercept=False).fit(X, y).coef_, Lasso(alpha=lam / 50, fit_intercept=False).fit(X, y).coef_)"
+   ],
+   "verif": {
+    "script": "verif/seance_ml_1.py"
+   }
+  },
+  {
+   "id": "F1-01",
+   "section": "mlf",
+   "theme": "Moindres carrés, régression simple",
+   "difficulte": 2,
+   "temps_cible_s": 75,
+   "enonce": "On observe cinq couples \\((x_i, y_i)\\) : (1, 2), (2, 4), (3, 5), (4, 4), (5, 5). On ajuste par moindres carrés ordinaires le modèle \\(y_i \\approx b_1 + b_2 x_i\\), **avec constante**.\n\nQue vaut la pente estimée \\(\\hat{b}_2\\), arrondie à trois décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,600",
+     "correcte": true,
+     "explication": "Oui : \\(S_{xy}/S_{xx} = 6/10\\), avec les sommes centrées autour de \\(\\bar{x} = 3\\) et \\(\\bar{y} = 4\\)."
+    },
+    {
+     "id": "b",
+     "texte": "1,200",
+     "correcte": false,
+     "explication": "C'est \\(\\sum_i x_i y_i / \\sum_i x_i^2 = 66/55\\), la pente de la régression **sans constante**, forcée de passer par l'origine. Avec constante, on centre \\(x\\) et \\(y\\)."
+    },
+    {
+     "id": "c",
+     "texte": "1,000",
+     "correcte": false,
+     "explication": "C'est \\(S_{xy}/S_{yy} = 6/6\\), la pente de la régression de \\(x\\) sur \\(y\\) : les rôles sont échangés. La régression de \\(y\\) sur \\(x\\) divise par la dispersion de \\(x\\)."
+    },
+    {
+     "id": "d",
+     "texte": "0,775",
+     "correcte": false,
+     "explication": "C'est la corrélation \\(S_{xy}/\\sqrt{S_{xx} S_{yy}}\\). Elle n'égale la pente que si \\(x\\) et \\(y\\) ont la même dispersion (\\(S_{xx} = S_{yy}\\))."
+    }
+   ],
+   "solution": "Réponse : \\(\\hat{b}_2 = 6/10 = 0{,}600\\).\n\nNotations : \\(\\bar{x}\\) et \\(\\bar{y}\\) sont les moyennes des \\(x_i\\) et des \\(y_i\\) ; \\(S_{xx} = \\sum_i (x_i - \\bar{x})^2\\), \\(S_{xy} = \\sum_i (x_i - \\bar{x})(y_i - \\bar{y})\\), \\(S_{yy} = \\sum_i (y_i - \\bar{y})^2\\).\n\nÉtape 1 : les équations normales pour les colonnes \\(\\mathbf{1}\\) et \\(\\mathbf{x}\\) disent que les résidus sont de somme nulle et orthogonaux à \\(\\mathbf{x}\\). La première donne \\(\\hat{b}_1 = \\bar{y} - \\hat{b}_2 \\bar{x}\\) ; en la reportant dans la seconde, \\(\\hat{b}_2 = S_{xy}/S_{xx}\\) (leçon, partie 2, hétéroscédasticité, étape 3).\n\nÉtape 2 : \\(\\bar{x} = 3\\), \\(\\bar{y} = 4\\) ; écarts \\(x_i - \\bar{x}\\) : \\((-2 ; -1 ; 0 ; 1 ; 2)\\) ; écarts \\(y_i - \\bar{y}\\) : \\((-2 ; 0 ; 1 ; 0 ; 1)\\).\n\nÉtape 3 : \\(S_{xx} = 10\\), \\(S_{xy} = (-2)(-2) + 0 + 0 + 0 + 2 \\times 1 = 6\\), donc \\(\\hat{b}_2 = 0{,}600\\) et \\(\\hat{b}_1 = 4 - 0{,}6 \\times 3 = 2{,}2\\).\n\nVérification (script) : `np.polyfit` donne la même pente.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,600",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q01_const",
+     "Q01_d_corr",
+     "Q01_d_inverse",
+     "Q01_d_origine",
+     "Q01_dx",
+     "Q01_dy",
+     "Q01_exact",
+     "Q01_sxx",
+     "Q01_sxy",
+     "Q01_syy",
+     "Q01_xbar",
+     "Q01_xx",
+     "Q01_xy",
+     "Q01_ybar"
+    ]
+   }
+  },
+  {
+   "id": "F1-02",
+   "section": "mlf",
+   "theme": "Matrice chapeau, variance résiduelle",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "enonce": "Modèle \\(\\mathbf{Y} = \\mathbf{X}\\boldsymbol{\\beta} + \\boldsymbol{\\varepsilon}\\) avec \\(n = 50\\) observations et une matrice \\(\\mathbf{X}\\) fixe à 4 colonnes, la constante comprise, de rang 4. Le bruit vérifie \\(\\mathbb{E}[\\boldsymbol{\\varepsilon}] = \\mathbf{0}\\) et \\(\\mathrm{Var}(\\boldsymbol{\\varepsilon}) = 2\\,\\mathbf{I}\\), avec \\(\\mathbf{I}\\) la matrice identité \\(50 \\times 50\\). Soit \\(\\hat{\\boldsymbol{\\varepsilon}}\\) le vecteur des résidus des moindres carrés ordinaires.\n\nQue vaut \\(\\mathbb{E}\\big[\\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2\\big]\\), l'espérance de la somme des carrés des résidus ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "92",
+     "correcte": true,
+     "explication": "Oui : \\(\\sigma^2\\,\\mathrm{tr}(\\mathbf{I} - \\mathbf{H}) = 2 \\times (50 - 4)\\)."
+    },
+    {
+     "id": "b",
+     "texte": "100",
+     "correcte": false,
+     "explication": "C'est \\(n\\sigma^2 = \\mathbb{E}\\lVert \\boldsymbol{\\varepsilon} \\rVert^2\\), l'espérance pour le vrai bruit. Les résidus sont la projection du bruit sur un sous-espace de dimension \\(n - p\\) : ils perdent \\(p\\) dimensions."
+    },
+    {
+     "id": "c",
+     "texte": "8",
+     "correcte": false,
+     "explication": "C'est \\(p\\sigma^2 = \\sigma^2\\,\\mathrm{tr}(\\mathbf{H}) = \\mathbb{E}\\lVert \\mathbf{H}\\boldsymbol{\\varepsilon} \\rVert^2\\), la partie du bruit absorbée par l'ajustement, pas les résidus."
+    },
+    {
+     "id": "d",
+     "texte": "90",
+     "correcte": false,
+     "explication": "C'est \\(\\sigma^2 (n - p - 1)\\) : la constante a été comptée deux fois. L'énoncé dit que les 4 colonnes comprennent la constante, donc \\(p = 4\\)."
+    }
+   ],
+   "solution": "Réponse : \\(\\mathbb{E}\\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2 = \\sigma^2 (n - p) = 2 \\times 46 = 92\\).\n\nNotations : \\(\\sigma^2 = 2\\), \\(p = 4\\) (constante comprise), \\(\\mathbf{H} = \\mathbf{X}(\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top\\) la matrice chapeau.\n\nÉtape 1 : \\(\\hat{\\boldsymbol{\\varepsilon}} = (\\mathbf{I} - \\mathbf{H})\\mathbf{Y} = (\\mathbf{I} - \\mathbf{H})\\boldsymbol{\\varepsilon}\\), car \\((\\mathbf{I} - \\mathbf{H})\\mathbf{X} = \\mathbf{0}\\).\n\nÉtape 2 : \\(\\mathbf{I} - \\mathbf{H}\\) est symétrique et idempotente, donc \\(\\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2 = \\boldsymbol{\\varepsilon}^\\top (\\mathbf{I} - \\mathbf{H})\\boldsymbol{\\varepsilon} = \\mathrm{tr}\\big((\\mathbf{I} - \\mathbf{H})\\boldsymbol{\\varepsilon}\\boldsymbol{\\varepsilon}^\\top\\big)\\).\n\nÉtape 3 : en espérance, \\(\\mathbb{E}[\\boldsymbol{\\varepsilon}\\boldsymbol{\\varepsilon}^\\top] = \\sigma^2 \\mathbf{I}\\), et \\(\\mathrm{tr}(\\mathbf{I} - \\mathbf{H}) = n - \\mathrm{tr}(\\mathbf{H}) = n - p\\) (leçon, partie 1, énoncé 4, et partie 2, étape 3).\n\nConséquence : \\(\\hat{\\sigma}^2 = \\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2/(n - p)\\) est sans biais pour \\(\\sigma^2\\). Simulation (script) : 92,00.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "92",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q02_d_n",
+     "Q02_d_np1",
+     "Q02_d_p",
+     "Q02_exact",
+     "Q02_mc",
+     "Q02_nmp"
+    ]
+   }
+  },
+  {
+   "id": "F1-03",
+   "section": "mlf",
+   "theme": "Hétéroscédasticité : variance, formule usuelle, moindres carrés pondérés",
+   "difficulte": 5,
+   "temps_cible_s": 150,
+   "enonce": "Modèle sans constante à deux observations : \\(Y_i = \\beta x_i + \\varepsilon_i\\) pour \\(i = 1, 2\\), avec \\(x_1 = 1\\), \\(x_2 = 2\\), \\(\\beta\\) réel inconnu. Les bruits \\(\\varepsilon_1\\), \\(\\varepsilon_2\\) sont indépendants, centrés, de variances respectives 1 et 4.\n\nOn note \\(\\hat{\\beta} = (x_1 Y_1 + x_2 Y_2)/(x_1^2 + x_2^2)\\) l'estimateur des moindres carrés ordinaires, \\(\\hat{\\sigma}^2 = \\sum_i (Y_i - \\hat{\\beta} x_i)^2/(n - 1)\\) avec \\(n = 2\\), et « formule usuelle » l'estimateur \\(\\hat{\\sigma}^2/(x_1^2 + x_2^2)\\) de la variance de \\(\\hat{\\beta}\\). Les moindres carrés pondérés (MCP) minimisent \\(\\sum_i (Y_i - b x_i)^2/\\mathrm{Var}(\\varepsilon_i)\\).\n\nQuelle affirmation est vraie ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(\\hat{\\beta}\\) est sans biais, de variance 0,68 ; la formule usuelle vaut 0,32 en espérance ; les MCP ont une variance de 0,5.",
+     "correcte": true,
+     "explication": "Oui : sandwich \\(\\sum_i x_i^2 \\sigma_i^2/(\\sum_i x_i^2)^2\\), espérance de \\(\\hat{\\sigma}^2\\) par la trace de \\((\\mathbf{I} - \\mathbf{H})\\boldsymbol{\\Sigma}\\), et variance des MCP \\(1/(\\sum_i x_i^2/\\sigma_i^2)\\)."
+    },
+    {
+     "id": "b",
+     "texte": "\\(\\hat{\\beta}\\) est biaisé, car les bruits n'ont pas la même variance.",
+     "correcte": false,
+     "explication": "Le caractère sans biais n'utilise que \\(\\mathbb{E}[\\varepsilon_i] = 0\\) : \\(\\mathbb{E}[\\hat{\\beta}] = \\beta\\,(x_1^2 + x_2^2)/(x_1^2 + x_2^2) = \\beta\\). L'hétéroscédasticité fausse la variance, pas l'espérance."
+    },
+    {
+     "id": "c",
+     "texte": "\\(\\hat{\\beta}\\) est sans biais, de variance 0,32, et c'est le meilleur estimateur linéaire sans biais.",
+     "correcte": false,
+     "explication": "0,32 est l'espérance de la formule usuelle, qui sous-estime la vraie variance 0,68. Et Gauss-Markov ne s'applique plus : les MCP font mieux (0,5)."
+    },
+    {
+     "id": "d",
+     "texte": "\\(\\hat{\\beta}\\) est sans biais, de variance 0,5, et c'est le meilleur estimateur linéaire sans biais.",
+     "correcte": false,
+     "explication": "0,5 est la variance des MCP, pas celle des MCO. Les MCO restent sans biais, mais ne sont plus optimaux sous hétéroscédasticité."
+    }
+   ],
+   "solution": "Réponse : \\(\\hat{\\beta}\\) est sans biais, \\(\\mathrm{Var}(\\hat{\\beta}) = 0{,}68\\), la formule usuelle vaut \\(0{,}32\\) en espérance (sous-estimation), et les MCP ont une variance de \\(0{,}5\\).\n\nNotations : \\(\\sigma_1^2 = 1\\), \\(\\sigma_2^2 = 4\\), \\(\\boldsymbol{\\Sigma}\\) la matrice diagonale de coefficients \\(\\sigma_1^2\\), \\(\\sigma_2^2\\) ; \\(\\mathbf{x} = (1, 2)\\), \\(\\mathbf{x}^\\top \\mathbf{x} = 5\\) ; \\(\\mathbf{H} = \\mathbf{x}\\mathbf{x}^\\top/5\\).\n\nÉtape 1, sans biais : \\(\\hat{\\beta} - \\beta = (x_1 \\varepsilon_1 + x_2 \\varepsilon_2)/5\\), d'espérance nulle.\n\nÉtape 2, vraie variance : \\(\\mathrm{Var}(\\hat{\\beta}) = (x_1^2 \\sigma_1^2 + x_2^2 \\sigma_2^2)/5^2 = 17/25 = 0{,}68\\) (indépendance des bruits).\n\nÉtape 3, formule usuelle : \\(\\mathbb{E}\\lVert \\hat{\\boldsymbol{\\varepsilon}} \\rVert^2 = \\mathrm{tr}\\big((\\mathbf{I} - \\mathbf{H})\\boldsymbol{\\Sigma}\\big) = (\\sigma_1^2 + \\sigma_2^2) - (x_1^2 \\sigma_1^2 + x_2^2 \\sigma_2^2)/5 = 5 - 3{,}4 = 1{,}6\\) (leçon, partie 2, étape 3, avec \\(\\boldsymbol{\\Sigma}\\) à la place de \\(\\sigma^2 \\mathbf{I}\\)). Avec \\(n - 1 = 1\\), \\(\\mathbb{E}[\\hat{\\sigma}^2] = 1{,}6\\) et la formule usuelle vaut en espérance \\(1{,}6/5 = 0{,}32\\), moins de la moitié de la vraie variance : la grande variance est sur l'observation de plus grand levier (\\(x_2 = 2\\)).\n\nÉtape 4, MCP : diviser chaque équation par \\(\\sigma_i\\) donne un modèle homoscédastique ; ses MCO sont le meilleur estimateur linéaire sans biais (Gauss-Markov), de variance \\(1/(x_1^2/\\sigma_1^2 + x_2^2/\\sigma_2^2) = 1/2{,}0 = 0{,}5\\).\n\nSimulation (script) : variance des MCO 0,681, espérance de la formule usuelle 0,320, variance des MCP 0,500.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\(\\hat{\\beta}\\) est sans biais, de variance 0,68 ; la formule usuelle vaut 0,32 en espérance ; les MCP ont une variance de 0,5.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q03_esp_scr",
+     "Q03_formule",
+     "Q03_formule_mc",
+     "Q03_info",
+     "Q03_trHS",
+     "Q03_trS",
+     "Q03_var_mco",
+     "Q03_var_mco_mc",
+     "Q03_var_mcp",
+     "Q03_var_mcp_mc",
+     "Q03_xSx",
+     "Q03_xx",
+     "Q03_xx2"
+    ]
+   }
+  },
+  {
+   "id": "F1-04",
+   "section": "mlf",
+   "theme": "Biais de variable omise",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "enonce": "Le vrai modèle est \\(Y_i = 1 + 2 x_i + 3 z_i + \\varepsilon_i\\) pour \\(i = 1, \\dots, n\\), où les \\(x_i\\) et \\(z_i\\) sont des nombres fixes et les \\(\\varepsilon_i\\) des bruits centrés. On estime par moindres carrés ordinaires le modèle \\(Y_i \\approx b_1 + b_2 x_i\\), sans la variable \\(z\\). Dans l'échantillon, la régression par moindres carrés ordinaires de \\(z_i\\) sur \\((1, x_i)\\) a une pente égale à 0,5.\n\nQue vaut l'espérance de la pente estimée \\(\\hat{b}_2\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "3,5",
+     "correcte": true,
+     "explication": "Oui : \\(2 + 3 \\times 0{,}5\\) : la vraie pente plus l'effet de \\(z\\) multiplié par la pente de \\(z\\) sur \\(x\\)."
+    },
+    {
+     "id": "b",
+     "texte": "2",
+     "correcte": false,
+     "explication": "Ce serait vrai si \\(z\\) n'était pas liée à \\(x\\) dans l'échantillon (pente nulle) ou sans effet. Ici le bruit du modèle estimé, \\(3 z_i + \\varepsilon_i\\), varie avec \\(x_i\\)."
+    },
+    {
+     "id": "c",
+     "texte": "5",
+     "correcte": false,
+     "explication": "C'est \\(2 + 3\\) : tout l'effet de \\(z\\) serait passé dans la pente. Seule la partie de \\(z\\) alignée sur \\(x\\) passe, dans la proportion 0,5."
+    },
+    {
+     "id": "d",
+     "texte": "0,5",
+     "correcte": false,
+     "explication": "Erreur de signe : le biais \\(\\gamma\\,\\delta = 3 \\times 0{,}5\\) s'ajoute, puisque \\(\\mathbb{E}[\\hat{\\mathbf{b}}] = \\boldsymbol{\\beta} + \\gamma\\,(\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\mathbf{z}\\)."
+    }
+   ],
+   "solution": "Réponse : \\(\\mathbb{E}[\\hat{b}_2] = 2 + 3 \\times 0{,}5 = 3{,}5\\).\n\nNotations : \\(\\mathbf{X}\\) la matrice de colonnes \\(\\mathbf{1}\\) et \\(\\mathbf{x}\\), \\(\\boldsymbol{\\beta} = (1, 2)\\), \\(\\gamma = 3\\), \\(\\mathbf{z}\\) le vecteur des \\(z_i\\), \\(\\boldsymbol{\\delta} = (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\mathbf{z}\\), dont la seconde coordonnée est la pente 0,5.\n\nÉtape 1 : \\(\\hat{\\mathbf{b}} = (\\mathbf{X}^\\top \\mathbf{X})^{-1} \\mathbf{X}^\\top \\mathbf{Y}\\) et \\(\\mathbf{Y} = \\mathbf{X}\\boldsymbol{\\beta} + \\gamma\\,\\mathbf{z} + \\boldsymbol{\\varepsilon}\\).\n\nÉtape 2 : par linéarité de l'espérance, \\(\\mathbb{E}[\\hat{\\mathbf{b}}] = \\boldsymbol{\\beta} + \\gamma\\,\\boldsymbol{\\delta}\\) (leçon, partie 2, variable omise).\n\nÉtape 3 : seconde coordonnée : \\(2 + 3 \\times 0{,}5 = 3{,}5\\). La pente est surestimée, parce que l'effet de \\(z\\) est positif et que \\(z\\) croît avec \\(x\\).\n\nSimulation (script, plan fixe construit pour que la pente de \\(z\\) sur \\((1, x)\\) soit exactement 0,5) : 3,500.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "3,5",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q04_d_signe",
+     "Q04_d_somme",
+     "Q04_d_vrai",
+     "Q04_exact",
+     "Q04_mc"
+    ]
+   }
+  },
+  {
+   "id": "F1-05",
+   "section": "mlf",
+   "theme": "Multicolinéarité, facteur d'inflation de la variance",
+   "difficulte": 4,
+   "temps_cible_s": 90,
+   "enonce": "Dans une régression avec constante sous les hypothèses usuelles (\\(\\mathbf{X}\\) fixe de rang plein, bruits centrés, non corrélés, de même variance \\(\\sigma^2\\)), la régression par moindres carrés de la colonne \\(\\mathbf{x}_1\\) sur toutes les autres colonnes (constante comprise) a un coefficient de détermination \\(R_1^2 = 0{,}9\\).\n\nOn compare à une situation hypothétique où \\(\\mathbf{x}_1\\) aurait la même somme des carrés centrée, mais un \\(R_1^2\\) nul. Par quel facteur l'écart-type de \\(\\hat{\\beta}_1\\) est-il multiplié dans la situation réelle, arrondi à trois décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "3,162",
+     "correcte": true,
+     "explication": "Oui : la variance est multipliée par \\(1/(1 - R_1^2) = 10\\), l'écart-type par sa racine."
+    },
+    {
+     "id": "b",
+     "texte": "10,000",
+     "correcte": false,
+     "explication": "C'est le facteur sur la **variance**, \\(1/(1 - 0{,}9)\\). La question porte sur l'écart-type : il faut la racine carrée."
+    },
+    {
+     "id": "c",
+     "texte": "2,294",
+     "correcte": false,
+     "explication": "C'est \\(1/\\sqrt{1 - 0{,}9^2}\\) : \\(0{,}9\\) a été pris pour une corrélation et élevé au carré. L'énoncé donne directement le coefficient de détermination \\(R_1^2 = 0{,}9\\)."
+    },
+    {
+     "id": "d",
+     "texte": "1,054",
+     "correcte": false,
+     "explication": "C'est \\(1/\\sqrt{R_1^2}\\). La formule fait intervenir \\(1 - R_1^2\\), la part de \\(\\mathbf{x}_1\\) que les autres colonnes n'expliquent pas."
+    }
+   ],
+   "solution": "Réponse : \\(\\sqrt{1/(1 - 0{,}9)} = \\sqrt{10} \\approx 3{,}162\\).\n\nNotations : \\(\\tilde{\\mathbf{x}}_1\\) est le résidu de la régression de \\(\\mathbf{x}_1\\) sur les autres colonnes, \\(\\mathrm{SCT}_1\\) la somme des carrés centrée de \\(\\mathbf{x}_1\\).\n\nÉtape 1 (Frisch-Waugh, leçon partie 2) : \\(\\mathrm{Var}(\\hat{\\beta}_1) = \\sigma^2/\\lVert \\tilde{\\mathbf{x}}_1 \\rVert^2\\).\n\nÉtape 2 : comme les autres colonnes contiennent la constante, \\(\\lVert \\tilde{\\mathbf{x}}_1 \\rVert^2 = \\mathrm{SCT}_1 (1 - R_1^2)\\), d'où \\(\\mathrm{Var}(\\hat{\\beta}_1) = \\dfrac{\\sigma^2}{\\mathrm{SCT}_1} \\times \\dfrac{1}{1 - R_1^2}\\).\n\nÉtape 3 : à \\(\\mathrm{SCT}_1\\) égal, la variance est multipliée par \\(1/(1 - 0{,}9) = 10\\), l'écart-type par \\(\\sqrt{10} \\approx 3{,}162\\).\n\nL'estimateur reste sans biais et le meilleur estimateur linéaire sans biais : la multicolinéarité imparfaite ne viole aucune hypothèse, elle rend seulement l'estimation imprécise. Vérification (script) : plan construit avec \\(R_1^2 = 0{,}9\\) exactement, rapport des variances égal à \\(10\\), et simulation.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "3,162",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q05_d_inv",
+     "Q05_d_r",
+     "Q05_d_var",
+     "Q05_exact",
+     "Q05_vif"
+    ]
+   }
+  },
+  {
+   "id": "F1-06",
+   "section": "mlf",
+   "theme": "R² ajusté",
+   "difficulte": 2,
+   "temps_cible_s": 60,
+   "enonce": "Une régression par moindres carrés avec constante et trois variables explicatives est ajustée sur \\(n = 30\\) observations. Son coefficient de détermination vaut \\(R^2 = 0{,}5\\). Le R² ajusté est défini par \\(R^2_{\\mathrm{aj}} = 1 - \\dfrac{\\mathrm{SCR}/(n - p)}{\\mathrm{SCT}/(n - 1)}\\), où \\(p\\) est le nombre de colonnes de la matrice des variables, constante comprise.\n\nQue vaut \\(R^2_{\\mathrm{aj}}\\), arrondi à trois décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,442",
+     "correcte": true,
+     "explication": "Oui : \\(p = 4\\) et \\(1 - 0{,}5 \\times 29/26\\)."
+    },
+    {
+     "id": "b",
+     "texte": "0,420",
+     "correcte": false,
+     "explication": "C'est \\(1 - 0{,}5 \\times 29/25\\) : la constante a été ajoutée une seconde fois, \\(p = 5\\). La constante et les trois variables font \\(p = 4\\) colonnes."
+    },
+    {
+     "id": "c",
+     "texte": "0,423",
+     "correcte": false,
+     "explication": "C'est \\(1 - 0{,}5 \\times 30/26\\) : \\(n\\) au lieu de \\(n - 1\\) au dénominateur de la variance totale. L'estimateur sans biais de la variance de \\(y\\) divise \\(\\mathrm{SCT}\\) par \\(n - 1\\)."
+    },
+    {
+     "id": "d",
+     "texte": "0,552",
+     "correcte": false,
+     "explication": "C'est \\(1 - 0{,}5 \\times 26/29\\) : le rapport des degrés de liberté est inversé. Le R² ajusté est toujours au plus égal au R² (pour \\(p \\ge 1\\)), et cette valeur le dépasse."
+    }
+   ],
+   "solution": "Réponse : \\(R^2_{\\mathrm{aj}} = 1 - (1 - R^2)\\,\\dfrac{n - 1}{n - p} = 1 - 0{,}5 \\times \\dfrac{29}{26} \\approx 0{,}442\\).\n\nÉtape 1 : \\(\\mathrm{SCR}/\\mathrm{SCT} = 1 - R^2 = 0{,}5\\), donc \\(R^2_{\\mathrm{aj}} = 1 - (1 - R^2)(n - 1)/(n - p)\\).\n\nÉtape 2 : \\(p = 4\\) (constante et trois variables), \\(n - 1 = 29\\), \\(n - p = 26\\).\n\nÉtape 3 : \\(1 - 0{,}5 \\times 1{,}1154 \\approx 0{,}442\\).\n\nContrôle : \\((n - 1)/(n - p) \\ge 1\\), donc \\(R^2_{\\mathrm{aj}} \\le R^2\\).",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,442",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q06_d_inv",
+     "Q06_d_n",
+     "Q06_d_p5",
+     "Q06_exact",
+     "Q06_nm1",
+     "Q06_nmp",
+     "Q06_rap"
+    ]
+   }
+  },
+  {
+   "id": "F1-07",
+   "section": "mlf",
+   "theme": "Ajout d'une variable : R², R² ajusté et statistique t",
+   "difficulte": 5,
+   "temps_cible_s": 150,
+   "enonce": "Une régression par moindres carrés avec \\(n = 40\\) observations et \\(p = 3\\) colonnes (constante comprise) a une somme des carrés résiduelle \\(\\mathrm{SCR} = 100\\) et une somme des carrés totale \\(\\mathrm{SCT} = 200\\). On ajoute une quatrième colonne, qui n'est pas combinaison linéaire des trois premières ; dans le nouveau modèle, la statistique t de son coefficient vaut \\(t = 0{,}8\\), avec \\(t = \\hat{c}/\\sqrt{\\hat{\\sigma}_+^2 [(\\mathbf{X}_+^\\top \\mathbf{X}_+)^{-1}]_{44}}\\), où \\(\\hat{c}\\) est le nouveau coefficient, \\(\\mathbf{X}_+\\) la nouvelle matrice et \\(\\hat{\\sigma}_+^2 = \\mathrm{SCR}_{\\mathrm{nouveau}}/(n - 4)\\).\n\nAvec \\(R^2 = 1 - \\mathrm{SCR}/\\mathrm{SCT}\\) et \\(R^2_{\\mathrm{aj}} = 1 - \\dfrac{\\mathrm{SCR}/(n - p)}{\\mathrm{SCT}/(n - 1)}\\), \\(p\\) étant le nombre de colonnes du modèle considéré, que deviennent les deux indicateurs (arrondis à trois décimales) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "R² passe de 0,500 à 0,509, et R² ajusté de 0,473 à 0,468.",
+     "correcte": true,
+     "explication": "Oui : \\(\\mathrm{SCR}\\) baisse d'un facteur \\(1 + t^2/(n - p - 1)\\), donc R² monte ; mais \\(t^2 < 1\\), donc le R² ajusté baisse."
+    },
+    {
+     "id": "b",
+     "texte": "R² passe de 0,500 à 0,509, et R² ajusté de 0,473 à 0,482.",
+     "correcte": false,
+     "explication": "Le second R² ajusté divise le nouveau \\(\\mathrm{SCR}\\) par \\(n - 3\\) au lieu de \\(n - 4\\) : le nouveau modèle a 4 colonnes, et c'est ce coût qui fait baisser le R² ajusté quand \\(t^2 < 1\\)."
+    },
+    {
+     "id": "c",
+     "texte": "R² passe de 0,500 à 0,491, car la variable n'est pas significative.",
+     "correcte": false,
+     "explication": "R² ne peut pas baisser quand on ajoute une colonne : le coefficient 0 reste disponible, donc le minimum de \\(\\mathrm{SCR}\\) ne peut que diminuer. Cette valeur multiplie \\(\\mathrm{SCR}\\) au lieu de le diviser."
+    },
+    {
+     "id": "d",
+     "texte": "R² et R² ajusté restent à 0,500 et 0,473, car \\(\\lvert t \\rvert < 1{,}96\\).",
+     "correcte": false,
+     "explication": "La significativité ne change rien au calcul : \\(\\mathrm{SCR}\\) baisse de \\(\\hat{c}^2 \\lVert \\tilde{\\mathbf{x}} \\rVert^2 > 0\\) dès que \\(\\hat{c} \\ne 0\\), et la statistique t non nulle le garantit."
+    }
+   ],
+   "solution": "Réponse : R² passe de \\(0{,}500\\) à \\(0{,}509\\) ; le R² ajusté baisse de \\(0{,}473\\) à \\(0{,}468\\), parce que \\(t^2 < 1\\).\n\nNotations : \\(\\tilde{\\mathbf{x}}\\) est le résidu de la nouvelle colonne sur les trois anciennes.\n\nÉtape 1 (leçon, partie 3, énoncés 2 et 3) : \\(\\mathrm{SCR}_{\\mathrm{ancien}} - \\mathrm{SCR}_{\\mathrm{nouveau}} = \\hat{c}^2 \\lVert \\tilde{\\mathbf{x}} \\rVert^2\\), et par Frisch-Waugh \\([(\\mathbf{X}_+^\\top \\mathbf{X}_+)^{-1}]_{44} = 1/\\lVert \\tilde{\\mathbf{x}} \\rVert^2\\), donc \\(\\hat{c}^2 \\lVert \\tilde{\\mathbf{x}} \\rVert^2 = t^2 \\hat{\\sigma}_+^2\\) et \\(\\mathrm{SCR}_{\\mathrm{ancien}} = \\mathrm{SCR}_{\\mathrm{nouveau}}\\big(1 + t^2/(n - 4)\\big)\\).\n\nÉtape 2 : \\(t^2 = 0{,}64\\), \\(n - 4 = 36\\), facteur \\(1{,}01778\\) ; \\(\\mathrm{SCR}_{\\mathrm{nouveau}} = 100/1{,}01778 \\approx 98{,}25\\).\n\nÉtape 3 : \\(R^2\\) : \\(1 - 100/200 = 0{,}500\\) devient \\(1 - 98{,}25/200 \\approx 0{,}509\\).\n\nÉtape 4 : \\(R^2_{\\mathrm{aj}}\\) : \\(1 - (100/37)/(200/39) \\approx 0{,}473\\) devient \\(1 - (98{,}25/36)/(200/39) \\approx 0{,}468\\). Il baisse, comme le prévoit le critère : le R² ajusté monte si et seulement si \\(t^2 > 1\\).\n\nVérification (script) : l'identité de l'étape 1 et le critère \\(t^2 > 1\\) sont contrôlés sur 300 jeux de données aléatoires.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "R² passe de 0,500 à 0,509, et R² ajusté de 0,473 à 0,468.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q07_aj_a",
+     "Q07_aj_b",
+     "Q07_aj_oubli",
+     "Q07_ddl",
+     "Q07_facteur",
+     "Q07_r2_a",
+     "Q07_r2_b",
+     "Q07_r2_baisse",
+     "Q07_scr_b",
+     "Q07_t2"
+    ]
+   }
+  },
+  {
+   "id": "F1-08",
+   "section": "mlf",
+   "theme": "Ridge, lecture par la SVD",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "enonce": "Soit \\(\\mathbf{X} = \\mathbf{U}\\mathbf{D}\\mathbf{V}^\\top\\) la décomposition en valeurs singulières d'une matrice \\(\\mathbf{X}\\) de rang 3 : \\(\\mathbf{U}\\) a des colonnes orthonormées \\(\\mathbf{u}_1, \\mathbf{u}_2, \\mathbf{u}_3\\), \\(\\mathbf{V}\\) des colonnes orthonormées, et les valeurs singulières sont \\(d_1 = 3\\), \\(d_2 = 1\\), \\(d_3 = 0{,}2\\). Ridge minimise \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\tfrac{\\lambda}{2} \\lVert \\mathbf{b} \\rVert^2\\), avec \\(\\lambda = 1\\).\n\nLes valeurs ajustées des moindres carrés ordinaires ont pour composante \\(\\mathbf{u}_3^\\top \\mathbf{y}\\) selon \\(\\mathbf{u}_3\\). Par quel facteur Ridge multiplie-t-il cette composante, arrondi à trois décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,038",
+     "correcte": true,
+     "explication": "Oui : \\(d_3^2/(d_3^2 + \\lambda) = 0{,}04/(0{,}04 + 1)\\)."
+    },
+    {
+     "id": "b",
+     "texte": "0,167",
+     "correcte": false,
+     "explication": "C'est \\(d_3/(d_3 + \\lambda)\\) : la valeur singulière n'a pas été élevée au carré. Ce sont les valeurs propres de \\(\\mathbf{X}^\\top \\mathbf{X}\\), les \\(d_j^2\\), qui sont augmentées de \\(\\lambda\\)."
+    },
+    {
+     "id": "c",
+     "texte": "0,962",
+     "correcte": false,
+     "explication": "C'est \\(\\lambda/(d_3^2 + \\lambda)\\), la part **retirée** de la composante, pas le facteur conservé. Les deux somment à 1."
+    },
+    {
+     "id": "d",
+     "texte": "0,500",
+     "correcte": false,
+     "explication": "C'est \\(1/(1 + \\lambda)\\), le facteur du cas \\(\\mathbf{X}^\\top \\mathbf{X} = \\mathbf{I}\\) (toutes les valeurs singulières égales à 1). Ici le rétrécissement dépend de la direction : c'est le facteur selon \\(\\mathbf{u}_2\\)."
+    }
+   ],
+   "solution": "Réponse : \\(d_3^2/(d_3^2 + \\lambda) = 0{,}04/1{,}04 \\approx 0{,}038\\).\n\nÉtape 1 (leçon, partie 4, énoncé 2) : \\(\\mathbf{X}\\hat{\\boldsymbol{\\beta}}_\\lambda = \\sum_j \\dfrac{d_j^2}{d_j^2 + \\lambda} (\\mathbf{u}_j^\\top \\mathbf{y})\\,\\mathbf{u}_j\\), alors que les MCO donnent \\(\\sum_j (\\mathbf{u}_j^\\top \\mathbf{y})\\,\\mathbf{u}_j\\).\n\nÉtape 2 : facteurs \\(9/10 = 0{,}9\\) selon \\(\\mathbf{u}_1\\), \\(1/2 = 0{,}5\\) selon \\(\\mathbf{u}_2\\), et \\(0{,}04/1{,}04 \\approx 0{,}038\\) selon \\(\\mathbf{u}_3\\).\n\nLecture : la direction de plus petite valeur singulière, celle que les données déterminent le moins bien, est presque entièrement supprimée ; c'est là que les MCO amplifient le bruit, en divisant par \\(d_3\\).",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,038",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q08_d2",
+     "Q08_d2_plus_un",
+     "Q08_d_compl",
+     "Q08_d_lin",
+     "Q08_d_orth",
+     "Q08_exact",
+     "Q08_f1",
+     "Q08_f2"
+    ]
+   }
+  },
+  {
+   "id": "F1-09",
+   "section": "mlf",
+   "theme": "Interprétation bayésienne de Ridge et du Lasso",
+   "difficulte": 4,
+   "temps_cible_s": 90,
+   "enonce": "Soit \\(\\mathbf{B}\\) un vecteur aléatoire de \\(\\mathbb{R}^p\\) de loi a priori \\(\\mathcal{N}(\\mathbf{0}, \\tau^2 \\mathbf{I})\\) avec \\(\\tau = 4\\). Sachant \\(\\mathbf{B} = \\mathbf{b}\\), les réponses \\(\\mathbf{Y}\\) suivent la loi \\(\\mathcal{N}(\\mathbf{X}\\mathbf{b}, \\sigma^2 \\mathbf{I})\\) avec \\(\\sigma = 0{,}5\\) et \\(\\mathbf{X}\\) fixe. On observe \\(\\mathbf{Y} = \\mathbf{y}\\).\n\nLe mode de la loi a posteriori de \\(\\mathbf{B}\\) est le minimiseur de quel critère ? (\\(\\lVert \\cdot \\rVert_1\\) est la norme L1.)",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Ridge : \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\tfrac{\\lambda}{2} \\lVert \\mathbf{b} \\rVert^2\\) avec \\(\\lambda = 1/64\\).",
+     "correcte": true,
+     "explication": "Oui : \\(\\lambda = \\sigma^2/\\tau^2 = 0{,}25/16\\)."
+    },
+    {
+     "id": "b",
+     "texte": "Lasso : \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\lambda \\lVert \\mathbf{b} \\rVert_1\\) avec \\(\\lambda = 1/64\\).",
+     "correcte": false,
+     "explication": "Un a priori gaussien donne une pénalité quadratique, \\(\\lVert \\mathbf{b} \\rVert^2/(2\\tau^2)\\) dans moins le logarithme de la densité. La pénalité L1 correspond à un a priori de Laplace, de densité proportionnelle à \\(e^{-\\lvert b_j \\rvert/\\tau}\\)."
+    },
+    {
+     "id": "c",
+     "texte": "Ridge avec \\(\\lambda = 64\\).",
+     "correcte": false,
+     "explication": "C'est \\(\\tau^2/\\sigma^2\\), le rapport inversé. Un a priori plus large (\\(\\tau\\) grand) doit pénaliser **moins** : \\(\\lambda\\) doit décroître avec \\(\\tau\\)."
+    },
+    {
+     "id": "d",
+     "texte": "Ridge avec \\(\\lambda = 1/16\\).",
+     "correcte": false,
+     "explication": "C'est \\(1/\\tau^2\\) : la vraisemblance n'a pas été remise à l'échelle. Moins le logarithme a posteriori vaut \\(\\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2/(2\\sigma^2) + \\lVert \\mathbf{b} \\rVert^2/(2\\tau^2)\\) ; il faut multiplier par \\(\\sigma^2\\) pour obtenir le critère Ridge."
+    }
+   ],
+   "solution": "Réponse : Ridge avec \\(\\lambda = \\sigma^2/\\tau^2 = 0{,}25/16 = \\tfrac{1}{64}\\).\n\nÉtape 1 : par la formule de Bayes, la densité a posteriori est proportionnelle à \\(\\exp\\big(-\\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2/(2\\sigma^2)\\big) \\times \\exp\\big(-\\lVert \\mathbf{b} \\rVert^2/(2\\tau^2)\\big)\\).\n\nÉtape 2 : maximiser cette densité revient à minimiser \\(\\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2/(2\\sigma^2) + \\lVert \\mathbf{b} \\rVert^2/(2\\tau^2)\\), puis, en multipliant par \\(\\sigma^2 > 0\\), \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\tfrac{\\sigma^2}{2\\tau^2} \\lVert \\mathbf{b} \\rVert^2\\).\n\nÉtape 3 : \\(\\sigma^2 = 0{,}25\\), \\(\\tau^2 = 16\\), donc \\(\\lambda = \\tfrac{1}{64}\\). La loi a posteriori est gaussienne (leçon, partie 4, énoncé 4) : sa moyenne est aussi la solution Ridge. Avec un a priori de Laplace de paramètre \\(\\tau\\), on obtiendrait le Lasso avec \\(\\lambda = \\sigma^2/\\tau\\), mais seulement pour le mode.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "Ridge : \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\tfrac{\\lambda}{2} \\lVert \\mathbf{b} \\rVert^2\\) avec \\(\\lambda = 1/64\\).",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q09_d_inv",
+     "Q09_d_tau_den",
+     "Q09_d_tau_num",
+     "Q09_exact_den",
+     "Q09_exact_num",
+     "Q09_s2",
+     "Q09_t2"
+    ]
+   }
+  },
+  {
+   "id": "F1-10",
+   "section": "mlf",
+   "theme": "Lasso, cas orthonormal : seuillage doux",
+   "difficulte": 3,
+   "temps_cible_s": 75,
+   "enonce": "La matrice \\(\\mathbf{X}\\) a trois colonnes orthonormées (\\(\\mathbf{X}^\\top \\mathbf{X} = \\mathbf{I}\\)) et \\(\\mathbf{X}^\\top \\mathbf{y} = (2{,}5 ; -0{,}4 ; -1{,}1)\\). On minimise le critère du Lasso \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\lambda \\lVert \\mathbf{b} \\rVert_1\\), où \\(\\lVert \\mathbf{b} \\rVert_1 = \\lvert b_1 \\rvert + \\lvert b_2 \\rvert + \\lvert b_3 \\rvert\\), avec \\(\\lambda = 0{,}6\\).\n\nQuel est le minimiseur ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "(1,9 ; 0,0 ; -0,5)",
+     "correcte": true,
+     "explication": "Oui : seuillage doux, chaque coordonnée perd \\(0{,}6\\) en valeur absolue, et celle de valeur absolue \\(0{,}4 \\le 0{,}6\\) devient nulle."
+    },
+    {
+     "id": "b",
+     "texte": "(1,5625 ; -0,2500 ; -0,6875)",
+     "correcte": false,
+     "explication": "C'est la solution Ridge \\(\\mathbf{X}^\\top \\mathbf{y}/(1 + \\lambda)\\) : division, aucun zéro. Le Lasso soustrait \\(\\lambda\\) en valeur absolue."
+    },
+    {
+     "id": "c",
+     "texte": "(2,5 ; 0,0 ; -1,1)",
+     "correcte": false,
+     "explication": "C'est le seuillage dur : on annule les petites coordonnées et on garde les autres intactes. Le Lasso rétrécit aussi les coordonnées actives de \\(\\lambda\\)."
+    },
+    {
+     "id": "d",
+     "texte": "(1,9 ; -1,0 ; -1,7)",
+     "correcte": false,
+     "explication": "On a soustrait \\(\\lambda\\) sans tenir compte du signe. Le seuillage doux rapproche chaque coordonnée de 0 : \\(\\mathrm{signe}(z_j)\\max(\\lvert z_j \\rvert - \\lambda, 0)\\)."
+    }
+   ],
+   "solution": "Réponse : \\(\\hat{\\mathbf{b}} = (1{,}9 ; 0{,}0 ; -0{,}5)\\).\n\nNotations : \\(\\mathbf{z} = \\mathbf{X}^\\top \\mathbf{y} = (2{,}5 ; -0{,}4 ; -1{,}1)\\), l'estimateur des moindres carrés ordinaires puisque \\(\\mathbf{X}^\\top \\mathbf{X} = \\mathbf{I}\\).\n\nÉtape 1 (leçon, partie 5, énoncé 5) : le critère vaut une constante plus \\(\\sum_j \\big(\\tfrac12 (z_j - b_j)^2 + \\lambda \\lvert b_j \\rvert\\big)\\) : trois problèmes séparés.\n\nÉtape 2 : pour chacun, les conditions d'optimalité donnent \\(\\hat{b}_j = \\mathrm{signe}(z_j)\\max(\\lvert z_j \\rvert - \\lambda, 0)\\).\n\nÉtape 3 : \\(2{,}5 - 0{,}6\\) ; \\(\\lvert -0{,}4 \\rvert \\le 0{,}6\\) donne 0 ; \\(-(1{,}1 - 0{,}6)\\). D'où \\((1{,}9 ; 0{,}0 ; -0{,}5)\\).\n\nVérification (script) : scikit-learn, `Lasso(alpha = 0,6/n)` sur une matrice à colonnes orthonormées, redonne ce vecteur.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "(1,9 ; 0,0 ; -0,5)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q10_d_dur",
+     "Q10_d_ridge",
+     "Q10_d_signe",
+     "Q10_exact",
+     "Q10_z"
+    ]
+   }
+  },
+  {
+   "id": "F1-11",
+   "section": "mlf",
+   "theme": "Lasso : seuil de nullité, convention de scikit-learn",
+   "difficulte": 4,
+   "temps_cible_s": 90,
+   "enonce": "`Lasso(alpha=a, fit_intercept=False)` de scikit-learn minimise \\(\\dfrac{1}{2n} \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + a\\,\\lVert \\mathbf{b} \\rVert_1\\), où \\(n\\) est le nombre d'observations et \\(\\lVert \\mathbf{b} \\rVert_1\\) la somme des valeurs absolues des coordonnées. On a \\(n = 200\\) observations, trois colonnes, et \\(\\mathbf{X}^\\top \\mathbf{y} = (4, -6, 2)\\).\n\nQuelle est la plus petite valeur de \\(a\\) pour laquelle la solution est le vecteur nul ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,030",
+     "correcte": true,
+     "explication": "Oui : \\(\\max_j \\lvert \\mathbf{x}_j^\\top \\mathbf{y} \\rvert / n = 6/200\\)."
+    },
+    {
+     "id": "b",
+     "texte": "0,020",
+     "correcte": false,
+     "explication": "C'est \\(4/200\\) : le maximum a été pris sur les valeurs signées. La condition porte sur \\(\\lvert \\mathbf{x}_j^\\top \\mathbf{y} \\rvert\\), et \\(\\lvert -6 \\rvert = 6\\) est le plus grand."
+    },
+    {
+     "id": "c",
+     "texte": "6",
+     "correcte": false,
+     "explication": "C'est le seuil \\(\\lambda_{\\max} = 6\\) du critère \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\lambda \\lVert \\mathbf{b} \\rVert_1\\). Le critère de scikit-learn divise la perte par \\(n\\), d'où \\(a = \\lambda/n\\)."
+    },
+    {
+     "id": "d",
+     "texte": "0,015",
+     "correcte": false,
+     "explication": "C'est \\(6/(2n)\\) : le facteur \\(\\tfrac12\\) a été compté deux fois. En multipliant le critère de scikit-learn par \\(n\\), on obtient \\(\\tfrac12 \\lVert \\cdot \\rVert^2 + n a \\lVert \\mathbf{b} \\rVert_1\\), donc \\(\\lambda = n a\\)."
+    }
+   ],
+   "solution": "Réponse : \\(a = 6/200 = 0{,}030\\).\n\nÉtape 1 : multiplier le critère par \\(n > 0\\) ne change pas son minimiseur : on obtient \\(\\tfrac12 \\lVert \\mathbf{y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\lambda \\lVert \\mathbf{b} \\rVert_1\\) avec \\(\\lambda = n a\\).\n\nÉtape 2 (leçon, partie 5, énoncé 4) : la solution est nulle si et seulement si \\(\\lambda \\ge \\max_j \\lvert \\mathbf{x}_j^\\top \\mathbf{y} \\rvert = 6\\). En effet, en \\(\\mathbf{b} = \\mathbf{0}\\), \\(\\mathbf{g} = \\mathbf{X}^\\top \\mathbf{y}\\), et les conditions d'optimalité exigent \\(\\lvert g_j \\rvert \\le \\lambda\\) pour tout \\(j\\).\n\nÉtape 3 : \\(n a \\ge 6\\), soit \\(a \\ge 6/200 = 0{,}030\\).\n\nVérification (script) : avec scikit-learn, sur des données construites pour que \\(\\mathbf{X}^\\top \\mathbf{y} = (4, -6, 2)\\), la solution est nulle juste au-dessus de ce seuil et non nulle juste en dessous.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,030",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q11_d_2n",
+     "Q11_d_sans_n",
+     "Q11_d_signe",
+     "Q11_exact",
+     "Q11_max"
+    ]
+   }
+  },
+  {
+   "id": "F1-12",
+   "section": "mlf",
+   "theme": "Biais, variance et choix de lambda pour Ridge",
+   "difficulte": 4,
+   "temps_cible_s": 120,
+   "enonce": "Modèle \\(\\mathbf{Y} = \\mathbf{X}\\boldsymbol{\\beta} + \\boldsymbol{\\varepsilon}\\), avec \\(\\mathbf{X}\\) fixe à colonnes orthonormées (\\(\\mathbf{X}^\\top \\mathbf{X} = \\mathbf{I}\\)), \\(\\mathbb{E}[\\boldsymbol{\\varepsilon}] = \\mathbf{0}\\) et \\(\\mathrm{Var}(\\boldsymbol{\\varepsilon}) = \\sigma^2 \\mathbf{I}\\), \\(\\sigma^2 = 1\\). Le premier vrai coefficient vaut \\(\\beta_1 = 2\\). Ridge minimise \\(\\tfrac12 \\lVert \\mathbf{Y} - \\mathbf{X}\\mathbf{b} \\rVert^2 + \\tfrac{\\lambda}{2} \\lVert \\mathbf{b} \\rVert^2\\), \\(\\lambda \\ge 0\\) ; on note \\(\\hat{\\beta}_{\\lambda, 1}\\) sa première coordonnée.\n\nQuelle valeur de \\(\\lambda\\) minimise \\(\\mathbb{E}\\big[(\\hat{\\beta}_{\\lambda, 1} - \\beta_1)^2\\big]\\), et que vaut alors ce minimum ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(\\lambda = 0{,}25\\), erreur 0,8.",
+     "correcte": true,
+     "explication": "Oui : \\(\\lambda = \\sigma^2/\\beta_1^2\\), et l'erreur minimale vaut \\(\\sigma^2 \\beta_1^2/(\\sigma^2 + \\beta_1^2)\\), plus petite que l'erreur \\(\\sigma^2 = 1\\) des MCO."
+    },
+    {
+     "id": "b",
+     "texte": "\\(\\lambda = 0\\), erreur 1, car les MCO sont sans biais.",
+     "correcte": false,
+     "explication": "Sans biais ne veut pas dire erreur minimale : la dérivée de l'erreur en \\(\\lambda = 0\\) vaut \\(-2\\sigma^2 < 0\\), donc un petit \\(\\lambda > 0\\) fait mieux."
+    },
+    {
+     "id": "c",
+     "texte": "\\(\\lambda = 4\\), erreur 2,6.",
+     "correcte": false,
+     "explication": "C'est \\(\\lambda = \\beta_1^2/\\sigma^2\\), le rapport inversé, qui écrase trop le coefficient : l'erreur dépasse même celle des MCO."
+    },
+    {
+     "id": "d",
+     "texte": "\\(\\lambda = 0{,}5\\), erreur 0,889.",
+     "correcte": false,
+     "explication": "C'est \\(\\lambda = \\sigma/\\beta_1\\) : écarts-types au lieu de variances. Le point où la dérivée s'annule est \\(\\lambda \\beta_1^2 = \\sigma^2\\)."
+    }
+   ],
+   "solution": "Réponse : \\(\\lambda = \\sigma^2/\\beta_1^2 = 0{,}25\\), et l'erreur quadratique vaut alors \\(\\tfrac{4}{5} = 0{,}8\\) (contre \\(1\\) pour les MCO).\n\nNotations : \\(Z_1 = \\mathbf{x}_1^\\top \\mathbf{Y}\\), première coordonnée des MCO, d'espérance \\(\\beta_1\\) et de variance \\(\\sigma^2\\) puisque \\(\\mathbf{X}^\\top \\mathbf{X} = \\mathbf{I}\\).\n\nÉtape 1 : avec des colonnes orthonormées, \\(\\hat{\\beta}_{\\lambda, 1} = Z_1/(1 + \\lambda)\\) (leçon, partie 4, cas limites).\n\nÉtape 2 : biais \\(\\beta_1/(1 + \\lambda) - \\beta_1 = -\\lambda \\beta_1/(1 + \\lambda)\\), variance \\(\\sigma^2/(1 + \\lambda)^2\\), donc \\(g(\\lambda) = \\dfrac{\\lambda^2 \\beta_1^2 + \\sigma^2}{(1 + \\lambda)^2}\\) (leçon, partie 6, avec \\(\\mu_1 = 1\\) et \\(\\theta_1 = \\beta_1\\)).\n\nÉtape 3 : \\(g'(\\lambda) = \\dfrac{2(\\lambda \\beta_1^2 - \\sigma^2)}{(1 + \\lambda)^3}\\), négative puis positive : minimum en \\(\\lambda = \\sigma^2/\\beta_1^2 = 1/4\\).\n\nÉtape 4 : \\(g(1/4) = \\dfrac{\\tfrac{1}{16} \\times 4 + 1}{(5/4)^2} = \\dfrac{5/4}{25/16} = \\tfrac{4}{5}\\).\n\nLimite pratique : \\(\\beta_1\\) est inconnu, donc ce \\(\\lambda\\) optimal aussi ; on le choisit par validation sur des données non utilisées pour l'ajustement. Simulation (script) : 0,802.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\(\\lambda = 0{,}25\\), erreur 0,8.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_ml_1.py",
+    "cles": [
+     "Q12_d_inv_l",
+     "Q12_d_inv_mse",
+     "Q12_d_rac_l",
+     "Q12_d_rac_mse",
+     "Q12_lopt",
+     "Q12_mse0",
+     "Q12_mse_opt",
+     "Q12_mse_opt_den",
+     "Q12_mse_opt_mc",
+     "Q12_mse_opt_num"
+    ]
+   }
+  }
+ ]
+}

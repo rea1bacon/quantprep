@@ -1,0 +1,624 @@
+{
+ "id": "seance-math-2",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-MATH-2",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon express : conditionnement, lois usuelles, Poisson, coupons, inclusion-exclusion",
+   "difficulte": 3,
+   "temps_cible_s": 1200,
+   "contenu": "## Leçon express : conditionnement et lois usuelles\n\nDurée visée : 20 minutes. Six résultats qui servent dans les questions courtes : conditionner, citer les moments des lois usuelles, exploiter l'absence de mémoire, le processus de Poisson, le collectionneur de coupons, l'inclusion-exclusion. Pour chacun : l'énoncé, une preuve courte mais complète, un exemple calculé, les pièges.\n\nLes outils de la séance 1 (leçon L-PROBAS-1 : linéarité et indicatrices, premier pas, statistiques d'ordre, borne de Boole) sont supposés connus et seulement cités (« séance 1, outil 2 »). Tous les nombres viennent du script `verif/seance_math_2.py`, qui les calcule exactement et les vérifie par simulation.\n\n**Conventions de notation** :\n\n- une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe ;\n- les événements sont aussi notés par des majuscules (\\(A\\), \\(B\\), \\(A_j\\)) ; \\(A^c\\) est le complémentaire de \\(A\\) et \\(I_A\\) son indicatrice (1 si \\(A\\) se produit, 0 sinon) ;\n- exception d'usage déclarée : \\(H_n = 1 + \\tfrac12 + \\dots + \\tfrac1n\\), le \\(n\\)-ième nombre harmonique, est un nombre fixe malgré sa majuscule ;\n- \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance ; \\(\\binom{n}{k}\\) est le nombre de parties à \\(k\\) éléments d'un ensemble à \\(n\\) éléments ; \\(\\lvert \\mathcal{J} \\rvert\\) est le nombre d'éléments d'un ensemble fini \\(\\mathcal{J}\\).\n\n## 1. Conditionnement\n\nLe problème : une quantité dépend d'une cause inconnue (le signal a-t-il un effet, combien de transactions, que donne le premier lancer). On calcule cause par cause, là où c'est simple, puis on recombine.\n\n### Probabilités totales et Bayes\n\nCadre : \\(B_1, \\dots, B_m\\) est une **partition** : événements deux à deux disjoints, de réunion certaine, chacun de probabilité strictement positive. Pour \\(\\mathbb{P}(B) > 0\\), \\(\\mathbb{P}(A \\mid B) = \\mathbb{P}(A \\cap B)/\\mathbb{P}(B)\\).\n\n- **(C1) Probabilités totales** : \\(\\mathbb{P}(A) = \\sum_{j=1}^{m} \\mathbb{P}(A \\mid B_j)\\,\\mathbb{P}(B_j)\\).\n- **(C2) Bayes** : si \\(\\mathbb{P}(A) > 0\\), \\(\\mathbb{P}(B_i \\mid A) = \\dfrac{\\mathbb{P}(A \\mid B_i)\\,\\mathbb{P}(B_i)}{\\sum_{j=1}^{m} \\mathbb{P}(A \\mid B_j)\\,\\mathbb{P}(B_j)}\\).\n\nPreuve :\n\n1. Chaque issue de \\(A\\) est dans exactement un \\(B_j\\) : \\(A\\) est la réunion disjointe des \\(A \\cap B_j\\), donc \\(\\mathbb{P}(A) = \\sum_j \\mathbb{P}(A \\cap B_j)\\), et \\(\\mathbb{P}(A \\cap B_j) = \\mathbb{P}(A \\mid B_j)\\,\\mathbb{P}(B_j)\\) par définition. Même preuve pour une partition dénombrable.\n2. \\(\\mathbb{P}(B_i \\mid A) = \\mathbb{P}(A \\cap B_i)/\\mathbb{P}(A)\\), numérateur comme à l'étape 1, dénominateur par (C1).\n\nExemple : une stratégie candidate est rentable avec probabilité 0,1 a priori ; son backtest est « concluant » avec probabilité 0,9 si elle est rentable, 0,2 sinon. Rentable et concluant : \\(0{,}1 \\times 0{,}9 = 0{,}09\\) ; non rentable et concluant : \\(0{,}9 \\times 0{,}2 = 0{,}18\\) ; donc \\(\\mathbb{P}(\\text{concluant}) = 0{,}27\\) et \\(\\mathbb{P}(\\text{rentable} \\mid \\text{concluant}) = 0{,}09/0{,}27 = \\tfrac{1}{3}\\) (simulation du script : 0,333). Les faux positifs sont rares par stratégie non rentable, mais ces stratégies sont bien plus nombreuses.\n\n### Espérance et variance conditionnelles\n\nCadre : \\(Y\\) est discrète (valeurs \\(y\\) avec \\(\\mathbb{P}(Y = y) > 0\\)), \\(X\\) est réelle d'espérance finie. Le nombre \\(g(y) = \\mathbb{E}[X\\,I_{\\{Y = y\\}}]/\\mathbb{P}(Y = y)\\) est la moyenne de \\(X\\) sur les issues où \\(Y = y\\). L'**espérance conditionnelle** \\(\\mathbb{E}[X \\mid Y]\\) est la variable aléatoire \\(g(Y)\\). Si \\(\\mathbb{E}[X^2] < \\infty\\), \\(v(y) = \\mathbb{E}[X^2 \\mid Y = y] - g(y)^2\\) est la variance de \\(X\\) sachant \\(Y = y\\), et \\(\\mathrm{Var}(X \\mid Y) = v(Y)\\).\n\n- **(C3) Espérance totale** : \\(\\mathbb{E}\\big[\\mathbb{E}[X \\mid Y]\\big] = \\mathbb{E}[X]\\), soit \\(\\mathbb{E}[X] = \\sum_y \\mathbb{E}[X \\mid Y = y]\\,\\mathbb{P}(Y = y)\\).\n- **(C4) Variance totale** : si \\(\\mathbb{E}[X^2] < \\infty\\), \\(\\mathrm{Var}(X) = \\mathbb{E}\\big[\\mathrm{Var}(X \\mid Y)\\big] + \\mathrm{Var}\\big(\\mathbb{E}[X \\mid Y]\\big)\\) : dispersion moyenne à l'intérieur des groupes \\(\\{Y = y\\}\\), plus dispersion des moyennes de groupe.\n\nPreuve :\n\n1. (C3) : \\(\\sum_y g(y)\\,\\mathbb{P}(Y = y) = \\sum_y \\mathbb{E}[X\\,I_{\\{Y = y\\}}] = \\mathbb{E}\\big[X \\sum_y I_{\\{Y = y\\}}\\big] = \\mathbb{E}[X]\\), car exactement un événement \\(\\{Y = y\\}\\) se produit. L'échange somme-espérance est la linéarité (séance 1, outil 1) ; pour une infinité de valeurs, il vient du théorème de convergence dominée (admis), les sommes partielles étant majorées par \\(\\lvert X \\rvert\\).\n2. \\(v(y) \\ge 0\\) (c'est une variance pour la probabilité sachant \\(Y = y\\)), donc \\(g(y)^2 \\le \\mathbb{E}[X^2 \\mid Y = y]\\) et tout est fini. L'étape 1 appliquée à \\(X^2\\) donne \\(\\mathbb{E}[v(Y)] = \\mathbb{E}[X^2] - \\mathbb{E}[g(Y)^2]\\).\n3. L'étape 1 donne \\(\\mathbb{E}[g(Y)] = \\mathbb{E}[X]\\), donc \\(\\mathrm{Var}(g(Y)) = \\mathbb{E}[g(Y)^2] - \\mathbb{E}[X]^2\\).\n4. En additionnant, \\(\\mathbb{E}[g(Y)^2]\\) s'annule : \\(\\mathbb{E}[v(Y)] + \\mathrm{Var}(g(Y)) = \\mathbb{E}[X^2] - \\mathbb{E}[X]^2 = \\mathrm{Var}(X)\\).\n\nPour \\(Y\\) à densité, (C3) et (C4) restent vrais avec la définition générale de l'espérance conditionnelle (admise ici).\n\n### Somme d'un nombre aléatoire de termes\n\nCadre : \\(N\\) est à valeurs entières positives, d'espérance et de variance finies ; \\(X_1, X_2, \\dots\\) ont la même loi, d'espérance \\(\\mu\\) et de variance \\(\\sigma^2\\), et sont indépendantes entre elles **et de \\(N\\)** ; \\(S = X_1 + \\dots + X_N\\), avec \\(S = 0\\) si \\(N = 0\\). Alors \\(\\mathbb{E}[S] = \\mathbb{E}[N]\\,\\mu\\) et \\(\\mathrm{Var}(S) = \\mathbb{E}[N]\\,\\sigma^2 + \\mathrm{Var}(N)\\,\\mu^2\\).\n\nPreuve : les \\(X_i\\) étant indépendantes de \\(N\\), sachant \\(N = n\\) elles gardent leur loi et leur indépendance, d'où \\(\\mathbb{E}[S \\mid N = n] = n\\mu\\) et \\(\\mathrm{Var}(S \\mid N = n) = n\\sigma^2\\). Donc \\(\\mathbb{E}[S \\mid N] = N\\mu\\), \\(\\mathrm{Var}(S \\mid N) = N\\sigma^2\\), et (C3), (C4) donnent \\(\\mathbb{E}[N]\\,\\mu\\) et \\(\\mathbb{E}[N\\sigma^2] + \\mathrm{Var}(N\\mu)\\).\n\nExemple : nombre de clients d'une heure de loi de Poisson de paramètre 3 (espérance et variance 3, partie 2), montants d'espérance 10 euros et d'écart-type 5 euros : \\(\\mathbb{E}[S] = 30\\) euros, \\(\\mathrm{Var}(S) = 3 \\times 5^2 + 3 \\times 10^2 = 75 + 300 = 375\\) euros carrés (simulation : 29,99 et 375,1).\n\n### Pièges\n\n1. Confondre \\(\\mathbb{P}(A \\mid B)\\) et \\(\\mathbb{P}(B \\mid A)\\), ou oublier l'a priori : sans lui, Bayes revient à supposer toutes les causes également probables.\n2. Oublier \\(\\mathrm{Var}(\\mathbb{E}[X \\mid Y])\\) : la variance d'un mélange n'est pas la moyenne des variances.\n3. \\(\\mathbb{E}[N]\\,\\mathbb{E}[X^2]\\) n'est la variance de \\(S\\) que si \\(\\mathrm{Var}(N) = \\mathbb{E}[N]\\), par exemple pour \\(N\\) de Poisson.\n4. Si l'on s'arrête selon les valeurs observées (au premier 6, au premier gain), les \\(X_i\\) ne sont plus indépendantes de \\(N\\) : calculer d'abord leur loi sachant \\(N = n\\).\n\n[[controle:vartot]]\n\n## 2. Lois usuelles et leurs moments\n\nParamètres : \\(0 < p < 1\\), \\(n \\ge 1\\) entier, \\(\\lambda > 0\\) (une intensité : nombre moyen d'événements par unité de temps), \\(a < b\\), \\(\\mu\\) réel, \\(\\sigma > 0\\).\n\n| Loi | Situation type | Valeurs | \\(\\mathbb{P}(X = k)\\) ou densité en \\(x\\) | Espérance | Variance |\n|---|---|---|---|---|---|\n| Bernoulli \\(\\mathcal{B}(p)\\) | un essai réussi avec probabilité \\(p\\) | \\(\\{0, 1\\}\\) | \\(\\mathbb{P}(X = 1) = p\\) | \\(p\\) | \\(p(1-p)\\) |\n| binomiale \\(\\mathcal{B}(n, p)\\) | succès en \\(n\\) essais indépendants | \\(\\{0, \\dots, n\\}\\) | \\(\\binom{n}{k} p^k (1-p)^{n-k}\\) | \\(np\\) | \\(np(1-p)\\) |\n| géométrique \\(\\mathcal{G}(p)\\) | rang du premier succès | \\(\\{1, 2, \\dots\\}\\) | \\((1-p)^{k-1} p\\) | \\(1/p\\) | \\((1-p)/p^2\\) |\n| Poisson \\(\\mathcal{P}(\\lambda)\\) | événements d'un processus de Poisson (partie 4) | \\(\\{0, 1, \\dots\\}\\) | \\(e^{-\\lambda} \\lambda^k / k!\\) | \\(\\lambda\\) | \\(\\lambda\\) |\n| uniforme \\(\\mathcal{U}([a, b])\\) | point au hasard dans \\([a, b]\\) | \\([a, b]\\) | \\(1/(b - a)\\) | \\((a+b)/2\\) | \\((b-a)^2/12\\) |\n| exponentielle \\(\\mathcal{E}(\\lambda)\\) | attente sans mémoire (partie 3) | \\([0, +\\infty[\\) | \\(\\lambda e^{-\\lambda x}\\) | \\(1/\\lambda\\) | \\(1/\\lambda^2\\) |\n| normale \\(\\mathcal{N}(\\mu, \\sigma^2)\\) | limite du théorème central limite | \\(\\mathbb{R}\\) | \\(e^{-(x-\\mu)^2/(2\\sigma^2)}/(\\sigma\\sqrt{2\\pi})\\) | \\(\\mu\\) | \\(\\sigma^2\\) |\n\nPreuves des moments les plus demandés :\n\n1. Binomiale : \\(X = I_1 + \\dots + I_n\\), indicatrices indépendantes des succès, de variance \\(p - p^2\\) car \\(I_j^2 = I_j\\). Linéarité, puis additivité des variances par indépendance.\n2. Géométrique, espérance : \\(\\mathbb{P}(G > k) = (1-p)^k\\) (les \\(k\\) premiers essais échouent), et la formule de la queue pour une variable entière positive (séance 1, outil 2, étape 2 de la preuve) donne \\(\\mathbb{E}[G] = \\sum_{k \\ge 0} (1-p)^k = 1/p\\).\n3. Géométrique, variance, par le premier essai : avec probabilité \\(p\\), \\(G = 1\\) ; sinon tout recommence et \\(G = 1 + G'\\), où \\(G'\\), fonction des essais suivants, a la loi de \\(G\\). Donc \\(\\mathbb{E}[G^2] = p + (1-p)\\big(1 + 2/p + \\mathbb{E}[G^2]\\big)\\) ; \\(\\mathbb{E}[G^2]\\) étant fini (la série \\(\\sum k^2 (1-p)^{k-1}\\) converge), \\(p\\,\\mathbb{E}[G^2] = 1 + 2(1-p)/p\\), soit \\(\\mathbb{E}[G^2] = (2-p)/p^2\\) et \\(\\mathrm{Var}(G) = (1-p)/p^2\\).\n4. Poisson : \\(\\mathbb{E}[X] = \\lambda \\sum_{k \\ge 1} e^{-\\lambda}\\lambda^{k-1}/(k-1)! = \\lambda\\) (somme des probabilités de la loi) ; de même \\(\\mathbb{E}[X(X-1)] = \\lambda^2\\), donc \\(\\mathrm{Var}(X) = \\lambda^2 + \\lambda - \\lambda^2 = \\lambda\\).\n5. Exponentielle : \\(\\mathbb{P}(X > x) = e^{-\\lambda x}\\) pour \\(x \\ge 0\\). Formule de la queue (séance 1, outil 3, (F)) : \\(\\mathbb{E}[X] = \\int_0^\\infty e^{-\\lambda x}\\,dx = 1/\\lambda\\). Comme \\(X^2 = \\int_0^\\infty 2x\\,I_{\\{x < X\\}}\\,dx\\), Fubini-Tonelli (admis) donne \\(\\mathbb{E}[X^2] = \\int_0^\\infty 2x\\,e^{-\\lambda x}\\,dx = 2/\\lambda^2\\) (intégration par parties), d'où \\(\\mathrm{Var}(X) = 1/\\lambda^2\\).\n6. Uniforme et normale : pour \\(U\\) uniforme sur \\([0, 1]\\), \\(\\mathbb{E}[U^2] - \\mathbb{E}[U]^2 = 1/3 - 1/4\\), puis \\(a + (b-a)\\,U\\) multiplie la variance par \\((b-a)^2\\). Pour \\(Z\\) de loi \\(\\mathcal{N}(0, 1)\\), de densité \\(\\varphi\\), \\(\\mathbb{E}[Z] = 0\\) par imparité et, comme \\(\\varphi'(z) = -z\\,\\varphi(z)\\), une intégration par parties donne \\(\\mathbb{E}[Z^2] = \\big[-z\\varphi(z)\\big]_{-\\infty}^{+\\infty} + \\int \\varphi = 1\\) ; enfin \\(\\mu + \\sigma Z\\) suit \\(\\mathcal{N}(\\mu, \\sigma^2)\\).\n\nExemple : on lance un dé jusqu'au premier 6 ; \\(G\\) suit \\(\\mathcal{G}(1/6)\\) : \\(\\mathbb{E}[G] = 6\\), \\(\\mathbb{E}[G^2] = 66\\), \\(\\mathrm{Var}(G) = 66 - 6^2 = 30\\) (simulation : 6,00 et 30,1).\n\nPièges :\n\n1. Géométrique : nombre d'essais (valeurs \\(1, 2, \\dots\\), espérance \\(1/p\\)) ou nombre d'échecs avant le succès, \\(G - 1\\) (valeurs \\(0, 1, \\dots\\), espérance \\((1-p)/p\\), même variance). Lire l'énoncé.\n2. Exponentielle : le paramètre écrit est l'intensité ou l'espérance selon les sources ; regarder l'unité (« 2 par minute » est une intensité, « 2 minutes en moyenne » une espérance).\n3. \\(np(1-p)\\) exige des essais indépendants : faux pour des tirages sans remise.\n\n## 3. Absence de mémoire, minimum d'exponentielles\n\nLe problème : « on a déjà attendu \\(s\\), combien reste-t-il ? », « parmi plusieurs attentes indépendantes, laquelle finit la première, et quand ? ».\n\n- **(A1)** Si \\(G\\) suit \\(\\mathcal{G}(p)\\), pour des entiers \\(j, k \\ge 0\\) : \\(\\mathbb{P}(G > j + k \\mid G > j) = \\mathbb{P}(G > k)\\).\n- **(A2)** Si \\(X\\) suit \\(\\mathcal{E}(\\lambda)\\), pour des réels \\(s, t \\ge 0\\) : \\(\\mathbb{P}(X > s + t \\mid X > s) = \\mathbb{P}(X > t)\\). Sachant \\(X > s\\), le temps restant \\(X - s\\) suit encore \\(\\mathcal{E}(\\lambda)\\), et \\(\\mathbb{E}[X \\mid X > s] = s + 1/\\lambda\\).\n\nPreuve : \\(\\{G > j + k\\}\\) est inclus dans \\(\\{G > j\\}\\), donc la probabilité conditionnelle vaut \\((1-p)^{j+k}/(1-p)^j = (1-p)^k\\). Même calcul avec \\(e^{-\\lambda(s+t)}/e^{-\\lambda s} = e^{-\\lambda t}\\) ; la loi conditionnelle de \\(X - s\\) a donc la queue de \\(\\mathcal{E}(\\lambda)\\), d'espérance \\(1/\\lambda\\).\n\nExemple : \\(X\\) exponentielle d'espérance 2 minutes. Après 3 minutes sans événement, \\(\\mathbb{P}(\\text{encore plus de 2 minutes}) = e^{-1} \\approx 0{,}3679\\), et l'attente totale moyenne est \\(3 + 2 = 5\\) minutes (simulation : 0,3686 et 5,00).\n\n[[controle:memoire]]\n\n### Minimum de variables exponentielles indépendantes\n\nCadre : \\(X_1, \\dots, X_n\\) indépendantes, \\(X_i\\) de loi \\(\\mathcal{E}(\\lambda_i)\\) ; \\(\\lambda = \\lambda_1 + \\dots + \\lambda_n\\) ; \\(M = \\min_i X_i\\) ; \\(K\\) est l'indice de la plus petite (deux \\(X_i\\) sont égales avec probabilité nulle, car indépendantes et à densité).\n\n- **(A3)** \\(M\\) suit \\(\\mathcal{E}(\\lambda)\\), donc \\(\\mathbb{E}[M] = 1/\\lambda\\).\n- **(A4)** \\(\\mathbb{P}(K = i) = \\lambda_i/\\lambda\\), et \\(K\\) est indépendante de \\(M\\).\n- **(A5) La course recommence** : sachant \\(K = i\\) et la valeur de \\(M\\), les temps restants \\(X_j - M\\), \\(j \\ne i\\), sont indépendants, de lois \\(\\mathcal{E}(\\lambda_j)\\).\n\nPreuve :\n\n1. (A3) : \\(M > t\\) si et seulement si toutes les \\(X_i\\) dépassent \\(t\\) ; par indépendance, \\(\\mathbb{P}(M > t) = \\prod_i e^{-\\lambda_i t} = e^{-\\lambda t}\\).\n2. On fixe \\(i\\), \\(t \\ge 0\\) et des \\(u_j \\ge 0\\) pour \\(j \\ne i\\). L'événement « \\(K = i\\), \\(M > t\\), et \\(X_j - M > u_j\\) pour tout \\(j \\ne i\\) » s'écrit « \\(X_i > t\\) et \\(X_j > X_i + u_j\\) pour tout \\(j \\ne i\\) ». En conditionnant par \\(X_i = x\\), de densité \\(\\lambda_i e^{-\\lambda_i x}\\), les autres variables étant indépendantes de \\(X_i\\) (Fubini, admis), sa probabilité vaut \\(\\int_t^\\infty \\lambda_i e^{-\\lambda_i x} \\prod_{j \\ne i} e^{-\\lambda_j (x + u_j)}\\,dx = \\dfrac{\\lambda_i}{\\lambda}\\,e^{-\\lambda t} \\prod_{j \\ne i} e^{-\\lambda_j u_j}\\).\n3. Avec tous les \\(u_j = 0\\) et \\(t = 0\\) : \\(\\mathbb{P}(K = i) = \\lambda_i/\\lambda\\). La probabilité est un produit de facteurs séparés : \\(K\\), \\(M\\) et les temps restants sont indépendants, chaque \\(X_j - M\\) ayant la queue \\(e^{-\\lambda_j u_j}\\) de \\(\\mathcal{E}(\\lambda_j)\\). D'où (A4) et (A5).\n\nExemple : intensités 1, 2 et 3 par heure. \\(\\lambda = 6\\) ; le premier événement arrive en moyenne au bout de \\(\\tfrac{1}{6}\\) heure ; c'est celui d'intensité 1 avec probabilité \\(\\tfrac{1}{6}\\), celui d'intensité 3 avec probabilité \\(\\tfrac{1}{2}\\). Indépendance : \\(\\mathbb{P}(K = 1, M > 0{,}2) = \\tfrac{1}{6}\\,e^{-1{,}2} \\approx 0{,}0502\\) (simulation : 0,0504).\n\nPièges :\n\n1. La chance d'arriver le premier est proportionnelle à l'**intensité** \\(\\lambda_i\\), pas à l'espérance \\(1/\\lambda_i\\).\n2. L'absence de mémoire n'est pas « l'événement est dû » : après une longue attente, le temps restant ne raccourcit pas.\n3. Le maximum n'est pas exponentiel (séance 1, outil 3, cas limites) : pour une question de « dernier », enchaîner les courses avec (A5).\n4. « \\(X_1 < X_2\\) » et « \\(X_1 < X_3\\) » ne sont pas indépendants (tous deux favorisés quand \\(X_1\\) est petite) : ne pas multiplier leurs probabilités.\n\n[[controle:course]]\n\n## 4. Processus de Poisson\n\nLe problème : des arrivées (ordres, clients, pannes) au hasard, à un rythme moyen constant. Combien dans une fenêtre, quand arrive la \\(k\\)-ième, que donne la fusion de deux flux ?\n\nDéfinition : un processus de Poisson d'intensité \\(\\lambda > 0\\) est une famille de variables \\(N(t)\\), \\(t \\ge 0\\), où \\(N(t)\\) compte les événements de \\([0, t]\\), telle que :\n\n1. \\(N(0) = 0\\), et \\(t \\mapsto N(t)\\) est croissante, à valeurs entières, par sauts de 1 ;\n2. pour \\(0 \\le s < t\\), le nombre d'événements dans \\(]s, t]\\), \\(N(t) - N(s)\\), suit \\(\\mathcal{P}(\\lambda\\,(t - s))\\) ;\n3. les nombres d'événements dans des intervalles disjoints sont indépendants.\n\nOn note \\(S_k\\) l'instant du \\(k\\)-ième événement.\n\n- **(P1) Attente** : \\(S_1\\) suit \\(\\mathcal{E}(\\lambda)\\) ; depuis tout instant fixé \\(s\\), l'attente du prochain événement suit aussi \\(\\mathcal{E}(\\lambda)\\).\n- **(P2) \\(k\\)-ième événement** : \\(\\mathbb{P}(S_k > t) = \\sum_{j=0}^{k-1} e^{-\\lambda t}(\\lambda t)^j/j!\\) et \\(\\mathbb{E}[S_k] = k/\\lambda\\).\n- **(P3) Superposition** : si \\(N_1\\), \\(N_2\\) sont des processus de Poisson indépendants d'intensités \\(\\lambda_1\\), \\(\\lambda_2\\), alors \\(N_1 + N_2\\) est un processus de Poisson d'intensité \\(\\lambda_1 + \\lambda_2\\), dont le premier événement vient de \\(N_1\\) avec probabilité \\(\\lambda_1/(\\lambda_1 + \\lambda_2)\\).\n\nPreuve :\n\n1. (P1) : \\(S_1 > t\\) si et seulement si \\(N(t) = 0\\), de probabilité \\(e^{-\\lambda t}\\) (propriété 2) ; depuis \\(s\\), aucun événement dans \\(]s, s + u]\\) avec probabilité \\(e^{-\\lambda u}\\).\n2. (P2) : par sauts de 1, \\(S_k > t\\) si et seulement si \\(N(t) \\le k - 1\\). Formule de la queue (séance 1, outil 3, (F)) et changement de variable \\(u = \\lambda t\\) : chaque terme donne \\(\\tfrac{1}{\\lambda\\,j!} \\int_0^\\infty u^j e^{-u}\\,du = \\tfrac{1}{\\lambda}\\), car cette intégrale \\(I_j\\) vérifie \\(I_j = j\\,I_{j-1}\\) (intégration par parties) et \\(I_0 = 1\\). Les \\(k\\) termes donnent \\(k/\\lambda\\).\n3. (P3) : l'accroissement de \\(N_1 + N_2\\) sur \\(]s, t]\\) est la somme de deux variables indépendantes de lois \\(\\mathcal{P}(a)\\) et \\(\\mathcal{P}(b)\\), avec \\(a = \\lambda_1 (t-s)\\), \\(b = \\lambda_2 (t-s)\\) : \\(\\sum_{j=0}^{k} e^{-a}\\tfrac{a^j}{j!}\\,e^{-b}\\tfrac{b^{k-j}}{(k-j)!} = \\tfrac{e^{-(a+b)}}{k!} \\sum_{j=0}^{k} \\binom{k}{j} a^j b^{k-j} = e^{-(a+b)}\\tfrac{(a+b)^k}{k!}\\) (binôme). Sur des intervalles disjoints, ces accroissements sont des fonctions de familles disjointes de variables indépendantes, donc indépendants. Pas de saut simultané : en coupant \\([0, t]\\) en \\(r\\) morceaux, un saut commun exige un événement des deux processus dans un même morceau, de probabilité au plus \\(r \\times (\\lambda_1 t/r)(\\lambda_2 t/r) \\to 0\\), puisque \\(1 - e^{-y} \\le y\\). Enfin les premiers instants des deux processus sont des exponentielles indépendantes (P1), et (A4) donne \\(\\lambda_1/(\\lambda_1 + \\lambda_2)\\).\n\nRéciproque admise (équivalence des deux définitions, résultat général) : les durées entre événements successifs sont indépendantes, de loi \\(\\mathcal{E}(\\lambda)\\). Le script simule le processus ainsi et retrouve les probabilités ci-dessous : c'est un constat numérique, pas une preuve.\n\nExemple : ordres d'intensité 2 par minute, fenêtre de 1,5 minute, donc \\(N(1{,}5)\\) suit \\(\\mathcal{P}(3)\\).\n\n- \\(\\mathbb{P}(N(1{,}5) = 0) = e^{-3} \\approx 0{,}0498\\) et \\(\\mathbb{P}(N(1{,}5) = 2) = e^{-3}\\,3^2/2! \\approx 0{,}2240\\) (simulation : 0,0497 et 0,2244) ; le 3e ordre arrive en moyenne à \\(3/2 = 1{,}5\\) minute.\n- Avec un second flux indépendant de 3 ordres par minute, le flux fusionné a l'intensité 5 : en une minute, \\(\\mathbb{P}(\\text{exactement 5 ordres}) = e^{-5}\\,5^5/5! \\approx 0{,}1755\\), et le premier ordre vient du premier flux avec probabilité \\(\\tfrac{2}{5}\\).\n\nPièges :\n\n1. Le paramètre de la loi de Poisson est l'intensité **multipliée par la durée**, en unités cohérentes.\n2. Paradoxe de l'autobus : depuis un instant fixé, l'attente moyenne est \\(1/\\lambda\\) (P1), pas la moitié de l'écart moyen entre deux événements.\n3. « Au moins \\(k\\) » vaut \\(1 - \\mathbb{P}(N \\le k - 1)\\).\n\n## 5. Collectionneur de coupons\n\nLe problème : on tire avec remise, uniformément, parmi \\(n\\) types. Combien de tirages en moyenne pour voir \\(r\\) types distincts, ou tous ?\n\nÉnoncé : soit \\(C_r\\) le nombre de tirages nécessaires pour voir \\(r\\) types distincts, \\(1 \\le r \\le n\\). Alors\n\n\\(\\displaystyle \\mathbb{E}[C_r] = \\sum_{k=1}^{r} \\frac{n}{n - k + 1} = \\frac{n}{n} + \\frac{n}{n-1} + \\dots + \\frac{n}{n - r + 1},\\)\n\nen particulier \\(\\mathbb{E}[C_n] = n\\,H_n\\), avec \\(\\ln(n + 1) \\le H_n \\le 1 + \\ln n\\).\n\nPreuve :\n\n1. \\(C_r = G_1 + \\dots + G_r\\), où \\(G_k\\) compte les tirages après l'apparition du \\((k-1)\\)-ième type nouveau, jusqu'au \\(k\\)-ième inclus.\n2. Fixons tout l'historique jusqu'à l'apparition du \\((k-1)\\)-ième type nouveau. Les tirages suivants sont indépendants de cet historique, et chacun retombe sur un type déjà vu avec probabilité \\((k-1)/n\\) : \\(\\mathbb{P}(G_k > j \\mid \\text{historique}) = ((k-1)/n)^j\\). Donc \\(G_k\\) suit \\(\\mathcal{G}\\big((n - k + 1)/n\\big)\\), d'espérance \\(n/(n - k + 1)\\) (partie 2).\n3. Linéarité (séance 1, outil 1), sans besoin d'indépendance entre les \\(G_k\\) : la formule. Pour \\(r = n\\), la somme est \\(n\\,(1/n + \\dots + 1/1) = n\\,H_n\\).\n4. Encadrement : \\(1/j \\ge \\int_j^{j+1} dx/x\\) (car \\(1/x \\le 1/j\\) sur \\([j, j+1]\\)) donne \\(H_n \\ge \\ln(n+1)\\) ; \\(1/j \\le \\int_{j-1}^{j} dx/x\\) pour \\(j \\ge 2\\) donne \\(H_n \\le 1 + \\ln n\\).\n\nExemple : un dé. \\(\\mathbb{E}[C_6] = 6/6 + 6/5 + \\dots + 6/1 = 6 \\times \\tfrac{49}{20} = 14{,}7\\) lancers, dont \\(6/1\\) pour la seule dernière face ; \\(\\ln 7 \\approx 1{,}946 \\le H_6 = 2{,}45 \\le 1 + \\ln 6 \\approx 2{,}792\\) (simulation : 14,69).\n\nPièges :\n\n1. \\(n \\ln n\\) sous-estime toujours, car \\(H_n > \\ln n\\) : \\(6 \\ln 6 \\approx 10{,}75\\).\n2. Pour \\(r < n\\) types, sommer les \\(r\\) **premiers** termes \\(n/n, n/(n-1), \\dots\\), les plus petits.\n3. La probabilité d'avoir tout vu en \\(k\\) tirages se calcule par inclusion-exclusion (partie 6), pas avec l'espérance.\n\n[[controle:coupons]]\n\n## 6. Dénombrement et inclusion-exclusion\n\nLe problème : avec des issues équiprobables, une probabilité est un rapport de cardinaux. Il faut compter vite, et compter une réunion sans compter deux fois.\n\nTirer \\(k\\) objets parmi \\(n\\) objets distincts :\n\n| Tirage | l'ordre compte | l'ordre ne compte pas |\n|---|---|---|\n| sans remise (\\(k \\le n\\)) | \\(n!/(n-k)!\\) | \\(\\binom{n}{k} = \\tfrac{n!}{k!\\,(n-k)!}\\) |\n| avec remise | \\(n^k\\) | \\(\\binom{n+k-1}{k}\\) |\n\n1. Ordonné sans remise : \\(n\\), puis \\(n - 1\\), ..., puis \\(n - k + 1\\) choix (principe multiplicatif). Avec remise : \\(n\\) choix à chaque tirage.\n2. Non ordonné sans remise : chaque partie à \\(k\\) éléments correspond à \\(k!\\) tirages ordonnés.\n3. Non ordonné avec remise (étoiles et barres) : un tirage est déterminé par les effectifs \\(k_1 + \\dots + k_n = k\\), qu'on écrit comme \\(k\\) étoiles séparées par \\(n - 1\\) barres (\\(k_1\\) étoiles, une barre, \\(k_2\\) étoiles...) ; c'est une bijection, et il suffit de placer les \\(k\\) étoiles parmi \\(n + k - 1\\) places. Exemple : 5 ordres identiques répartis entre 3 courtiers, \\(\\binom{7}{2} = 21\\) façons.\n\nPiège capital : les issues non ordonnées d'un tirage avec remise ne sont **pas** équiprobables. Avec deux dés, \\(\\{1, 2\\}\\) a pour probabilité \\(\\tfrac{1}{18}\\) et \\(\\{1, 1\\}\\) a pour probabilité \\(\\tfrac{1}{36}\\). Pour une probabilité, compter des suites ordonnées, jamais les 21 issues non ordonnées.\n\n### Inclusion-exclusion\n\nÉnoncé : pour des événements \\(A_1, \\dots, A_m\\),\n\n\\(\\displaystyle \\mathbb{P}\\Big(\\bigcup_{j=1}^{m} A_j\\Big) = \\sum_{k=1}^{m} (-1)^{k+1} \\sum_{\\lvert \\mathcal{J} \\rvert = k} \\mathbb{P}\\Big(\\bigcap_{j \\in \\mathcal{J}} A_j\\Big),\\)\n\nla somme intérieure portant sur les parties \\(\\mathcal{J}\\) de \\(\\{1, \\dots, m\\}\\) à \\(k\\) éléments. Même formule pour des cardinaux (probabilité uniforme). Quand la probabilité d'une intersection ne dépend que de \\(k\\), la somme intérieure vaut \\(\\binom{m}{k}\\) fois cette probabilité.\n\nPreuve par les indicatrices :\n\n1. Une issue n'est dans aucun \\(A_j\\) si et seulement si tous les facteurs \\(1 - I_{A_j}\\) valent 1 : \\(1 - I_{A_1 \\cup \\dots \\cup A_m} = \\prod_{j=1}^{m} (1 - I_{A_j})\\).\n2. On développe en choisissant dans chaque facteur 1 ou \\(-I_{A_j}\\) : choisir \\(-I_{A_j}\\) exactement pour \\(j \\in \\mathcal{J}\\) donne \\((-1)^{\\lvert \\mathcal{J} \\rvert} \\prod_{j \\in \\mathcal{J}} I_{A_j}\\), et ce produit est l'indicatrice de l'intersection des \\(A_j\\), \\(j \\in \\mathcal{J}\\) ; la partie vide donne 1.\n3. On retranche 1, on change les signes, puis on prend l'espérance : linéarité et \\(\\mathbb{E}[I_A] = \\mathbb{P}(A)\\) (séance 1, outil 1).\n\nExemple 1, tout voir : 5 tirages avec remise parmi 3 couleurs équiprobables. Avec \\(A_c\\) = « la couleur \\(c\\) n'apparaît pas » : il y a \\(2^5\\) suites sans une couleur donnée, \\(1^5\\) sans deux couleurs données, aucune sans les trois. Cas favorables : \\(3^5 - 3 \\times 2^5 + 3 \\times 1^5 = 243 - 96 + 3 = 150\\), probabilité \\(\\tfrac{50}{81} \\approx 0{,}617\\) (simulation : 0,617). En général, \\(\\sum_{j=0}^{n} (-1)^j \\binom{n}{j} (n - j)^k\\) suites de longueur \\(k\\) utilisent les \\(n\\) symboles.\n\nExemple 2, dérangements : \\(S\\) est une permutation uniforme de \\(\\{1, \\dots, n\\}\\), et \\(A_i = \\{S(i) = i\\}\\). Une intersection de \\(k\\) de ces événements a pour probabilité \\((n-k)!/n!\\), et la somme intérieure vaut \\(\\binom{n}{k}(n-k)!/n! = 1/k!\\). Donc\n\n\\(\\displaystyle \\mathbb{P}(\\text{aucun point fixe}) = 1 - \\sum_{k=1}^{n} \\frac{(-1)^{k+1}}{k!} = \\sum_{k=0}^{n} \\frac{(-1)^k}{k!},\\)\n\net le nombre de dérangements (permutations sans point fixe) est \\(d_n = n! \\sum_{k=0}^{n} (-1)^k/k!\\). Pour \\(n = 4\\) : \\(d_4 = 4!\\,(1 - 1 + 1/2 - 1/6 + 1/24) = 9\\), probabilité \\(\\tfrac{3}{8}\\). C'est la série de \\(e^{-1}\\) tronquée ; par le critère des séries alternées, l'écart est au plus \\(1/(n+1)!\\). Pour \\(n = 10\\) : \\(0{,}3678795\\) contre \\(e^{-1} \\approx 0{,}3678794\\). Le nombre de permutations à **exactement** \\(j\\) points fixes est \\(\\binom{n}{j}\\,d_{n-j}\\) : choisir les points fixes, puis déranger les autres.\n\nPièges :\n\n1. Signe \\((-1)^{k+1}\\) : plus pour les événements seuls, moins pour les paires, plus pour les triplets.\n2. Le premier terme seul ne donne que la borne de Boole (séance 1, outil 4).\n3. « Exactement \\(j\\) » n'est pas « au moins \\(j\\) ».\n4. Imposer d'abord ce qui est exigé, puis remplir le reste librement, compte plusieurs fois certaines issues.\n\n[[controle:derangement]]\n\n## Réflexes en 30 secondes\n\n| Indice dans l'énoncé | Outil | Premier geste |\n|---|---|---|\n| « sachant que », test, signal, a priori | Bayes | a priori fois vraisemblance pour chaque cause, puis diviser par la somme |\n| mélange, somme d'un nombre aléatoire de termes | variance totale | \\(\\mathbb{E}[\\mathrm{Var}(X \\mid Y)] + \\mathrm{Var}(\\mathbb{E}[X \\mid Y])\\) ; si \\(N\\) est indépendant des termes : \\(\\mathbb{E}[N]\\sigma^2 + \\mathrm{Var}(N)\\mu^2\\) |\n| « jusqu'au premier succès » | géométrique | \\(1/p\\) et \\((1-p)/p^2\\) ; convention essais ou échecs |\n| « déjà attendu », durée exponentielle | absence de mémoire | le temps restant a la loi de départ |\n| « lequel en premier », plusieurs exponentielles | minimum | \\(\\mathcal{E}(\\lambda)\\) et \\(\\lambda_i/\\lambda\\) ; ensuite la course recommence |\n| arrivées au hasard à rythme constant | Poisson | \\(\\mathcal{P}(\\lambda t)\\) ; \\(k\\)-ième arrivée en \\(k/\\lambda\\) en moyenne ; flux indépendants : intensités additionnées |\n| « tous les types », « \\(r\\) types distincts » | coupons | somme des \\(n/(n - k + 1)\\), \\(k = 1, \\dots, r\\) |\n| « au moins un de chaque », « personne à sa place » | inclusion-exclusion | événements « type absent » ou « point fixe », intersections selon leur taille |\n\nContrôles de vraisemblance en 5 secondes :\n\n- avec deux causes \\(B\\) et \\(B^c\\), si \\(A\\) est plus probable sous \\(B\\) que sous \\(B^c\\), alors \\(\\mathbb{P}(B \\mid A) > \\mathbb{P}(B)\\) : \\(\\mathbb{P}(A)\\) est une moyenne pondérée de \\(\\mathbb{P}(A \\mid B)\\) et \\(\\mathbb{P}(A \\mid B^c)\\), donc inférieure à \\(\\mathbb{P}(A \\mid B)\\) quand \\(0 < \\mathbb{P}(B) < 1\\) ;\n- \\(\\mathrm{Var}(X)\\) dépasse chacun des deux termes de la variance totale ;\n- \\(n\\,H_n > n \\ln n\\), et le dernier type coûte à lui seul \\(n\\) tirages en moyenne.\n\n## À savoir refaire sans notes\n\n- Bayes ; l'espérance totale (cas discret) ; la variance totale en quatre lignes ; la variance d'une somme d'un nombre aléatoire de termes indépendants de ce nombre.\n- Espérance et variance de la géométrique (queue, premier essai), de la loi de Poisson (moment factoriel), de l'exponentielle (queue).\n- L'absence de mémoire ; l'intégrale qui donne d'un coup \\(\\mathbb{P}(K = i) = \\lambda_i/\\lambda\\), l'indépendance de \\(K\\) et \\(M\\), et la relance de la course.\n- \\(\\mathbb{P}(S_k > t)\\), \\(\\mathbb{E}[S_k] = k/\\lambda\\), la superposition par le binôme.\n- Le collectionneur de coupons par une somme de géométriques, et l'encadrement de \\(H_n\\).\n- L'inclusion-exclusion par les indicatrices, et les dérangements.\n",
+   "controles": {
+    "vartot": {
+     "question": "La variable \\(Y\\) vaut 0 ou 1 avec probabilité 1/2 chacun. Sachant \\(Y = 0\\), \\(X\\) suit \\(\\mathcal{N}(0, 1)\\) ; sachant \\(Y = 1\\), \\(X\\) suit \\(\\mathcal{N}(4, 1)\\). Que vaut \\(\\mathrm{Var}(X)\\) ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "5",
+       "correcte": true,
+       "explication": "Oui : \\(\\mathbb{E}[\\mathrm{Var}(X \\mid Y)] = 1\\), et \\(\\mathbb{E}[X \\mid Y] = 4Y\\) a pour variance \\(16 \\times \\tfrac14 = 4\\) ; la somme vaut 5."
+      },
+      {
+       "id": "b",
+       "texte": "1",
+       "correcte": false,
+       "explication": "C'est seulement \\(\\mathbb{E}[\\mathrm{Var}(X \\mid Y)]\\), la dispersion à l'intérieur de chaque groupe. Les deux groupes ont des moyennes différentes, 0 et 4 : leur écart ajoute le terme \\(\\mathrm{Var}(\\mathbb{E}[X \\mid Y])\\)."
+      },
+      {
+       "id": "c",
+       "texte": "4",
+       "correcte": false,
+       "explication": "C'est seulement \\(\\mathrm{Var}(\\mathbb{E}[X \\mid Y]) = \\mathrm{Var}(4Y)\\), la dispersion des moyennes de groupe. Il manque la dispersion à l'intérieur de chaque groupe, de variance 1."
+      },
+      {
+       "id": "d",
+       "texte": "9",
+       "correcte": false,
+       "explication": "C'est \\(\\mathbb{E}[(4Y)^2] + 1 = 16 \\times \\tfrac12 + 1\\) : le second moment de \\(\\mathbb{E}[X \\mid Y]\\) a été pris pour sa variance, sans retrancher le carré de sa moyenne, \\((4 \\times \\tfrac12)^2\\)."
+      }
+     ]
+    },
+    "memoire": {
+     "question": "On lance un dé équilibré, les lancers étant indépendants, et l'on note \\(G\\) le nombre total de lancers jusqu'au premier 6 inclus. Les 4 premiers lancers n'ont donné aucun 6. Sachant cela, quelle est l'espérance de \\(G\\), qui compte aussi les 4 lancers déjà faits ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "10",
+       "correcte": true,
+       "explication": "Oui : sachant \\(G > 4\\), le nombre de lancers restants \\(G - 4\\) a la loi de \\(G\\) (absence de mémoire, (A1)), d'espérance \\(1/p = 6\\) ; total \\(4 + 6\\)."
+      },
+      {
+       "id": "b",
+       "texte": "6",
+       "correcte": false,
+       "explication": "C'est \\(\\mathbb{E}[G]\\) sans information. C'est bien l'espérance du nombre de lancers **restants**, mais la question demande le total, qui inclut les 4 lancers déjà faits."
+      },
+      {
+       "id": "c",
+       "texte": "2",
+       "correcte": false,
+       "explication": "C'est \\(6 - 4\\) : l'idée que le 6 serait « dû » après 4 échecs. Les lancers futurs sont indépendants des précédents : il reste \\(6\\) lancers en moyenne, pas \\(2\\)."
+      },
+      {
+       "id": "d",
+       "texte": "9",
+       "correcte": false,
+       "explication": "C'est 4 plus l'espérance du nombre d'**échecs** avant le premier 6, \\((1-p)/p\\) avec \\(p = 1/6\\) : on a oublié le lancer qui donne le 6."
+      }
+     ]
+    },
+    "course": {
+     "question": "Les variables \\(X_1\\), \\(X_2\\), \\(X_3\\) sont indépendantes, de lois exponentielles d'intensités respectives 1, 2 et 5 par heure. Quelle est la probabilité que \\(X_2\\) soit la plus petite des trois ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "1/4",
+       "correcte": true,
+       "explication": "Oui : \\(\\lambda_2/\\lambda = 2/(1 + 2 + 5)\\), par (A4)."
+      },
+      {
+       "id": "b",
+       "texte": "5/17",
+       "correcte": false,
+       "explication": "C'est le calcul fait avec les espérances 1, 1/2 et 1/5 au lieu des intensités : \\((1/2)/(1 + 1/2 + 1/5)\\). La chance d'arriver le premier est proportionnelle à l'intensité, pas à la durée moyenne."
+      },
+      {
+       "id": "c",
+       "texte": "1/3",
+       "correcte": false,
+       "explication": "Les trois variables n'ont pas la même loi : \\(X_3\\), d'intensité 5, est en moyenne la plus courte et gagne le plus souvent. L'égalité des chances ne vaut que pour des intensités égales."
+      },
+      {
+       "id": "d",
+       "texte": "4/21",
+       "correcte": false,
+       "explication": "C'est \\(\\mathbb{P}(X_2 < X_1) \\times \\mathbb{P}(X_2 < X_3) = \\tfrac{2}{2+1} \\times \\tfrac{2}{2+5}\\) : ce produit suppose les deux événements indépendants. Ils ne le sont pas : tous deux sont favorisés quand \\(X_2\\) est petite."
+      }
+     ]
+    },
+    "coupons": {
+     "question": "On lance un dé équilibré, les lancers étant indépendants, jusqu'à avoir vu chacune des six faces au moins une fois. Quelle est l'espérance du nombre de lancers ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "14,7",
+       "correcte": true,
+       "explication": "Oui : \\(6\\,H_6 = 6/6 + 6/5 + 6/4 + 6/3 + 6/2 + 6/1\\)."
+      },
+      {
+       "id": "b",
+       "texte": "6",
+       "correcte": false,
+       "explication": "C'est le nombre **minimal** de lancers, atteint seulement si les six premiers lancers sont tous différents. L'espérance compte aussi les répétitions."
+      },
+      {
+       "id": "c",
+       "texte": "36",
+       "correcte": false,
+       "explication": "C'est \\(6 \\times 6\\) : comme si chaque face nouvelle coûtait 6 lancers en moyenne. Au début, presque tout lancer donne une face nouvelle ; seule la dernière face coûte 6 lancers en moyenne."
+      },
+      {
+       "id": "d",
+       "texte": "10,75",
+       "correcte": false,
+       "explication": "C'est \\(6 \\ln 6\\), l'équivalent asymptotique \\(n \\ln n\\). Il sous-estime toujours \\(n\\,H_n\\), car \\(H_n \\ge \\ln(n + 1) > \\ln n\\)."
+      }
+     ]
+    },
+    "derangement": {
+     "question": "Quatre personnes déposent leur chapeau ; les chapeaux leur sont rendus au hasard, les \\(4!\\) attributions étant équiprobables. Quelle est la probabilité que personne ne récupère le sien ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "3/8",
+       "correcte": true,
+       "explication": "Oui : \\(d_4/4! = 9/4!\\), avec \\(d_4 = 4!\\,(1 - 1 + 1/2 - 1/6 + 1/24)\\) par inclusion-exclusion."
+      },
+      {
+       "id": "b",
+       "texte": "81/256",
+       "correcte": false,
+       "explication": "C'est \\((3/4)^4\\) : chaque personne rate son chapeau avec probabilité 3/4, et l'on a multiplié comme si ces événements étaient indépendants. Ils ne le sont pas : les chapeaux sont distribués sans remise."
+      },
+      {
+       "id": "c",
+       "texte": "\\(e^{-1} \\approx 0{,}368\\)",
+       "correcte": false,
+       "explication": "C'est la limite quand le nombre de personnes tend vers l'infini. Pour 4 personnes, la valeur exacte en diffère d'au plus \\(1/5!\\), mais ne lui est pas égale."
+      },
+      {
+       "id": "d",
+       "texte": "0",
+       "correcte": false,
+       "explication": "C'est \\(1 - \\sum_i \\mathbb{P}(A_i) = 1 - 4 \\times \\tfrac14\\), où \\(A_i\\) est l'événement « la personne \\(i\\) récupère son chapeau » : seul le premier terme de l'inclusion-exclusion a été gardé. Par la borne de Boole, c'est seulement un minorant, ici sans information."
+      }
+     ]
+    }
+   },
+   "verif": {
+    "script": "verif/seance_math_2.py"
+   }
+  },
+  {
+   "id": "M2-01",
+   "section": "math",
+   "theme": "Formule de Bayes",
+   "difficulte": 2,
+   "temps_cible_s": 75,
+   "enonce": "Un chercheur teste un grand nombre de signaux. Avant tout test, chaque signal a un effet réel avec probabilité 0,05. Le test utilisé rejette l'hypothèse « pas d'effet » avec probabilité 0,8 quand le signal a un effet réel, et avec probabilité 0,05 quand il n'en a pas.\n\nOn tire un signal au hasard, on le teste, et le test rejette. Quelle est la probabilité que ce signal ait un effet réel, arrondie à trois décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,457",
+     "correcte": true,
+     "explication": "Oui : \\(0{,}04 / (0{,}04 + 0{,}0475) = \\tfrac{16}{35}\\)."
+    },
+    {
+     "id": "b",
+     "texte": "0,800",
+     "correcte": false,
+     "explication": "C'est \\(\\mathbb{P}(\\text{rejet} \\mid \\text{effet})\\), la puissance du test : le conditionnement a été inversé. La question demande \\(\\mathbb{P}(\\text{effet} \\mid \\text{rejet})\\)."
+    },
+    {
+     "id": "c",
+     "texte": "0,040",
+     "correcte": false,
+     "explication": "C'est \\(\\mathbb{P}(\\text{effet et rejet}) = 0{,}05 \\times 0{,}8\\), une probabilité jointe. Il faut encore la diviser par \\(\\mathbb{P}(\\text{rejet}) = 0{,}0875\\)."
+    },
+    {
+     "id": "d",
+     "texte": "0,941",
+     "correcte": false,
+     "explication": "C'est \\(0{,}8/(0{,}8 + 0{,}05)\\) : la formule de Bayes avec des a priori égaux, comme si un signal sur deux avait un effet. L'a priori 0,05 a été oublié ; or les signaux sans effet sont bien plus nombreux, et leurs faux rejets pèsent lourd."
+    }
+   ],
+   "solution": "Réponse : \\(\\tfrac{16}{35} \\approx 0{,}457\\).\n\nNotations : \\(E\\) est l'événement « le signal a un effet réel », \\(R\\) l'événement « le test rejette ».\n\nÉtape 1, vrais rejets : \\(\\mathbb{P}(E \\cap R) = \\mathbb{P}(R \\mid E)\\,\\mathbb{P}(E) = 0{,}8 \\times 0{,}05 = 0{,}04\\).\n\nÉtape 2, faux rejets : \\(\\mathbb{P}(E^c \\cap R) = 0{,}05 \\times 0{,}95 = 0{,}0475\\).\n\nÉtape 3, probabilités totales (leçon, (C1)) : \\(\\mathbb{P}(R) = 0{,}04 + 0{,}0475 = 0{,}0875\\).\n\nÉtape 4, Bayes (leçon, (C2)) : \\(\\mathbb{P}(E \\mid R) = 0{,}04 / 0{,}0875 = \\tfrac{16}{35} \\approx 0{,}457\\). Moins d'un rejet sur deux correspond à un effet réel, malgré une puissance de 0,8 et un niveau de 0,05.\n\nContrôle de vraisemblance : le rejet est plus probable avec effet (0,8) que sans (0,05), donc l'a posteriori doit dépasser l'a priori 0,05 ; c'est le cas. Simulation (script) : 0,457.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,457",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_2.py",
+    "cles": [
+     "Q01_d_inverse",
+     "Q01_d_joint",
+     "Q01_d_sans_prior",
+     "Q01_exact",
+     "Q01_exact_den",
+     "Q01_exact_num",
+     "Q01_faux",
+     "Q01_joint",
+     "Q01_mc",
+     "Q01_total"
+    ]
+   }
+  },
+  {
+   "id": "M2-02",
+   "section": "math",
+   "theme": "Variance totale, somme d'un nombre aléatoire de termes",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "enonce": "Le nombre \\(N\\) de transactions d'une journée suit la loi binomiale de paramètres 10 et 0,4. Les gains des transactions, \\(X_1, X_2, \\dots\\) (en euros), ont tous la même loi, d'espérance 2 et de variance 9, et sont indépendants entre eux et indépendants de \\(N\\). Le gain de la journée est \\(S = X_1 + \\dots + X_N\\), avec \\(S = 0\\) si \\(N = 0\\).\n\nQue vaut \\(\\mathrm{Var}(S)\\), en euros carrés ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "45,6",
+     "correcte": true,
+     "explication": "Oui : \\(\\mathbb{E}[N]\\,\\sigma^2 + \\mathrm{Var}(N)\\,\\mu^2 = 36 + 9{,}6\\)."
+    },
+    {
+     "id": "b",
+     "texte": "36",
+     "correcte": false,
+     "explication": "C'est \\(\\mathbb{E}[N]\\,\\sigma^2 = \\mathbb{E}[\\mathrm{Var}(S \\mid N)]\\) seul. Le nombre de transactions varie lui aussi : le terme \\(\\mathrm{Var}(\\mathbb{E}[S \\mid N]) = \\mathrm{Var}(N)\\,\\mu^2\\) manque."
+    },
+    {
+     "id": "c",
+     "texte": "52",
+     "correcte": false,
+     "explication": "C'est \\(\\mathbb{E}[N]\\,\\mathbb{E}[X^2] = \\mathbb{E}[N]\\,(\\sigma^2 + \\mu^2)\\), la formule de la somme à nombre de termes de Poisson. Elle suppose \\(\\mathrm{Var}(N) = \\mathbb{E}[N]\\) ; pour une binomiale, \\(\\mathrm{Var}(N) = 2,4\\), moins que \\(\\mathbb{E}[N] = 4\\)."
+    },
+    {
+     "id": "d",
+     "texte": "40,8",
+     "correcte": false,
+     "explication": "C'est \\(\\mathbb{E}[N]\\,\\sigma^2 + \\mathrm{Var}(N)\\,\\mu\\) : l'espérance \\(\\mu\\) n'a pas été mise au carré. Or \\(\\mathrm{Var}(N\\mu) = \\mu^2\\,\\mathrm{Var}(N)\\)."
+    }
+   ],
+   "solution": "Réponse : \\(\\mathrm{Var}(S) = 45{,}6\\) euros carrés.\n\nNotations : \\(\\mu = 2\\) et \\(\\sigma^2 = 9\\) sont l'espérance et la variance de chaque \\(X_i\\).\n\nÉtape 1, moments de \\(N\\) (leçon, tableau) : \\(\\mathbb{E}[N] = 10 \\times 0{,}4 = 4\\) et \\(\\mathrm{Var}(N) = 10 \\times 0{,}4 \\times 0{,}6 = 2{,}4\\).\n\nÉtape 2, conditionnement : les \\(X_i\\) étant indépendants de \\(N\\), sachant \\(N = n\\), \\(S\\) est une somme de \\(n\\) variables indépendantes : \\(\\mathbb{E}[S \\mid N] = N\\mu\\) et \\(\\mathrm{Var}(S \\mid N) = N\\sigma^2\\).\n\nÉtape 3, variance totale (leçon, (C4)) : \\(\\mathrm{Var}(S) = \\mathbb{E}[N\\sigma^2] + \\mathrm{Var}(N\\mu) = 4 \\times 9 + 2{,}4 \\times 2^2 = 36 + 9{,}6 = 45{,}6\\).\n\nContrôle exact indépendant (script) : somme sur les 11 valeurs de \\(N\\) de \\(\\mathbb{P}(N = n)\\,(n\\sigma^2 + n^2\\mu^2)\\), moins \\(\\mathbb{E}[S]^2 = 8^2\\). Simulation (script) : 45,68.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "45,6",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_2.py",
+    "cles": [
+     "Q02_d_intra",
+     "Q02_d_mu",
+     "Q02_d_poisson",
+     "Q02_en",
+     "Q02_es",
+     "Q02_exact",
+     "Q02_inter",
+     "Q02_intra",
+     "Q02_mc",
+     "Q02_vn"
+    ]
+   }
+  },
+  {
+   "id": "M2-03",
+   "section": "math",
+   "theme": "Minimum d'exponentielles, absence de mémoire",
+   "difficulte": 4,
+   "temps_cible_s": 120,
+   "enonce": "Trois composants A, B et C fonctionnent à partir de l'instant 0 et ne sont jamais remplacés. Leurs durées de vie sont indépendantes et suivent des lois exponentielles d'espérances respectives 1 an, 2 ans et 4 ans.\n\nQuelle est la probabilité que A soit le dernier des trois à tomber en panne ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "11/105",
+     "correcte": true,
+     "explication": "Oui : \\(\\tfrac{2}{7} \\times \\tfrac{1}{5} + \\tfrac{1}{7} \\times \\tfrac{1}{3}\\), en relançant la course après la première panne."
+    },
+    {
+     "id": "b",
+     "texte": "4/7",
+     "correcte": false,
+     "explication": "C'est \\(\\mathbb{P}(\\text{A tombe en panne le premier}) = 1/(1 + \\tfrac12 + \\tfrac14)\\). A a l'intensité la plus forte : il est le plus souvent le **premier** à tomber en panne, et rarement le dernier."
+    },
+    {
+     "id": "c",
+     "texte": "1/7",
+     "correcte": false,
+     "explication": "C'est \\(1/(1 + 2 + 4)\\) : la part de l'espérance de A dans la somme des espérances. Les chances d'être premier sont proportionnelles aux intensités (leçon, (A4)), et aucune règle de proportionnalité ne donne directement la chance d'être dernier."
+    },
+    {
+     "id": "d",
+     "texte": "1/15",
+     "correcte": false,
+     "explication": "C'est \\(\\mathbb{P}(A > B) \\times \\mathbb{P}(A > C) = \\tfrac{1}{3} \\times \\tfrac{1}{5}\\) : ce produit suppose les deux événements indépendants. Ils sont positivement liés (tous deux favorisés quand A dure longtemps), et la vraie probabilité de l'intersection est plus grande."
+    }
+   ],
+   "solution": "Réponse : \\(\\tfrac{11}{105} \\approx 0{,}105\\).\n\nNotations : les intensités (inverses des espérances) sont 1, 1/2 et 1/4 par an pour A, B et C ; leur somme est \\(\\lambda = \\tfrac{7}{4}\\).\n\nÉtape 1, découpage : A est le dernier si et seulement si la première panne est celle de B ou de C, puis l'autre de ces deux tombe en panne avant A.\n\nÉtape 2, première panne (leçon, (A4)) : B est le premier avec probabilité \\(\\tfrac{1/2}{\\lambda} = \\tfrac{2}{7}\\), C avec probabilité \\(\\tfrac{1/4}{\\lambda} = \\tfrac{1}{7}\\).\n\nÉtape 3, la course recommence (leçon, (A5)) : après la panne de B, les durées restantes de A et C sont des exponentielles indépendantes d'intensités 1 et 1/4, et C tombe avant A avec probabilité \\(\\tfrac{1/4}{1 + 1/4} = \\tfrac{1}{5}\\). Après la panne de C, B tombe avant A avec probabilité \\(\\tfrac{1/2}{1 + 1/2} = \\tfrac{1}{3}\\).\n\nÉtape 4 : \\(\\tfrac{2}{7} \\times \\tfrac{1}{5} + \\tfrac{1}{7} \\times \\tfrac{1}{3} = \\tfrac{2}{35} + \\tfrac{1}{21} = \\tfrac{11}{105}\\).\n\nSeconde méthode, par inclusion-exclusion (leçon, partie 6) : \\(\\mathbb{P}(A > B, A > C) = 1 - \\mathbb{P}(A < B) - \\mathbb{P}(A < C) + \\mathbb{P}(A < B, A < C) = 1 - \\tfrac{2}{3} - \\tfrac{4}{5} + \\tfrac{4}{7}\\), le dernier terme étant la probabilité que A soit le premier. On retrouve \\(\\tfrac{11}{105}\\).\n\nVérifications (script) : intégrale exacte avec sympy, et simulation : 0,1050.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "11/105",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_2.py",
+    "cles": [
+     "Q03_a_premier_den",
+     "Q03_a_premier_num",
+     "Q03_ab_den",
+     "Q03_ab_num",
+     "Q03_ac_den",
+     "Q03_ac_num",
+     "Q03_b_avant_a_den",
+     "Q03_b_avant_a_num",
+     "Q03_c_avant_a_den",
+     "Q03_c_avant_a_num",
+     "Q03_d_moy_den",
+     "Q03_d_moy_num",
+     "Q03_d_premier_den",
+     "Q03_d_premier_num",
+     "Q03_d_prod_den",
+     "Q03_d_prod_num",
+     "Q03_exact",
+     "Q03_exact_den",
+     "Q03_exact_num",
+     "Q03_mc",
+     "Q03_pb_den",
+     "Q03_pb_num",
+     "Q03_pc_den",
+     "Q03_pc_num",
+     "Q03_t1_den",
+     "Q03_t1_num",
+     "Q03_t2_den",
+     "Q03_t2_num",
+     "Q03_tot_den",
+     "Q03_tot_num"
+    ]
+   }
+  },
+  {
+   "id": "M2-04",
+   "section": "math",
+   "theme": "Processus de Poisson, superposition",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "enonce": "Les ordres d'achat arrivent selon un processus de Poisson d'intensité 2 par minute, et les ordres de vente selon un processus de Poisson d'intensité 1 par minute ; les deux processus sont indépendants.\n\nQuelle est la probabilité qu'au moins 3 ordres, achats et ventes confondus, arrivent pendant une fenêtre donnée de 90 secondes ? Arrondir à trois décimales.",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,826",
+     "correcte": true,
+     "explication": "Oui : le total suit \\(\\mathcal{P}(4{,}5)\\), et \\(1 - e^{-4{,}5}(1 + 4{,}5 + 4{,}5^2/2)\\)."
+    },
+    {
+     "id": "b",
+     "texte": "0,577",
+     "correcte": false,
+     "explication": "C'est le calcul avec les seuls achats, de paramètre \\(2 \\times 1{,}5 = 3\\). Les ventes s'ajoutent : par superposition, l'intensité totale est \\(2 + 1\\) par minute."
+    },
+    {
+     "id": "c",
+     "texte": "0,169",
+     "correcte": false,
+     "explication": "C'est \\(\\mathbb{P}(N = 3)\\), la probabilité d'exactement 3 ordres. « Au moins 3 » ajoute 4, 5, 6 ordres et plus : on passe par le complémentaire \\(1 - \\mathbb{P}(N \\le 2)\\)."
+    },
+    {
+     "id": "d",
+     "texte": "0,658",
+     "correcte": false,
+     "explication": "C'est \\(1 - \\mathbb{P}(N \\le 3) = \\mathbb{P}(N \\ge 4)\\) : le terme \\(k = 3\\) a été retiré à tort. Le complémentaire de « au moins 3 » est « au plus 2 »."
+    }
+   ],
+   "solution": "Réponse : \\(1 - e^{-4{,}5}\\big(1 + 4{,}5 + 4{,}5^2/2\\big) \\approx 0{,}826\\).\n\nÉtape 1, superposition (leçon, (P3)) : achats et ventes forment ensemble un processus de Poisson d'intensité \\(2 + 1 = 3\\) par minute.\n\nÉtape 2, unités : 90 secondes font 1,5 minute ; le nombre total \\(N\\) d'ordres dans la fenêtre suit \\(\\mathcal{P}(3 \\times 1{,}5) = \\mathcal{P}(4{,}5)\\) (définition, propriété 2).\n\nÉtape 3, complémentaire : \\(\\mathbb{P}(N \\ge 3) = 1 - \\mathbb{P}(N \\le 2) = 1 - e^{-4{,}5}\\big(1 + 4{,}5 + 4{,}5^2/2\\big)\\), avec \\(1 + 4{,}5 + 4{,}5^2/2 = 15{,}625\\) et \\(e^{-4{,}5} \\approx 0{,}01111\\), d'où \\(0{,}826\\).\n\nSimulation (script), deux flux simulés séparément puis additionnés : 0,826.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,826",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_2.py",
+    "cles": [
+     "Q04_d_achats",
+     "Q04_d_egal",
+     "Q04_d_strict",
+     "Q04_e",
+     "Q04_exact",
+     "Q04_mc",
+     "Q04_mu",
+     "Q04_mu_achats",
+     "Q04_somme"
+    ]
+   }
+  },
+  {
+   "id": "M2-05",
+   "section": "math",
+   "theme": "Collectionneur de coupons, collection partielle",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "enonce": "Un indice contient 10 actifs. À chaque tirage, on choisit un actif uniformément au hasard parmi les 10, indépendamment des tirages précédents ; un même actif peut donc être tiré plusieurs fois.\n\nQuelle est l'espérance du nombre de tirages nécessaires pour avoir vu 5 actifs distincts, arrondie à trois décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "6,456",
+     "correcte": true,
+     "explication": "Oui : \\(10/10 + 10/9 + 10/8 + 10/7 + 10/6\\), les cinq premiers termes du collectionneur de coupons."
+    },
+    {
+     "id": "b",
+     "texte": "22,833",
+     "correcte": false,
+     "explication": "C'est \\(10/1 + 10/2 + \\dots + 10/5\\), les cinq **derniers** termes, ceux des types les plus difficiles à obtenir. Pour les 5 premiers types, la probabilité de nouveauté part de 10/10, pas de 1/10."
+    },
+    {
+     "id": "c",
+     "texte": "5",
+     "correcte": false,
+     "explication": "C'est le nombre **minimal** de tirages, atteint seulement si les 5 premiers tirages sont tous distincts. L'espérance compte aussi les répétitions."
+    },
+    {
+     "id": "d",
+     "texte": "14,645",
+     "correcte": false,
+     "explication": "C'est la moitié de \\(10\\,H_{10}\\), l'espérance pour voir les 10 actifs. Les termes ne sont pas égaux : les derniers types coûtent beaucoup plus cher que les premiers, donc la moitié des types coûte bien moins que la moitié du total."
+    }
+   ],
+   "solution": "Réponse : \\(\\tfrac{10}{10} + \\tfrac{10}{9} + \\tfrac{10}{8} + \\tfrac{10}{7} + \\tfrac{10}{6} = \\tfrac{1627}{252} \\approx 6{,}456\\).\n\nÉtape 1, découpage (leçon, partie 5) : \\(C_5 = G_1 + \\dots + G_5\\), où \\(G_k\\) est le nombre de tirages entre l'apparition du \\((k-1)\\)-ième actif nouveau (exclu) et celle du \\(k\\)-ième (inclus).\n\nÉtape 2 : après avoir vu \\(k - 1\\) actifs, chaque tirage est nouveau avec probabilité \\((10 - k + 1)/10\\), indépendamment du passé, donc \\(G_k\\) est géométrique d'espérance \\(10/(11 - k)\\).\n\nÉtape 3, linéarité : \\(\\mathbb{E}[C_5] = \\sum_{k=1}^{5} 10/(11 - k)\\) ; le terme \\(k = 5\\) vaut \\(10/6 \\approx 1{,}667\\), le plus grand des cinq.\n\nSimulation (script) : 6,459.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "6,456",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_2.py",
+    "cles": [
+     "Q05_d_inverse",
+     "Q05_d_min",
+     "Q05_d_moitie",
+     "Q05_exact",
+     "Q05_exact_den",
+     "Q05_exact_num",
+     "Q05_g5",
+     "Q05_mc"
+    ]
+   }
+  },
+  {
+   "id": "M2-06",
+   "section": "math",
+   "theme": "Inclusion-exclusion, surjections",
+   "difficulte": 4,
+   "temps_cible_s": 120,
+   "enonce": "On lance 8 fois un dé équilibré à six faces ; les lancers sont indépendants.\n\nQuelle est la probabilité que chacune des six faces apparaisse au moins une fois, arrondie à quatre décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,1140",
+     "correcte": true,
+     "explication": "Oui : \\(\\sum_{j=0}^{6} (-1)^j \\binom{6}{j} (6 - j)^8 / 6^8 = 191520/1679616\\)."
+    },
+    {
+     "id": "b",
+     "texte": "0,0154",
+     "correcte": false,
+     "explication": "C'est \\(6!/6^6\\), la probabilité de voir les six faces en **6** lancers (tous distincts). Avec 8 lancers, il y a deux lancers de marge, ce qui rend l'événement bien plus probable."
+    },
+    {
+     "id": "c",
+     "texte": "0,1899",
+     "correcte": false,
+     "explication": "C'est l'inclusion-exclusion arrêtée après les paires de faces absentes : \\(1 - 6\\,(5/6)^8 + 15\\,(4/6)^8\\). Les termes suivants ne sont pas négligeables : le seul terme \\(20\\,(3/6)^8 \\approx 0{,}0781\\) pèse plus de la moitié du résultat."
+    },
+    {
+     "id": "d",
+     "texte": "0,4321",
+     "correcte": false,
+     "explication": "C'est \\(\\binom{8}{6}\\,6!\\,6^2/6^8\\) : choisir 6 lancers qui montrent les six faces, puis laisser les 2 autres libres. Une suite favorable est alors comptée plusieurs fois (3 ou 4 fois selon la répartition des répétitions) : c'est un surcompte."
+    }
+   ],
+   "solution": "Réponse : \\(\\tfrac{191520}{1679616} \\approx 0{,}1140\\).\n\nNotations : pour chaque face \\(c\\), \\(A_c\\) est l'événement « la face \\(c\\) n'apparaît dans aucun des 8 lancers ». On cherche \\(1 - \\mathbb{P}(A_1 \\cup \\dots \\cup A_6)\\).\n\nÉtape 1 : une intersection de \\(j\\) événements \\(A_c\\) signifie que les 8 lancers évitent \\(j\\) faces données : par indépendance, probabilité \\(((6 - j)/6)^8\\). Elle ne dépend que de \\(j\\), et il y a \\(\\binom{6}{j}\\) telles intersections.\n\nÉtape 2, inclusion-exclusion (leçon, partie 6) : \\(\\mathbb{P}(\\text{toutes les faces}) = \\sum_{j=0}^{6} (-1)^j \\binom{6}{j} \\big(\\tfrac{6 - j}{6}\\big)^8\\).\n\nÉtape 3, calcul : les termes d'ordre 1, 2 et 3 valent \\(6\\,(5/6)^8 \\approx 1{,}3954\\), \\(15\\,(4/6)^8 \\approx 0{,}5853\\) et \\(20\\,(3/6)^8 \\approx 0{,}0781\\) : le premier dépasse 1 à lui seul, et le troisième pèse encore plus de la moitié du résultat. Il faut aller jusqu'au bout. En nombres de suites : \\(6^8 - 6 \\times 5^8 + 15 \\times 4^8 - 20 \\times 3^8 + 15 \\times 2^8 - 6 \\times 1^8 + 0 = 191520\\), sur \\(6^8 = 1679616\\) suites équiprobables.\n\nVérifications (script) : énumération des \\(6^8\\) suites, nombre de Stirling \\(6!\\,S(8, 6)\\) avec sympy, et simulation : 0,1145.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,1140",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_2.py",
+    "cles": [
+     "Q06_d_six",
+     "Q06_d_surcompte",
+     "Q06_d_tronque",
+     "Q06_exact",
+     "Q06_fav",
+     "Q06_mc",
+     "Q06_s1",
+     "Q06_s2",
+     "Q06_s3",
+     "Q06_tot"
+    ]
+   }
+  },
+  {
+   "id": "M2-07",
+   "section": "math",
+   "theme": "Dérangements, exactement j points fixes",
+   "difficulte": 4,
+   "temps_cible_s": 120,
+   "enonce": "On place au hasard 6 lettres adressées dans 6 enveloppes, une lettre par enveloppe, les \\(6!\\) répartitions étant équiprobables. Chaque lettre a exactement une bonne enveloppe, et chaque enveloppe exactement une bonne lettre.\n\nQuelle est la probabilité qu'exactement 2 lettres soient dans leur bonne enveloppe, arrondie à quatre décimales ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "0,1875",
+     "correcte": true,
+     "explication": "Oui : \\(\\binom{6}{2}\\,d_4/6! = 15 \\times 9/720\\)."
+    },
+    {
+     "id": "b",
+     "texte": "0,2009",
+     "correcte": false,
+     "explication": "C'est \\(\\binom{6}{2}\\,(1/6)^2\\,(5/6)^4\\), une loi binomiale : elle traite les 6 lettres comme indépendantes. Or une permutation place les lettres sans remise : savoir que 4 lettres sont mal placées change les chances des autres."
+    },
+    {
+     "id": "c",
+     "texte": "0,1839",
+     "correcte": false,
+     "explication": "C'est \\(e^{-1}/2!\\), la limite de Poisson de paramètre 1 quand le nombre de lettres tend vers l'infini. Elle approche la réponse, mais la question demande la valeur exacte pour 6 lettres."
+    },
+    {
+     "id": "d",
+     "texte": "0,5000",
+     "correcte": false,
+     "explication": "C'est \\(\\binom{6}{2}\\,4!/6!\\) : on a fixé 2 lettres bien placées et laissé les 4 autres libres. Cela compte « au moins ces 2 », et chaque répartition avec \\(j\\) lettres bien placées est comptée \\(\\binom{j}{2}\\) fois : on obtient l'espérance du nombre de paires de lettres bien placées, pas une probabilité."
+    }
+   ],
+   "solution": "Réponse : \\(\\binom{6}{2}\\,d_4/6! = 135/720 = 0{,}1875\\).\n\nÉtape 1, choisir les lettres bien placées : \\(\\binom{6}{2} = 15\\) façons.\n\nÉtape 2, les 4 autres lettres doivent toutes être mal placées : c'est un dérangement de 4 éléments, \\(d_4 = 4!\\,(1 - 1 + 1/2! - 1/3! + 1/4!) = 9\\) façons (leçon, partie 6, exemple 2). Sans cette condition, une troisième lettre pourrait être bien placée, et l'on compterait « au moins 2 ».\n\nÉtape 3 : \\(15 \\times 9 = 135\\) répartitions favorables sur \\(6! = 720\\), soit \\(\\tfrac{3}{16} = 0{,}1875\\).\n\nVérifications (script) : énumération des 720 permutations, et simulation : 0,1871.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "0,1875",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_2.py",
+    "cles": [
+     "Q07_c62",
+     "Q07_d4",
+     "Q07_d_binom",
+     "Q07_d_paires",
+     "Q07_d_poisson",
+     "Q07_exact",
+     "Q07_exact_f_den",
+     "Q07_exact_f_num",
+     "Q07_fav",
+     "Q07_mc",
+     "Q07_tot"
+    ]
+   }
+  },
+  {
+   "id": "M2-08",
+   "section": "math",
+   "theme": "Variance totale avec un nombre de termes dépendant des valeurs",
+   "difficulte": 5,
+   "temps_cible_s": 150,
+   "enonce": "On lance un dé équilibré à six faces de façon répétée, les lancers étant indépendants, jusqu'à obtenir un 6 pour la première fois. Soit \\(S\\) la somme de toutes les faces obtenues, y compris le 6 final. Par exemple, les lancers 2, 5, 6 donnent \\(S = 13\\).\n\nQue vaut \\(\\mathrm{Var}(S)\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "280",
+     "correcte": true,
+     "explication": "Oui : \\(\\mathbb{E}[\\mathrm{Var}(S \\mid N)] + \\mathrm{Var}(\\mathbb{E}[S \\mid N]) = 10 + 270\\), avec la loi des faces sachant \\(N\\)."
+    },
+    {
+     "id": "b",
+     "texte": "270",
+     "correcte": false,
+     "explication": "C'est \\(\\mathrm{Var}(\\mathbb{E}[S \\mid N]) = 9\\,\\mathrm{Var}(N)\\) seul : il manque \\(\\mathbb{E}[\\mathrm{Var}(S \\mid N)]\\), la dispersion des faces 1 à 5 quand le nombre de lancers est fixé."
+    },
+    {
+     "id": "c",
+     "texte": "385",
+     "correcte": false,
+     "explication": "C'est la formule de la somme aléatoire \\(\\mathbb{E}[N]\\,\\mathrm{Var}(X) + \\mathrm{Var}(N)\\,\\mathbb{E}[X]^2\\) avec les moments d'un dé, \\(\\tfrac{35}{12}\\) et \\(3{,}5\\). Elle suppose les faces indépendantes de \\(N\\), ce qui est faux ici : \\(N\\) est le rang du premier 6, donc les faces qui le précèdent valent 1 à 5 et la dernière vaut 6."
+    },
+    {
+     "id": "d",
+     "texte": "100",
+     "correcte": false,
+     "explication": "C'est \\(10 + 3\\,\\mathrm{Var}(N)\\) : la variance de \\(3N + 3\\) a été prise égale à \\(3\\,\\mathrm{Var}(N)\\). Un facteur 3 multiplie la variance par \\(3^2\\)."
+    }
+   ],
+   "solution": "Réponse : \\(\\mathrm{Var}(S) = 280\\).\n\nNotations : \\(N\\) est le rang du premier 6 ; il suit la loi géométrique de paramètre 1/6, d'où \\(\\mathbb{E}[N] = 6\\) et \\(\\mathrm{Var}(N) = 30\\) (leçon, partie 2, exemple). \\(D_1, D_2, \\dots\\) sont les faces obtenues.\n\nÉtape 1, loi des faces sachant \\(N = n\\) : pour des faces \\(x_1, \\dots, x_{n-1}\\) entre 1 et 5, \\(\\mathbb{P}(D_1 = x_1, \\dots, D_{n-1} = x_{n-1}, D_n = 6) = (1/6)^n\\), et \\(\\mathbb{P}(N = n) = (5/6)^{n-1}(1/6)\\). Le quotient vaut \\((1/5)^{n-1}\\) : sachant \\(N = n\\), les \\(n - 1\\) premières faces sont indépendantes et uniformes sur \\(\\{1, \\dots, 5\\}\\), et la dernière vaut 6. Les faces ne sont donc **pas** indépendantes de \\(N\\), et la formule de la somme aléatoire ne s'applique pas (leçon, partie 1, piège 4).\n\nÉtape 2, moments conditionnels : une face uniforme sur \\(\\{1, \\dots, 5\\}\\) a pour espérance \\(3\\) et pour variance \\(11 - 3^2 = 2\\). Donc \\(\\mathbb{E}[S \\mid N] = 3(N - 1) + 6 = 3N + 3\\) et \\(\\mathrm{Var}(S \\mid N) = 2\\,(N - 1)\\).\n\nÉtape 3, variance totale (leçon, (C4)) : \\(\\mathbb{E}[2\\,(N - 1)] = 2 \\times (6 - 1) = 10\\) et \\(\\mathrm{Var}(3N + 3) = 9 \\times 30 = 270\\). Total : \\(280\\).\n\nContrôle par une seconde méthode exacte (script) : les équations du premier lancer, \\(\\mathbb{E}[S] = \\tfrac16 \\times 6 + \\tfrac16 \\sum_{x=1}^{5} (x + \\mathbb{E}[S])\\) et la même chose pour \\(\\mathbb{E}[S^2]\\), donnent \\(\\mathbb{E}[S] = 21\\) et \\(\\mathbb{E}[S^2] = 721\\), d'où \\(721 - 21^2 = 280\\). Simulations (script) : 280,4 par la loi conditionnelle, 281,1 en lançant directement le dé.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "280",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_2.py",
+    "cles": [
+     "Lc_geo_e",
+     "Lc_geo_var",
+     "Q08_d_carre",
+     "Q08_d_indep",
+     "Q08_d_inter",
+     "Q08_direct_mc",
+     "Q08_e2",
+     "Q08_e2_u5",
+     "Q08_es",
+     "Q08_ex",
+     "Q08_exact",
+     "Q08_inter",
+     "Q08_intra",
+     "Q08_mc",
+     "Q08_moy_d6",
+     "Q08_moy_u5",
+     "Q08_var_d6_den",
+     "Q08_var_d6_num",
+     "Q08_var_u5"
+    ]
+   }
+  }
+ ]
+}

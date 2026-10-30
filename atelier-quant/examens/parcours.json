@@ -1,0 +1,57 @@
+[
+ {
+  "bloc": "Probabilités et statistique",
+  "note": "Conditionnement, lois, espérance, chaînes de Markov, martingales, estimation et tests.",
+  "ids": [
+   "seance-math-1",
+   "seance-math-2",
+   "seance-math-3",
+   "seance-math-4",
+   "seance-math-5"
+  ]
+ },
+ {
+  "bloc": "Algèbre linéaire",
+  "note": "Valeurs propres, matrices semi-définies positives, projections, SVD, ACP.",
+  "ids": [
+   "seance-algebre-1"
+  ]
+ },
+ {
+  "bloc": "Machine learning",
+  "note": "Des fondamentaux (régression, arbres, validation) aux réseaux et aux modèles probabilistes.",
+  "ids": [
+   "seance-ml-1",
+   "seance-ml-2",
+   "seance-ml-3",
+   "seance-ml-4",
+   "seance-ml-5"
+  ]
+ },
+ {
+  "bloc": "Finance quantitative",
+  "note": "Covariance en grande dimension, coefficient d'information, surapprentissage de backtest, ratio de Sharpe.",
+  "ids": [
+   "seance-quant-1"
+  ]
+ },
+ {
+  "bloc": "Code et données",
+  "note": "pandas, numpy, alignement temporel, backtest sans regard vers le futur, chaîne de classification scikit-learn.",
+  "ids": [
+   "seance-code-1",
+   "seance-code-2",
+   "seance-code-3"
+  ]
+ },
+ {
+  "bloc": "Examens blancs et révision",
+  "note": "En conditions réelles : chronomètre, pas de pause.",
+  "ids": [
+   "diagnostic",
+   "examen-blanc-1",
+   "examen-blanc-2",
+   "fiche-derniere-heure"
+  ]
+ }
+]

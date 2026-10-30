@@ -1,0 +1,16 @@
+R1 à R3 (décomposition, gain de variance, Gini comme variance des indicatrices) vérifiés sur 300 cas.
+R5 : toute feuille impure (valeurs distinctes) admet une coupure de gain strictement positif, 300 cas.
+Exemple jouet : meilleure coupure Gini en 4.5 (gain 9/32), entropie en 4.5.
+B_abs_10                 exact=0.348678  MC=0.345875  se=0.001546  z=-1.81
+B_abs_100                exact=0.366032  MC=0.366282  se=0.000490  z=+0.51
+B_abs_1000               exact=0.367695  MC=0.367730  se=0.000154  z=+0.23
+B_var_10                 exact=1.100000  MC=1.104521  se=0.011000  z=+0.41
+B_var_100                exact=1.010000  MC=1.000927  se=0.010100  z=-0.90
+Identité de projection du boosting quadratique vérifiée sur 200 cas.
+Dérivées vérifiées par sympy : logistique g = pi - y, h = pi (1 - pi) ; quadratique g = f - y, h = 1.
+XGBoost : poids optimal, valeur optimale, gain >= 0 pour lambda = 0, lien avec la somme des carrés vérifiés.
+Hypothèse nulle, m = 100 : meilleur gain moyen binaire 0.00479, continue 0.02198.
+F_bin                    exact=0.005000  MC=0.004795  se=0.000106  z=-1.94
+Q03                      exact=5.251129  MC=5.251195  se=0.001996  z=+0.03
+227 valeurs exportées dans verif/seance_ml_2.out.json.
+Toutes les vérifications passent.

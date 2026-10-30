@@ -1,0 +1,849 @@
+{
+ "id": "seance-math-5",
+ "conventions": "Conventions de notation : une majuscule désigne une variable aléatoire, une minuscule une valeur ou un paramètre fixe, le gras un vecteur ou une matrice. \\(\\mathbb{P}\\) désigne une probabilité, \\(\\mathbb{E}\\) une espérance, \\(\\mathrm{Var}\\) une variance.",
+ "questions": [
+  {
+   "id": "L-MATH-5",
+   "type": "lecon",
+   "section": "lecon",
+   "theme": "Leçon : forme d'une loi, corrélation, tests d'adéquation, densités conjointes, a posteriori, bâton coupé, deux enfants",
+   "difficulte": 4,
+   "temps_cible_s": 3000,
+   "dossier": "coding/lecons",
+   "contenu": "## Leçon : statistique descriptive, tests d'adéquation et densités jointes\n\nDurée visée : 50 minutes, en sept parties indépendantes que l'on peut lire séparément.Cette leçon traite ces thèmes de façon générale, avec les cas voisins. Pour chaque notion : le problème, l'intuition, l'énoncé précis, la preuve en étapes numérotées, un exemple entièrement calculé, les cas limites, les pièges.\n\nCe que la leçon ne redémontre pas, et où le trouver :\n\n- formule de Bayes, lois usuelles, absence de mémoire, minimum d'exponentielles (résultats (A3) à (A5)), processus de Poisson (résultats (P1) à (P3)) : « Séance de mathématiques 2 : conditionnement et lois usuelles » ;\n- statistiques d'ordre de lois uniformes et formule de la queue (F) : « Séance de mathématiques 1 : probabilités », outil 3 ;\n- vocabulaire des tests, p-value, maximum de vraisemblance, inégalités de Jensen et de Cauchy-Schwarz : « Séance de mathématiques 3 : statistique et inégalités » ;\n- fonction génératrice de la loi normale : « Séance de mathématiques 4 : Markov, martingales et séries temporelles », partie 4 ;\n- hypothèses de la régression linéaire et conséquence de chaque violation : « Séance de ML 1 : régression linéaire, Ridge et Lasso », partie 2. Elles ne sont pas reprises ici.\n\nConventions de notation. Une majuscule désigne une variable aléatoire, une minuscule une valeur observée ou un paramètre fixe, le gras un vecteur ou une matrice. Exceptions d'usage, déclarées ici : les fonctions de répartition \\(F\\), \\(F_0\\), \\(G\\) et la fonction quantile \\(Q\\) sont des fonctions fixes, alors que les fonctions de répartition empiriques \\(F_n\\) et \\(G_n\\) sont aléatoires ; \\(\\Phi\\) et \\(\\varphi\\) sont la fonction de répartition et la densité de la loi normale \\(\\mathcal{N}(0, 1)\\) ; \\(\\Gamma\\) est la fonction gamma, \\(\\Gamma(a) = \\int_0^\\infty u^{a-1} e^{-u}\\,du\\) pour \\(a > 0\\), qui vérifie \\(\\Gamma(a + 1) = a\\,\\Gamma(a)\\) (intégration par parties) et \\(\\Gamma(n) = (n-1)!\\) pour un entier \\(n \\ge 1\\) ; \\(H_0\\) désigne une hypothèse nulle ; les paramètres grecs \\(\\mu\\), \\(\\sigma\\), \\(\\lambda\\), \\(\\rho\\), \\(\\gamma_1\\), \\(\\kappa\\) sont des nombres fixes, sauf en partie 5 où l'intensité inconnue est une variable aléatoire notée \\(\\Lambda\\), de valeurs \\(\\lambda\\). \\(\\mathbb{P}\\), \\(\\mathbb{E}\\), \\(\\mathrm{Var}\\), \\(\\mathrm{Cov}\\) désignent probabilité, espérance, variance, covariance ; \\(I_A\\) est l'indicatrice de l'événement \\(A\\) (1 si \\(A\\) se produit, 0 sinon). Tous les nombres hors des sorties de code viennent de `verif/seance_math_5.py`, qui contrôle chaque probabilité et chaque espérance par un calcul exact et par une simulation.\n\n```python\nimport numpy as np\nfrom scipy import stats\nrng = np.random.default_rng(5)\nprint(\"prêt\")\n```\n\n```sortie\nprêt\n```\n\n## Partie 1 : forme d'une loi\n\n### Le problème\n\nOn résume une loi par quelques nombres : où elle se situe (moyenne, médiane, mode), à quel point elle est dispersée (écart-type), si elle est dissymétrique (coefficient d'asymétrie), quel poids ont ses valeurs extrêmes (kurtosis). Les questions types : « la loi est étalée à droite, dans quel ordre sont la moyenne, la médiane et le mode ? », « que vaut l'asymétrie de telle loi ? », « qu'est-ce qui est vrai pour toute loi ? ».\n\n### Définitions\n\n\\(X\\) est une variable aléatoire réelle, de fonction de répartition \\(F(x) = \\mathbb{P}(X \\le x)\\).\n\n- **Moyenne** : \\(\\mu = \\mathbb{E}[X]\\), si \\(\\mathbb{E}\\lvert X \\rvert\\) est finie. **Écart-type** : \\(\\sigma = \\sqrt{\\mathrm{Var}(X)}\\), supposé fini et strictement positif. \\(\\mu\\) et \\(\\sigma\\) ont l'unité de \\(X\\).\n- **Médiane** : tout réel \\(m\\) tel que \\(\\mathbb{P}(X \\le m) \\ge 1/2\\) et \\(\\mathbb{P}(X \\ge m) \\ge 1/2\\). Si \\(F\\) est continue et strictement croissante, \\(m\\) est l'unique solution de \\(F(m) = 1/2\\).\n- **Mode** : un point où la densité de \\(X\\) (loi à densité) ou la probabilité \\(\\mathbb{P}(X = x)\\) (loi discrète) est maximale. La loi est **unimodale** si cette fonction croît puis décroît.\n- **Coefficient d'asymétrie** (skewness) : \\(\\gamma_1 = \\mathbb{E}[(X - \\mu)^3]/\\sigma^3\\), si \\(\\mathbb{E}\\lvert X \\rvert^3\\) est finie.\n- **Kurtosis** (aplatissement) : \\(\\kappa = \\mathbb{E}[(X - \\mu)^4]/\\sigma^4\\), si \\(\\mathbb{E}[X^4]\\) est finie ; l'**excès de kurtosis** est \\(\\kappa - 3\\), nul pour une loi normale.\n\nAvec la variable centrée réduite \\(Z = (X - \\mu)/\\sigma\\), d'espérance 0 et de variance 1 : \\(\\gamma_1 = \\mathbb{E}[Z^3]\\) et \\(\\kappa = \\mathbb{E}[Z^4]\\).\n\n### L'intuition\n\nLe cube conserve le signe : une longue queue à droite produit de grands cubes positifs, donc \\(\\gamma_1 > 0\\). Cette queue tire la moyenne vers la droite, déplace moins la médiane (qui ne compte que le nombre de valeurs de chaque côté) et pas du tout le mode. D'où la règle « étalée à droite : mode, puis médiane, puis moyenne ». La puissance 4 donne un poids énorme aux valeurs éloignées : \\(\\kappa\\) mesure le poids des queues, pas la forme du sommet.\n\n### L'énoncé\n\n1. **Invariance.** Pour des réels \\(a \\ne 0\\) et \\(b\\), la variable \\(aX + b\\) a pour coefficient d'asymétrie \\(\\gamma_1\\) si \\(a > 0\\), \\(-\\gamma_1\\) si \\(a < 0\\), et pour kurtosis \\(\\kappa\\). Ces deux nombres n'ont pas d'unité.\n2. **Toujours vrai.** Si \\(\\mathrm{Var}(X)\\) est finie, toute médiane \\(m\\) vérifie \\(\\lvert \\mu - m \\rvert \\le \\sigma\\).\n3. **Toujours vrai.** \\(\\kappa \\ge 1\\). Si la loi est symétrique autour d'un réel \\(c\\) (\\(X - c\\) et \\(c - X\\) ont la même loi) et si \\(\\mathbb{E}\\lvert X \\rvert^3\\) est finie, alors \\(\\mu = c\\), \\(c\\) est une médiane et \\(\\gamma_1 = 0\\).\n4. **Somme.** Si \\(X_1, \\dots, X_n\\) sont indépendantes, de même loi d'asymétrie \\(\\gamma_1\\) et de kurtosis \\(\\kappa\\), leur somme a pour asymétrie \\(\\gamma_1/\\sqrt{n}\\) et pour excès de kurtosis \\((\\kappa - 3)/n\\).\n5. **Règle empirique, pas théorème.** « \\(\\gamma_1 > 0\\) entraîne mode < médiane < moyenne » est vrai pour la loi exponentielle et la loi log-normale (démontré plus bas), pour la loi gamma de forme 2 (démontré plus bas) et de forme \\(a\\) entre 1 et 60 (constaté numériquement par le script sur une grille de pas 0,1), et **faux en général** : deux contre-exemples calculés plus bas.\n\n### La preuve\n\n1. Invariance : \\(aX + b - \\mathbb{E}[aX + b] = a\\,(X - \\mu)\\), et l'écart-type de \\(aX + b\\) est \\(\\lvert a \\rvert \\sigma\\). La variable centrée réduite de \\(aX + b\\) est donc \\(Z\\) si \\(a > 0\\) et \\(-Z\\) si \\(a < 0\\) ; \\(\\mathbb{E}[(-Z)^3] = -\\gamma_1\\) et \\(\\mathbb{E}[(-Z)^4] = \\kappa\\).\n2. La médiane minimise l'écart absolu moyen : pour tout réel \\(c\\), \\(\\mathbb{E}\\lvert X - m \\rvert \\le \\mathbb{E}\\lvert X - c \\rvert\\). Soit \\(c > m\\). Si \\(x \\le m\\), \\(\\lvert x - c \\rvert - \\lvert x - m \\rvert = c - m\\). Si \\(x > m\\), \\(\\lvert x - c \\rvert - \\lvert x - m \\rvert \\ge -(c - m)\\) par l'inégalité triangulaire. En prenant l'espérance, \\(\\mathbb{E}\\lvert X - c \\rvert - \\mathbb{E}\\lvert X - m \\rvert \\ge (c - m)\\,\\big(\\mathbb{P}(X \\le m) - \\mathbb{P}(X > m)\\big) \\ge 0\\), car \\(\\mathbb{P}(X \\le m) \\ge 1/2 \\ge \\mathbb{P}(X > m)\\). Le cas \\(c < m\\) est identique avec \\(\\mathbb{P}(X \\ge m) \\ge 1/2\\).\n3. Énoncé 2, trois inégalités : \\(\\lvert \\mu - m \\rvert = \\lvert \\mathbb{E}[X - m] \\rvert \\le \\mathbb{E}\\lvert X - m \\rvert\\), car \\(-\\lvert Y \\rvert \\le Y \\le \\lvert Y \\rvert\\) pour toute variable \\(Y\\) ; \\(\\mathbb{E}\\lvert X - m \\rvert \\le \\mathbb{E}\\lvert X - \\mu \\rvert\\) par l'étape 2 avec \\(c = \\mu\\) ; \\(\\mathbb{E}\\lvert X - \\mu \\rvert \\le \\sqrt{\\mathbb{E}[(X - \\mu)^2]} = \\sigma\\) par l'inégalité de Cauchy-Schwarz appliquée à \\(\\lvert X - \\mu \\rvert\\) et à la constante 1 (séance de mathématiques 3, partie 6).\n4. Énoncé 3 : \\(\\kappa = \\mathbb{E}[Z^4] = \\mathrm{Var}(Z^2) + \\mathbb{E}[Z^2]^2 \\ge 1\\), avec égalité si et seulement si \\(Z^2 = 1\\) avec probabilité 1, c'est-à-dire si \\(X\\) vaut \\(\\mu - \\sigma\\) ou \\(\\mu + \\sigma\\) avec probabilité 1/2 chacun. Symétrie : \\(X - c\\) et \\(c - X\\) ont la même espérance, donc \\(\\mathbb{E}[X - c] = -\\mathbb{E}[X - c] = 0\\) ; de même \\(\\mathbb{E}[(X - c)^3] = 0\\) ; enfin \\(\\mathbb{P}(X \\le c) = \\mathbb{P}(X - c \\le 0) = \\mathbb{P}(c - X \\le 0) = \\mathbb{P}(X \\ge c)\\), et ces deux probabilités, de somme au moins 1, valent chacune au moins 1/2.\n5. Énoncé 4. On pose \\(A_i = X_i - \\mu\\), d'espérance 0, de variance \\(\\sigma^2\\), avec \\(\\mathbb{E}[A_i^3] = \\gamma_1 \\sigma^3\\) et \\(\\mathbb{E}[A_i^4] = \\kappa\\,\\sigma^4\\). En développant \\((A_1 + \\dots + A_n)^3\\), tout produit où un indice apparaît une seule fois a une espérance nulle (indépendance, puis \\(\\mathbb{E}[A_i] = 0\\)) : il reste les \\(n\\) termes \\(A_i^3\\), donc \\(\\mathbb{E}[(\\sum_i A_i)^3] = n\\,\\gamma_1 \\sigma^3\\). La variance de la somme vaut \\(n\\sigma^2\\), d'où l'asymétrie \\(n\\,\\gamma_1 \\sigma^3/(n\\sigma^2)^{3/2} = \\gamma_1/\\sqrt{n}\\).\n6. Puissance 4 : les produits d'espérance non nulle sont les \\(n\\) termes \\(A_i^4\\) et les termes \\(A_i^2 A_j^2\\) avec \\(i \\ne j\\) ; il y a \\(n(n-1)/2\\) paires \\(\\{i, j\\}\\) et \\(\\binom{4}{2} = 6\\) façons de placer les deux \\(A_i\\) parmi les quatre facteurs, soit \\(3n(n-1)\\) termes d'espérance \\(\\sigma^4\\). Donc \\(\\mathbb{E}[(\\sum_i A_i)^4] = n\\kappa\\,\\sigma^4 + 3n(n-1)\\,\\sigma^4\\), et le kurtosis de la somme vaut \\(\\big(n\\kappa + 3n(n-1)\\big)/n^2 = 3 + (\\kappa - 3)/n\\).\n\n### Exemples calculés\n\n**Loi exponentielle de paramètre \\(\\lambda\\).** \\(\\mathbb{P}(X > x) = e^{-\\lambda x}\\), moyenne et écart-type \\(1/\\lambda\\) (séance de mathématiques 2, partie 2). La densité \\(\\lambda e^{-\\lambda x}\\) décroît : le mode est 0. La médiane résout \\(e^{-\\lambda m} = 1/2\\) : \\(m = \\ln 2/\\lambda\\). Pour \\(\\gamma_1\\) et \\(\\kappa\\), on prend \\(\\lambda = 1\\) (énoncé 1 : \\(X/\\lambda\\) a la même asymétrie et le même kurtosis), où \\(\\mathbb{E}[X^r] = \\Gamma(r + 1) = r!\\) : \\(\\mathbb{E}[(X - 1)^3] = 3! - 3 \\times 2! + 3 \\times 1 - 1 = 2\\) et \\(\\mathbb{E}[(X - 1)^4] = 4! - 4 \\times 3! + 6 \\times 2! - 4 \\times 1 + 1 = 9\\). Donc \\(\\gamma_1 = 2\\) et \\(\\kappa = 9\\) (excès 6), quel que soit \\(\\lambda\\). Avec une moyenne de 2 : mode 0, médiane \\(2\\ln 2 \\approx 1{,}386\\), moyenne 2 ; l'écart \\(\\lvert \\mu - m \\rvert = 0{,}614\\) est bien sous \\(\\sigma = 2\\).\n\n**Loi log-normale.** \\(X = e^{a + bY}\\), où \\(Y\\) suit \\(\\mathcal{N}(0, 1)\\), \\(a\\) est un réel et \\(b > 0\\).\n\n1. Moments : \\(\\mathbb{E}[X^r] = e^{ra}\\,\\mathbb{E}[e^{rbY}] = e^{ra + r^2 b^2/2}\\) (fonction génératrice de la loi normale, séance de mathématiques 4, partie 4). Moyenne : \\(e^{a + b^2/2}\\).\n2. Médiane : l'exponentielle est croissante, donc \\(\\mathbb{P}(X \\le e^a) = \\mathbb{P}(Y \\le 0) = 1/2\\) : la médiane est \\(e^a\\).\n3. Mode : \\(\\mathbb{P}(X \\le x) = \\Phi\\big((\\ln x - a)/b\\big)\\), de dérivée \\(\\varphi\\big((\\ln x - a)/b\\big)/(bx)\\). Avec \\(t = \\ln x\\), le logarithme de cette densité vaut \\(-(t - a)^2/(2b^2) - t\\) à une constante près ; sa dérivée en \\(t\\), \\(-(t - a)/b^2 - 1\\), est positive avant \\(t = a - b^2\\) et négative après. Le mode est \\(e^{a - b^2}\\).\n4. Donc \\(e^{a - b^2} < e^a < e^{a + b^2/2}\\) : mode < médiane < moyenne pour tout \\(b > 0\\).\n5. Asymétrie. On prend \\(a = 0\\) (\\(e^a\\) est un facteur d'échelle, énoncé 1) et \\(w = e^{b^2}\\). Les trois premiers moments sont \\(w^{1/2}\\), \\(w^2\\), \\(w^{9/2}\\) ; la variance vaut \\(w^2 - w = w(w - 1)\\) ; le moment centré d'ordre 3 vaut \\(w^{9/2} - 3w^{5/2} + 2w^{3/2} = w^{3/2}(w^3 - 3w + 2) = w^{3/2}(w - 1)^2 (w + 2)\\). D'où \\(\\gamma_1 = (w + 2)\\sqrt{w - 1} > 0\\).\n\nAvec \\(a = 0\\) et \\(b = 0{,}5\\) : mode \\(0{,}779\\), médiane 1, moyenne \\(1{,}133\\) (simulation : 1,133), écart-type \\(0{,}604\\), \\(\\gamma_1 = 1{,}750\\).\n\n**Loi gamma de forme \\(a > 0\\) et de paramètre \\(\\lambda > 0\\)** : densité \\(\\lambda^a x^{a-1} e^{-\\lambda x}/\\Gamma(a)\\) pour \\(x > 0\\) ; \\(a = 1\\) redonne la loi exponentielle. Avec \\(\\lambda = 1\\), \\(\\mathbb{E}[X^r] = \\Gamma(a + r)/\\Gamma(a) = a(a + 1)\\cdots(a + r - 1)\\). Moyenne \\(a\\), variance \\(a(a+1) - a^2 = a\\), moment centré d'ordre 3 : \\(a(a+1)(a+2) - 3a \\cdot a(a+1) + 2a^3 = 2a\\). Donc, pour tout \\(\\lambda\\) : moyenne \\(a/\\lambda\\), variance \\(a/\\lambda^2\\), \\(\\gamma_1 = 2a/a^{3/2} = 2/\\sqrt{a}\\), et le même calcul à l'ordre 4 (fait par le script) donne l'excès \\(6/a\\). Le mode est \\((a - 1)/\\lambda\\) si \\(a \\ge 1\\) : le logarithme de la densité, \\((a - 1)\\ln x - \\lambda x\\) à une constante près, a pour dérivée \\((a - 1)/x - \\lambda\\).\n\nLa médiane d'une loi gamma n'a pas de formule fermée en général : \\(F(m) = 1/2\\) est une équation transcendante en \\(m\\) (pour \\(a = 1\\), elle se résout : \\(\\ln 2/\\lambda\\)). Pour \\(a = 2\\), \\(\\lambda = 1\\) : une intégration par parties donne \\(F(x) = 1 - e^{-x}(1 + x)\\), donc \\(F(1) = 1 - 2/e \\approx 0{,}264 < 1/2\\) et \\(F(2) = 1 - 3/e^2 \\approx 0{,}594 > 1/2\\). La médiane est entre le mode 1 et la moyenne 2, ce qui démontre la règle pour cette loi ; numériquement \\(m \\approx 1{,}678\\), et \\(\\gamma_1 = 2/\\sqrt{2} \\approx 1{,}414\\).\n\n**Somme.** La somme de \\(25\\) variables exponentielles indépendantes de même paramètre a pour asymétrie \\(2/\\sqrt{25} = 0{,}4\\) et pour excès \\(6/25 = 0{,}24\\) : l'asymétrie s'efface en \\(1/\\sqrt{n}\\), l'excès de kurtosis en \\(1/n\\).\n\n**Contre-exemple discret à la règle.** \\(X\\) vaut \\(-2\\) avec probabilité 0,4, 1 avec probabilité 0,5 et 4 avec probabilité 0,1. Les probabilités croissent puis décroissent : la loi est unimodale, de mode 1. \\(\\mathbb{P}(X \\le 1) = 0{,}9\\) et \\(\\mathbb{P}(X \\ge 1) = 0{,}6\\) : la médiane est 1. Moyenne : \\(-0{,}8 + 0{,}5 + 0{,}4 = 0{,}1\\). Variance \\(3{,}69\\), moment centré d'ordre 3 \\(2{,}592\\), donc \\(\\gamma_1 = 0{,}366 > 0\\). L'asymétrie est positive et pourtant la moyenne (\\(0{,}1\\)) est **sous** la médiane (1).\n\n**Contre-exemple continu unimodal : loi de Weibull.** Soit \\(k > 1\\) et \\(X = Y^{1/k}\\), où \\(Y\\) suit la loi exponentielle de paramètre 1. Alors \\(\\mathbb{P}(X > x) = \\mathbb{P}(Y > x^k) = e^{-x^k}\\), \\(\\mathbb{E}[X^r] = \\mathbb{E}[Y^{r/k}] = \\Gamma(1 + r/k)\\), la médiane vaut \\((\\ln 2)^{1/k}\\), et la densité \\(k x^{k-1} e^{-x^k}\\), dont le logarithme a pour dérivée \\((k - 1)/x - k x^{k-1}\\), a pour mode \\(\\big((k-1)/k\\big)^{1/k}\\). Pour \\(k = 3{,}5\\) : moyenne \\(0{,}8997\\), médiane \\(0{,}9006\\), mode \\(0{,}9083\\), et \\(\\gamma_1 = 0{,}0251 > 0\\). L'ordre est entièrement inversé, moyenne < médiane < mode, avec une asymétrie positive.\n\n**Kurtosis de référence** : 3 pour la loi normale (\\(\\mathbb{E}[Y^4] = 3\\), séance de mathématiques 3, partie 1), \\(1{,}8\\) pour la loi uniforme (excès \\(-1{,}2\\) : queues inexistantes), 9 pour l'exponentielle, excès 6 pour la loi de Student à 5 degrés de liberté (queues lourdes), 1 pour la variable qui vaut \\(-1\\) ou \\(+1\\) avec probabilité 1/2 (le minimum).\n\nSur un échantillon, on remplace les espérances par des moyennes. Convention de scipy 1.8.1, vérifiée par le code suivant : `stats.kurtosis` rend par défaut l'**excès**.\n\n```python\nx = rng.exponential(2.0, 400000)\nprint(\"moyenne, médiane             :\", round(x.mean(), 3), round(float(np.median(x)), 3))\nprint(\"stats.skew                   :\", round(float(stats.skew(x)), 2))\nprint(\"stats.kurtosis (par défaut)  :\", round(float(stats.kurtosis(x)), 2))\nprint(\"stats.kurtosis(fisher=False) :\", round(float(stats.kurtosis(x, fisher=False)), 2))\n```\n\n```sortie\nmoyenne, médiane             : 2.0 1.387\nstats.skew                   : 1.99\nstats.kurtosis (par défaut)  : 5.94\nstats.kurtosis(fisher=False) : 8.94\n```\n\n### Cas limites\n\n- **Moments absents.** La densité de la loi de Student à \\(\\nu\\) degrés de liberté décroît comme \\(\\lvert x \\rvert^{-(\\nu + 1)}\\) : \\(\\mathbb{E}\\lvert X \\rvert^r\\) est finie si et seulement si \\(r < \\nu\\). L'asymétrie n'existe que pour \\(\\nu > 3\\), le kurtosis pour \\(\\nu > 4\\) ; pour \\(\\nu = 1\\) (loi de Cauchy), même la moyenne n'existe pas, alors que la médiane vaut 0.\n- **Médiane non unique.** Pour un dé équilibré, tout réel de \\([3, 4]\\) est une médiane.\n- **Loi symétrique unimodale** : mode, médiane et moyenne coïncident au centre de symétrie.\n\n### Pièges\n\n1. Le signe de \\(\\gamma_1\\) ne donne pas l'ordre de la moyenne et de la médiane (contre-exemples ci-dessus). Ce qui est garanti : \\(\\lvert \\mu - m \\rvert \\le \\sigma\\).\n2. \\(\\gamma_1 = 0\\) n'implique pas la symétrie : la loi qui vaut \\(-2\\), 1, 3 avec probabilités 0,4, 0,5, 0,1 a une moyenne nulle et un moment centré d'ordre 3 nul (\\(-3{,}2 + 0{,}5 + 2{,}7\\)), sans être symétrique.\n3. Kurtosis ou excès : toujours vérifier la convention. Une loi normale a un kurtosis de 3 et un excès de 0.\n4. Un kurtosis élevé vient des queues, pas d'un sommet pointu : il est dominé par les valeurs éloignées de plusieurs écarts-types.\n5. Asymétrie et kurtosis empiriques sont instables : la variance de la moyenne empirique des \\(Z_i^4\\) fait intervenir \\(\\mathbb{E}[Z^8]\\), qui peut être immense ou infinie.\n\n[[controle:forme]]\n\n## Partie 2 : covariance, corrélation, cote Z\n\n### Le problème\n\nDeux quantités varient ensemble : dans quel sens, avec quelle force, et la réponse dépend-elle des unités ? Et comment comparer deux mesures faites sur des échelles différentes (deux notes à deux examens) ?\n\n### Définitions\n\n\\(X\\) et \\(Y\\) sont deux variables aléatoires de variances finies, de moyennes \\(\\mu_X\\), \\(\\mu_Y\\) et d'écarts-types \\(\\sigma_X\\), \\(\\sigma_Y\\).\n\n- **Covariance** : \\(\\mathrm{Cov}(X, Y) = \\mathbb{E}[(X - \\mu_X)(Y - \\mu_Y)] = \\mathbb{E}[XY] - \\mu_X \\mu_Y\\). Son unité est le produit des unités de \\(X\\) et de \\(Y\\).\n- **Corrélation** (de Pearson) : \\(\\rho = \\mathrm{Cov}(X, Y)/(\\sigma_X \\sigma_Y)\\), définie seulement si \\(\\sigma_X > 0\\) et \\(\\sigma_Y > 0\\). Sans unité.\n- **Cote Z** d'une valeur \\(x\\) : \\(z = (x - \\mu_X)/\\sigma_X\\), le nombre d'écarts-types entre \\(x\\) et la moyenne. Sans unité. La variable centrée réduite \\(Z_X = (X - \\mu_X)/\\sigma_X\\) a pour espérance 0 et pour variance 1, et \\(\\rho = \\mathbb{E}[Z_X Z_Y]\\) : la corrélation est la covariance des cotes Z.\n- **Corrélation de rang** (de Spearman) d'un échantillon de \\(n\\) couples \\((x_i, y_i)\\) : la corrélation de Pearson calculée après avoir remplacé chaque \\(x_i\\) par son rang parmi les \\(x\\) et chaque \\(y_i\\) par son rang parmi les \\(y\\). C'est le coefficient d'information de la « Séance quantitative », partie 4.\n\n### L'énoncé\n\n1. **(K1) Changement affine d'unité.** Pour des réels \\(a\\), \\(b\\), \\(c\\), \\(d\\) : \\(\\mathrm{Cov}(aX + b, cY + d) = ac\\,\\mathrm{Cov}(X, Y)\\). Si \\(a \\ne 0\\) et \\(c \\ne 0\\), la corrélation de \\(aX + b\\) et \\(cY + d\\) vaut \\(\\rho\\) si \\(ac > 0\\) et \\(-\\rho\\) si \\(ac < 0\\).\n2. **(K2) Bornes.** \\(-1 \\le \\rho \\le 1\\), et \\(\\lvert \\rho \\rvert = 1\\) si et seulement si \\(Y = \\alpha + \\beta X\\) avec probabilité 1, pour des réels \\(\\alpha\\) et \\(\\beta \\ne 0\\).\n3. **(K3) Dépendance linéaire.** Le minimum de \\(\\mathbb{E}[(Y - \\alpha - \\beta X)^2]\\) sur les réels \\(\\alpha\\), \\(\\beta\\) vaut \\(\\sigma_Y^2\\,(1 - \\rho^2)\\) ; il est atteint pour la pente \\(\\beta = \\mathrm{Cov}(X, Y)/\\sigma_X^2 = \\rho\\,\\sigma_Y/\\sigma_X\\). \\(\\rho^2\\) est la part de la variance de \\(Y\\) expliquée par la meilleure droite.\n4. **(K4)** Si \\(X\\) et \\(Y\\) sont indépendantes, \\(\\mathrm{Cov}(X, Y) = 0\\). La réciproque est fausse.\n5. **(K5)** La corrélation de rang ne change pas si l'on applique à tous les \\(x_i\\) une fonction strictement croissante, ou à tous les \\(y_i\\) ; elle vaut 1 dès que \\(y_i = g(x_i)\\) avec \\(g\\) strictement croissante et des \\(x_i\\) distincts. La corrélation de Pearson n'a aucune de ces deux propriétés quand la fonction appliquée, ou \\(g\\), n'est pas affine.\n\n### La preuve\n\n1. (K1) : \\(aX + b - \\mathbb{E}[aX + b] = a(X - \\mu_X)\\) et \\(cY + d - \\mathbb{E}[cY + d] = c(Y - \\mu_Y)\\) ; le produit est \\(ac\\,(X - \\mu_X)(Y - \\mu_Y)\\). Les écarts-types deviennent \\(\\lvert a \\rvert \\sigma_X\\) et \\(\\lvert c \\rvert \\sigma_Y\\), donc la corrélation est multipliée par \\(ac/\\lvert ac \\rvert\\), qui vaut 1 ou \\(-1\\).\n2. (K2) : c'est l'inégalité de Cauchy-Schwarz appliquée à \\(X - \\mu_X\\) et \\(Y - \\mu_Y\\), avec son cas d'égalité (séance de mathématiques 3, partie 6).\n3. (K3) : pour \\(\\beta\\) fixé, \\(W = Y - \\beta X\\) vérifie \\(\\mathbb{E}[(W - \\alpha)^2] = \\mathrm{Var}(W) + (\\mathbb{E}[W] - \\alpha)^2\\), minimal pour \\(\\alpha = \\mathbb{E}[W]\\). Reste \\(\\mathrm{Var}(Y - \\beta X) = \\sigma_Y^2 - 2\\beta\\,\\mathrm{Cov}(X, Y) + \\beta^2 \\sigma_X^2\\), trinôme en \\(\\beta\\) minimal en \\(\\beta = \\mathrm{Cov}(X, Y)/\\sigma_X^2\\), où il vaut \\(\\sigma_Y^2 - \\mathrm{Cov}(X, Y)^2/\\sigma_X^2 = \\sigma_Y^2 (1 - \\rho^2)\\).\n4. (K4) : si \\(X\\) et \\(Y\\) sont indépendantes et intégrables, \\(\\mathbb{E}[XY] = \\mathbb{E}[X]\\,\\mathbb{E}[Y]\\) (théorème de Fubini, admis). Le contre-exemple de la réciproque est calculé plus bas.\n5. (K5) : si \\(g\\) est strictement croissante, \\(x_i < x_j\\) équivaut à \\(g(x_i) < g(x_j)\\) : les rangs ne changent pas. Si \\(y_i = g(x_i)\\), les rangs des \\(y\\) sont ceux des \\(x\\), et la corrélation de Pearson d'une suite non constante avec elle-même vaut 1.\n\n### Exemples calculés\n\n**Unités.** Deux rendements journaliers exprimés en nombres décimaux : \\(\\sigma_X = 0{,}01\\), \\(\\sigma_Y = 0{,}02\\), \\(\\mathrm{Cov}(X, Y) = 0{,}00012\\), donc \\(\\rho = 0{,}00012/(0{,}01 \\times 0{,}02) = 0{,}6\\). En pourcentage (\\(a = c = 100\\)) : écarts-types \\(1\\) et \\(2\\), covariance \\(100 \\times 100 \\times 0{,}00012 = 1{,}2\\) (en pour cent au carré), et \\(\\rho = 1{,}2/(1 \\times 2) = 0{,}6\\), inchangée. La covariance a été multipliée par 10 000 ; la corrélation non. La pente de la meilleure droite de \\(Y\\) en \\(X\\) vaut \\(\\rho\\,\\sigma_Y/\\sigma_X = 1{,}2\\), et la part de variance non expliquée \\(1 - \\rho^2 = 0{,}64\\).\n\n**Corrélation nulle sans indépendance.** \\(X\\) vaut \\(-1\\), 0 ou 1 avec probabilité 1/3 chacun, et \\(Y = X^2\\). \\(\\mathbb{E}[X] = 0\\) et \\(\\mathbb{E}[XY] = \\mathbb{E}[X^3] = 0\\), donc \\(\\mathrm{Cov}(X, Y) = 0\\). Pourtant \\(Y\\) est une fonction de \\(X\\) : \\(\\mathbb{P}(X = 0, Y = 0) = \\tfrac{1}{3}\\), alors que \\(\\mathbb{P}(X = 0)\\,\\mathbb{P}(Y = 0) = \\tfrac{1}{9}\\). La corrélation ne voit que la partie linéaire de la dépendance.\n\n**Deux lois normales non corrélées et dépendantes.** \\(X\\) suit \\(\\mathcal{N}(0, 1)\\), \\(S\\) vaut \\(-1\\) ou 1 avec probabilité 1/2, indépendamment de \\(X\\), et \\(Y = SX\\). Par symétrie de la loi normale, \\(Y\\) suit \\(\\mathcal{N}(0, 1)\\) ; \\(\\mathrm{Cov}(X, Y) = \\mathbb{E}[S]\\,\\mathbb{E}[X^2] = 0\\) ; mais \\(\\lvert Y \\rvert = \\lvert X \\rvert\\). Le résultat « non corrélées donc indépendantes » exige que le **couple** soit gaussien, c'est-à-dire que toute combinaison linéaire soit normale (résultat général sur les vecteurs gaussiens, admis) ; ici \\(X + Y\\) vaut 0 avec probabilité 1/2 et n'est pas normale.\n\n**Pearson contre Spearman.** \\(X\\) suit \\(\\mathcal{N}(0, 1)\\) et \\(Y = e^X\\), fonction strictement croissante de \\(X\\) : la corrélation de rang de tout échantillon vaut 1. Corrélation de Pearson : comme \\(x - x^2/2 = -(x - 1)^2/2 + 1/2\\), on a \\(e^x \\varphi(x) = e^{1/2}\\,\\varphi(x - 1)\\), donc \\(\\mathbb{E}[X e^X] = e^{1/2} \\int x\\,\\varphi(x - 1)\\,dx = e^{1/2}\\) (moyenne de \\(\\mathcal{N}(1, 1)\\)) ; \\(\\mathbb{E}[e^X] = e^{1/2}\\) et \\(\\mathbb{E}[e^{2X}] = e^2\\) (séance de mathématiques 4, partie 4). Donc \\(\\mathrm{Cov}(X, Y) = e^{1/2}\\), \\(\\mathrm{Var}(Y) = e^2 - e\\), et \\(\\rho = e^{1/2}/\\sqrt{e(e - 1)} = 1/\\sqrt{e - 1} \\approx 0{,}763\\) (simulation : 0,763). Une dépendance parfaite mais non linéaire donne une corrélation de Pearson nettement inférieure à 1.\n\n**Cote Z : comparer deux notes.** Examen 1 : note 14 sur 20, moyenne des candidats 11, écart-type 2, cote \\(z = (14 - 11)/2 = 1{,}5\\). Examen 2 : note 620, moyenne 500, écart-type 100, cote \\(z = 1{,}2\\). La première note est plus loin au-dessus de sa moyenne, en écarts-types : c'est la meilleure en position relative. Traduire une cote en rang demande la forme de la loi. Si les deux lois de notes sont normales, les proportions de candidats dépassés sont \\(\\Phi(1{,}5) \\approx 0{,}933\\) et \\(\\Phi(1{,}2) \\approx 0{,}885\\), dans le même ordre que les cotes. Avec des formes différentes, l'ordre peut s'inverser : pour des notes de loi exponentielle de moyenne 1 (écart-type 1), la cote 1,5 correspond à la note \\(2{,}5\\), dépassée par une proportion \\(e^{-2{,}5}\\) des candidats seulement : la proportion de candidats dépassés est \\(0{,}918\\). Une cote plus faible, 1,4, sur une loi normale donne \\(\\Phi(1{,}4) \\approx 0{,}919\\), une proportion plus élevée.\n\n### Cas limites\n\n- Si \\(X\\) est constante, la covariance est nulle et la corrélation n'est pas définie (division par \\(\\sigma_X = 0\\)).\n- Avec deux points distincts en abscisse et en ordonnée, la corrélation empirique vaut toujours 1 ou \\(-1\\) : une droite passe par deux points.\n- Si seul \\(X\\) change d'unité (\\(a \\ne 1\\), \\(c = 1\\)), la pente de \\(Y\\) en \\(X\\) est divisée par \\(a\\), la covariance multipliée par \\(a\\), la corrélation inchangée si \\(a > 0\\).\n\n### Pièges\n\n1. Une covariance « grande » ne veut rien dire sans les unités : on compare des corrélations.\n2. \\(\\rho\\) n'est pas une pente : la pente est \\(\\rho\\,\\sigma_Y/\\sigma_X\\). Une corrélation de 0,6 ne dit pas que \\(Y\\) monte de 0,6 quand \\(X\\) monte de 1.\n3. Corrélation nulle n'est pas indépendance, sauf pour un couple gaussien.\n4. Pearson mesure une liaison **linéaire**, Spearman une liaison **monotone** ; aucune des deux ne détecte \\(Y = X^2\\) quand la loi de \\(X\\) est symétrique autour de 0.\n5. Deux cotes Z ne se traduisent en rangs comparables que si les deux lois ont la même forme.\n\n[[controle:unites]]\n\n## Partie 3 : tests d'adéquation\n\n### Le problème\n\nOn observe \\(x_1, \\dots, x_n\\), réalisations de variables \\(X_1, \\dots, X_n\\) indépendantes et de même fonction de répartition \\(F\\) inconnue. Les données sont-elles compatibles avec une loi donnée ? L'hypothèse nulle \\(H_0\\) est soit **simple**, \\(F = F_0\\) entièrement spécifiée (loi exponentielle de moyenne 2), soit **composite**, \\(F\\) appartient à une famille dont les paramètres sont estimés (une loi de Poisson, de paramètre inconnu). Le vocabulaire (niveau, p-value, puissance) est celui de la séance de mathématiques 3, partie 4. Trois idées : comparer des effectifs par classe (khi-deux), comparer les fonctions de répartition par leur plus grand écart (Kolmogorov-Smirnov) ou par un écart quadratique pondéré (Anderson-Darling). Le bon test dépend du type de loi : discrète ou continue, paramètres fixés ou estimés.\n\n### Le khi-deux d'adéquation : définition et énoncé\n\nOn découpe les valeurs possibles en \\(k \\ge 2\\) classes disjointes (pour une loi discrète : ses valeurs, les plus rares regroupées). Sous \\(H_0\\), la classe \\(j\\) a la probabilité \\(p_j > 0\\), avec \\(p_1 + \\dots + p_k = 1\\). \\(O_j\\) est le nombre (aléatoire) d'observations dans la classe \\(j\\), et \\(e_j = n p_j\\) l'effectif attendu (un nombre fixe). La statistique du test est\n\n\\(\\displaystyle C = \\sum_{j=1}^{k} \\frac{(O_j - e_j)^2}{e_j}.\\)\n\n1. **Exact, pour tout \\(n\\).** Sous \\(H_0\\) simple, \\(\\mathbb{E}[C] = k - 1\\).\n2. **Asymptotique.** Sous \\(H_0\\) simple, quand \\(n \\to \\infty\\), \\(C\\) converge en loi vers la loi du khi-deux à \\(k - 1\\) degrés de liberté, notée \\(\\chi^2_{k-1}\\) : la loi de la somme de \\(k - 1\\) carrés de variables \\(\\mathcal{N}(0, 1)\\) indépendantes. On rejette \\(H_0\\) quand \\(C\\) dépasse le quantile d'ordre \\(1 - \\alpha\\) de cette loi ; la p-value de la valeur observée \\(c\\) est la probabilité qu'une variable de loi \\(\\chi^2_{k-1}\\) dépasse \\(c\\).\n3. **Paramètres estimés** (théorème de Fisher, 1924, admis). Si les \\(p_j\\) dépendent de \\(s\\) paramètres estimés par maximum de vraisemblance à partir des effectifs des classes, la loi limite est \\(\\chi^2_{k-1-s}\\) : un degré de liberté en moins par paramètre estimé.\n4. **Condition d'usage.** L'énoncé 2 est une limite. La règle « tous les \\(e_j\\) valent au moins 5 » est une **règle d'usage**, pas un théorème : elle dit quand l'approximation est jugée acceptable. Si elle n'est pas remplie, on regroupe des classes voisines (ce qui diminue \\(k\\)).\n\n### La preuve du khi-deux\n\n1. Énoncé 1 : \\(O_j\\) compte les succès de \\(n\\) essais indépendants de probabilité \\(p_j\\), donc suit la loi binomiale de paramètres \\(n\\) et \\(p_j\\) : \\(\\mathbb{E}[(O_j - e_j)^2] = \\mathrm{Var}(O_j) = n p_j (1 - p_j)\\). Donc \\(\\mathbb{E}[C] = \\sum_j (1 - p_j) = k - 1\\).\n2. Énoncé 2 pour \\(k = 2\\). Comme \\(O_1 + O_2 = n = e_1 + e_2\\), on a \\(O_2 - e_2 = -(O_1 - e_1)\\), donc \\(C = (O_1 - np_1)^2 \\big(\\tfrac{1}{np_1} + \\tfrac{1}{np_2}\\big) = \\dfrac{(O_1 - np_1)^2}{n p_1 p_2}\\), puisque \\(\\tfrac{1}{p_1} + \\tfrac{1}{p_2} = \\tfrac{1}{p_1 p_2}\\). C'est le carré de la variable binomiale centrée réduite, qui converge en loi vers \\(\\mathcal{N}(0, 1)\\) par le théorème central limite (admis) ; son carré converge donc en loi vers \\(\\chi^2_1\\) (une fonction continue conserve la convergence en loi, admis).\n3. Énoncé 2 pour \\(k\\) quelconque. On pose \\(R_j = (O_j - e_j)/\\sqrt{e_j}\\), de sorte que \\(C = R_1^2 + \\dots + R_k^2\\). Pour une seule observation, les indicatrices \\(I_i\\), \\(I_j\\) de deux classes distinctes vérifient \\(I_i I_j = 0\\), donc \\(\\mathrm{Cov}(I_i, I_j) = -p_i p_j\\), et \\(\\mathrm{Var}(I_j) = p_j(1 - p_j)\\). En sommant \\(n\\) observations indépendantes : \\(\\mathrm{Cov}(R_i, R_j) = -\\sqrt{p_i p_j}\\) pour \\(i \\ne j\\) et \\(\\mathrm{Var}(R_j) = 1 - p_j\\). La matrice de covariance du vecteur \\(\\mathbf{R}\\) est \\(\\mathbf{I} - \\mathbf{u}\\mathbf{u}^\\top\\), où \\(\\mathbf{u} = (\\sqrt{p_1}, \\dots, \\sqrt{p_k})\\) est de norme 1 : c'est le projecteur orthogonal sur l'hyperplan orthogonal à \\(\\mathbf{u}\\), de rang \\(k - 1\\).\n4. Le théorème central limite vectoriel (admis) donne la convergence en loi de \\(\\mathbf{R}\\) vers un vecteur gaussien centré de covariance \\(\\mathbf{I} - \\mathbf{u}\\mathbf{u}^\\top\\), qui est la projection sur cet hyperplan d'un vecteur de \\(k\\) variables \\(\\mathcal{N}(0, 1)\\) indépendantes. Dans une base orthonormée de l'hyperplan, cette projection a \\(k - 1\\) coordonnées \\(\\mathcal{N}(0, 1)\\) indépendantes (invariance par rotation des vecteurs gaussiens standards, admise) : le carré de sa norme suit \\(\\chi^2_{k-1}\\).\n5. D'où vient le « \\(- 1\\) » : \\(\\sum_j \\sqrt{p_j}\\,R_j = \\sum_j (O_j - e_j)/\\sqrt{n} = 0\\). Les \\(k\\) écarts sont liés par une relation linéaire.\n\n### Exemples calculés du khi-deux\n\n**Un dé.** 120 lancers ; effectifs observés des faces 1 à 6 : 15, 27, 18, 22, 14, 24. Sous \\(H_0\\) (dé équilibré), \\(e_j = 20\\). \\(C = (25 + 49 + 4 + 4 + 36 + 16)/20 = 6{,}7\\). Avec \\(k - 1 = 5\\) degrés de liberté, le quantile d'ordre 0,95 est \\(11{,}07\\) : on ne rejette pas \\(H_0\\) au niveau 5 %. La p-value approchée vaut \\(0{,}244\\) ; la simulation de la loi exacte de \\(C\\) sous \\(H_0\\) donne 0,250.\n\n**Une loi de Poisson de paramètre inconnu.** On compte des événements sur 100 intervalles de même durée ; nombre d'intervalles avec 0, 1, 2, 3 événements et avec 4 ou plus : 20, 36, 24, 14, 6 ; 152 événements au total. On estime \\(\\lambda\\) par la moyenne, \\(\\hat{\\lambda} = 1{,}52\\). Effectifs attendus \\(100\\,\\mathbb{P}(N = j)\\) pour \\(N\\) de loi de Poisson de paramètre \\(1{,}52\\), la dernière classe recevant le complément : \\((21{,}87 ; 33{,}24 ; 25{,}27 ; 12{,}80 ; 6{,}82)\\), tous au moins égaux à 5. \\(C = 0{,}662\\), à comparer à \\(\\chi^2\\) à \\(5 - 1 - 1 = 3\\) degrés de liberté, de quantile d'ordre 0,95 \\(7{,}81\\) : pas de rejet (p-value \\(0{,}882\\)).\n\nUne précision : ici \\(\\hat{\\lambda}\\) est le maximum de vraisemblance des données **brutes**, pas des effectifs regroupés que demande l'énoncé 3. Dans ce cas, la loi limite est comprise entre \\(\\chi^2_{k-1-s}\\) et \\(\\chi^2_{k-1}\\) (Chernoff et Lehmann, 1954, « The use of maximum likelihood estimates in chi-square tests for goodness of fit », Annals of Mathematical Statistics, 25(3), 579-586 ; résultat cité, non démontré ici). Constat par simulation dans le script, pour une intensité vraie de 1,5 et 100 intervalles : le test au niveau nominal 5 % rejette avec une fréquence de 0,049 avec 3 degrés de liberté, et de 0,021 avec 4.\n\nL'expérience suivante mesure le niveau réel du test, au niveau nominal 5 %, selon la taille des effectifs attendus ; elle affiche aussi la moyenne de \\(C\\), qui doit valoir \\(k - 1\\) (énoncé 1).\n\n```python\ndef niveau_khi2(n, p, nb=40000):\n    p = np.asarray(p, dtype=float)\n    o = rng.multinomial(n, p, size=nb)\n    c = ((o - n * p) ** 2 / (n * p)).sum(axis=1)\n    return round(float(np.mean(c >= stats.chi2.ppf(0.95, len(p) - 1))), 4), round(float(c.mean()), 3)\n\nprint(\"erreur standard d'un niveau simulé proche de 0,05 :\", round(float(np.sqrt(0.05 * 0.95 / 40000)), 4))\nprint(\"6 classes égales, n = 120, e_j = 20            :\", niveau_khi2(120, [1 / 6] * 6))\nprint(\"6 classes égales, n = 30,  e_j = 5             :\", niveau_khi2(30, [1 / 6] * 6))\nprint(\"p = (0,9 ; 0,05 ; 0,03 ; 0,02), n = 50, min e_j = 1 :\", niveau_khi2(50, [0.9, 0.05, 0.03, 0.02]))\nprint(\"2 classes, p = (0,9 ; 0,1), n = 10, min e_j = 1        :\", niveau_khi2(10, [0.9, 0.1]))\nprint(\"2 classes, p = (0,99 ; 0,01), n = 20, min e_j = 0,2    :\", niveau_khi2(20, [0.99, 0.01]))\n```\n\n```sortie\nerreur standard d'un niveau simulé proche de 0,05 : 0.0011\n6 classes égales, n = 120, e_j = 20            : (0.0493, 4.974)\n6 classes égales, n = 30,  e_j = 5             : (0.0476, 5.014)\np = (0,9 ; 0,05 ; 0,03 ; 0,02), n = 50, min e_j = 1 : (0.0555, 3.0)\n2 classes, p = (0,9 ; 0,1), n = 10, min e_j = 1        : (0.0701, 0.998)\n2 classes, p = (0,99 ; 0,01), n = 20, min e_j = 0,2    : (0.0169, 1.012)\n```\n\nLecture : chaque ligne donne la fréquence de rejet, puis la moyenne de \\(C\\). La moyenne vaut \\(k - 1\\) dans tous les cas, comme le dit l'énoncé 1, exact. Avec des effectifs attendus de 20 ou de 5, la fréquence de rejet est à moins de trois erreurs standard de 0,05. Avec des effectifs attendus de 1 ou moins, elle s'en écarte, vers le haut ou vers le bas selon la configuration : \\(C\\) ne prend alors que peu de valeurs distinctes et sa loi n'est plus proche d'une loi du khi-deux. La règle des 5 est une marge de prudence, pas une frontière.\n\n### Kolmogorov-Smirnov : définition et énoncé\n\nLa **fonction de répartition empirique** est \\(F_n(x) = \\tfrac{1}{n} \\sum_{i=1}^{n} I_{\\{X_i \\le x\\}}\\), la proportion d'observations au plus égales à \\(x\\) : une fonction en escalier, aléatoire. La statistique de Kolmogorov-Smirnov (KS) est le plus grand écart vertical entre \\(F_n\\) et la loi testée :\n\n\\(\\displaystyle D_n = \\sup_{x} \\lvert F_n(x) - F_0(x) \\rvert.\\)\n\n1. **Calcul.** Si \\(F_0\\) est continue, en notant \\(x_{(1)} \\le \\dots \\le x_{(n)}\\) les observations triées et \\(u_{(i)} = F_0(x_{(i)})\\) : \\(D_n = \\max_{1 \\le i \\le n} \\max\\big(\\tfrac{i}{n} - u_{(i)},\\ u_{(i)} - \\tfrac{i-1}{n}\\big)\\).\n2. **Loi libre.** Si \\(H_0\\) est vraie et si \\(F_0\\) est **continue**, la loi de \\(D_n\\) ne dépend que de \\(n\\), pas de \\(F_0\\) : une seule table sert pour toutes les lois continues.\n3. **Asymptotique** (Kolmogorov, 1933, admis). Sous les mêmes hypothèses, \\(\\sqrt{n}\\,D_n\\) converge en loi vers une variable \\(K\\) telle que \\(\\mathbb{P}(K \\le x) = 1 - 2\\sum_{j \\ge 1} (-1)^{j-1} e^{-2 j^2 x^2}\\) ; son quantile d'ordre 0,95 est \\(1{,}358\\). Pour \\(n\\) grand, on rejette au niveau 5 % si \\(D_n > 1{,}358/\\sqrt{n}\\) ; pour \\(n\\) petit, on lit la loi exacte.\n4. **Ce qui casse, cas discret.** Si \\(F_0\\) est discrète, \\(D_n\\) est plus petite (au sens précis de la preuve, étape 6) que dans le cas continu : le test lu dans la table a un niveau réel inférieur au niveau affiché, donc perd de la puissance.\n5. **Ce qui casse, paramètres estimés.** Si les paramètres de \\(F_0\\) sont estimés sur le même échantillon, la statistique \\(\\hat{D}_n\\) obtenue n'a plus la loi de l'énoncé 2 : la loi ajustée suit les données, et l'expérience ci-dessous montre un niveau réel très inférieur au niveau affiché. Pour une famille de position et d'échelle (loi normale de moyenne et d'écart-type estimés), la loi de \\(\\hat{D}_n\\) sous \\(H_0\\) ne dépend pas des vrais paramètres : on peut la tabuler par simulation. C'est la **correction de Lilliefors** (1967).\n\n### La preuve de Kolmogorov-Smirnov\n\n1. Énoncé 1. Sur chaque intervalle \\([x_{(i)}, x_{(i+1)}[\\), \\(F_n\\) vaut \\(i/n\\) et \\(F_0\\) croît de \\(u_{(i)}\\) vers \\(u_{(i+1)}\\). L'écart \\(F_n - F_0\\) y est donc maximal à gauche, où il vaut \\(\\tfrac{i}{n} - u_{(i)}\\), et l'écart \\(F_0 - F_n\\) y approche \\(u_{(i+1)} - \\tfrac{i}{n}\\) à droite (continuité de \\(F_0\\)). Avant \\(x_{(1)}\\), \\(F_n = 0\\) et \\(F_0 \\le u_{(1)}\\) ; après \\(x_{(n)}\\), \\(F_n = 1\\) et \\(1 - F_0 \\le 1 - u_{(n)}\\). Le plus grand de tous ces écarts est la formule.\n2. Fonction quantile. Pour \\(0 < u < 1\\), soit \\(Q(u) = \\inf\\{x : F_0(x) \\ge u\\}\\). \\(F_0\\) étant croissante et continue à droite, l'ensemble \\(\\{x : F_0(x) \\ge u\\}\\) est l'intervalle \\([Q(u), +\\infty[\\). D'où l'équivalence (E) : \\(Q(u) \\le x\\) si et seulement si \\(u \\le F_0(x)\\).\n3. Soit \\(U\\) de loi uniforme sur \\([0, 1]\\). Par (E), \\(\\mathbb{P}(Q(U) \\le x) = \\mathbb{P}(U \\le F_0(x)) = F_0(x)\\) : \\(Q(U)\\) a pour fonction de répartition \\(F_0\\). La loi de \\(D_n\\) ne dépendant que de la loi de l'échantillon, on peut la calculer en prenant \\(X_i = Q(U_i)\\), avec \\(U_1, \\dots, U_n\\) indépendantes et uniformes.\n4. Par (E) encore, \\(I_{\\{X_i \\le x\\}} = I_{\\{U_i \\le F_0(x)\\}}\\) pour tout \\(x\\). Donc \\(F_n(x) = G_n(F_0(x))\\), où \\(G_n(u) = \\tfrac{1}{n} \\sum_i I_{\\{U_i \\le u\\}}\\) est la fonction de répartition empirique des \\(U_i\\). Ainsi \\(D_n = \\sup_x \\lvert G_n(F_0(x)) - F_0(x) \\rvert = \\sup_{u \\in \\mathcal{A}} \\lvert G_n(u) - u \\rvert\\), où \\(\\mathcal{A}\\) est l'ensemble des valeurs prises par \\(F_0\\).\n5. Si \\(F_0\\) est continue, de limites 0 et 1, elle prend toutes les valeurs de \\(]0, 1[\\) (théorème des valeurs intermédiaires). En \\(u = 0\\) et \\(u = 1\\), l'écart \\(\\lvert G_n(u) - u \\rvert\\) est nul avec probabilité 1. Donc \\(D_n = \\sup_{0 < u < 1} \\lvert G_n(u) - u \\rvert\\), fonction des seules \\(U_i\\) : sa loi ne dépend pas de \\(F_0\\). C'est l'énoncé 2.\n6. Énoncé 4. Si \\(F_0\\) est discrète, \\(\\mathcal{A}\\) est un ensemble au plus dénombrable (les sommes cumulées des probabilités) : le sup de l'étape 4 porte sur une partie seulement de \\([0, 1]\\) et il est, pour les mêmes \\(U_i\\), inférieur ou égal au sup sur \\(]0, 1[\\). Donc \\(\\mathbb{P}(D_n > d)\\) est au plus la probabilité lue dans la table du cas continu.\n7. Énoncé 5, invariance. Soit \\(X_i = \\mu + \\sigma Y_i\\), avec \\(Y_i\\) de loi \\(\\mathcal{N}(0, 1)\\). La moyenne et l'écart-type empiriques vérifient \\(\\bar{X} = \\mu + \\sigma \\bar{Y}\\) et \\(S_X = \\sigma S_Y\\). En posant \\(x = \\mu + \\sigma y\\) dans \\(\\hat{D}_n = \\sup_x \\lvert F_n(x) - \\Phi((x - \\bar{X})/S_X) \\rvert\\) : la proportion des \\(X_i \\le x\\) est celle des \\(Y_i \\le y\\), et \\((x - \\bar{X})/S_X = (y - \\bar{Y})/S_Y\\). \\(\\hat{D}_n\\) est donc une fonction des seuls \\(Y_i\\). Que sa loi soit concentrée sur des valeurs plus petites que celle de \\(D_n\\) est constaté par simulation ci-dessous, pas démontré ici.\n\n### Exemple calculé de Kolmogorov-Smirnov\n\nCinq durées, en heures : 0,3 ; 0,9 ; 1,5 ; 2,4 ; 5,1. \\(H_0\\) : loi exponentielle de moyenne 2, \\(F_0(x) = 1 - e^{-x/2}\\).\n\n1. \\(u_{(i)} = F_0(x_{(i)})\\) : \\((0{,}139 ; 0{,}362 ; 0{,}528 ; 0{,}699 ; 0{,}922)\\).\n2. \\(\\tfrac{i}{5} - u_{(i)}\\) : \\((0{,}061 ; 0{,}038 ; 0{,}072 ; 0{,}101 ; 0{,}078)\\).\n3. \\(u_{(i)} - \\tfrac{i-1}{5}\\) : \\((0{,}139 ; 0{,}162 ; 0{,}128 ; 0{,}099 ; 0{,}122)\\).\n4. \\(D_5 = 0{,}162\\), atteint juste avant le deuxième saut de \\(F_n\\) : oublier la ligne 3 donnerait une valeur fausse. Le quantile exact d'ordre 0,95 de \\(D_5\\) est \\(0{,}563\\) : pas de rejet (p-value \\(0{,}996\\)).\n\nL'expérience suivante mesure, pour \\(n = 50\\) et un niveau nominal de 5 %, la fréquence de rejet sous \\(H_0\\) dans quatre situations, puis le seuil de Lilliefors obtenu par simulation.\n\n```python\ndef d_ks(u):\n    # statistique de KS de chaque ligne, à partir de u = F0(x) (formule de l'énoncé 1)\n    u = np.sort(u, axis=1)\n    n = u.shape[1]\n    i = np.arange(1, n + 1)\n    return np.maximum((i / n - u).max(axis=1), (u - (i - 1) / n).max(axis=1))\n\nn, nb = 50, 20000\nseuil = stats.kstwo.ppf(0.95, n)            # quantile exact de D_n, loi continue entièrement spécifiée\nx = rng.normal(10.0, 3.0, (nb, n))\nd_normale = d_ks(stats.norm.cdf(x, 10.0, 3.0))\nd_expo = d_ks(stats.expon.cdf(rng.exponential(2.0, (nb, n)), scale=2.0))\nz = (x - x.mean(axis=1, keepdims=True)) / x.std(axis=1, ddof=1, keepdims=True)\nd_estime = d_ks(stats.norm.cdf(z))          # moyenne et écart-type estimés sur l'échantillon\nk = rng.poisson(3.0, (nb, n))               # loi discrète : sup de |F_n - F_0| sur le support\nsupport = np.arange(0, 40)\nd_discret = np.abs((k[:, :, None] <= support).mean(axis=1) - stats.poisson.cdf(support, 3.0)).max(axis=1)\n\nprint(\"seuil de la table pour n = 50 :\", round(float(seuil), 4))\nfor nom, d in [(\"normale, paramètres vrais   \", d_normale), (\"exponentielle, paramètre vrai\", d_expo),\n               (\"normale, paramètres estimés \", d_estime), (\"Poisson (loi discrète)      \", d_discret)]:\n    print(nom, \": fréquence de rejet\", round(float(np.mean(d > seuil)), 4), \"; moyenne de la statistique\", round(float(d.mean()), 4))\nseuil_lilliefors = np.quantile(d_estime, 0.95)\nx2 = rng.normal(-2.0, 0.5, (nb, n))         # autres paramètres vrais : même loi de la statistique\nz2 = (x2 - x2.mean(axis=1, keepdims=True)) / x2.std(axis=1, ddof=1, keepdims=True)\nprint(\"seuil simulé avec paramètres estimés :\", round(float(seuil_lilliefors), 4))\nprint(\"fréquence de rejet avec ce seuil, autres paramètres vrais :\", round(float(np.mean(d_ks(stats.norm.cdf(z2)) > seuil_lilliefors)), 4))\n```\n\n```sortie\nseuil de la table pour n = 50 : 0.1884\nnormale, paramètres vrais    : fréquence de rejet 0.05 ; moyenne de la statistique 0.1194\nexponentielle, paramètre vrai : fréquence de rejet 0.0514 ; moyenne de la statistique 0.1194\nnormale, paramètres estimés  : fréquence de rejet 0.0001 ; moyenne de la statistique 0.0864\nPoisson (loi discrète)       : fréquence de rejet 0.011 ; moyenne de la statistique 0.0866\nseuil simulé avec paramètres estimés : 0.1244\nfréquence de rejet avec ce seuil, autres paramètres vrais : 0.0495\n```\n\nLecture : les deux premières lignes illustrent l'énoncé 2 (même loi de \\(D_n\\), même fréquence de rejet proche de 0,05, pour deux lois continues différentes) ; les deux suivantes illustrent les énoncés 5 et 4 (statistique plus petite en moyenne, test qui ne rejette presque plus) ; les deux dernières montrent le principe de la correction de Lilliefors : un seuil propre, plus petit, valable quels que soient les vrais paramètres.\n\n### Anderson-Darling, Shapiro-Wilk, Jarque-Bera\n\n**Anderson-Darling (AD).** Avec les notations de la preuve précédente (\\(U_i = F_0(X_i)\\), \\(G_n\\) leur fonction de répartition empirique), la statistique est\n\n\\(\\displaystyle A^2 = n \\int_0^1 \\frac{(G_n(u) - u)^2}{u\\,(1 - u)}\\,du.\\)\n\nPourquoi ce poids : sous \\(H_0\\), \\(n\\,G_n(u)\\) suit la loi binomiale de paramètres \\(n\\) et \\(u\\), donc \\(\\mathrm{Var}(G_n(u)) = u(1 - u)/n\\), petite près de 0 et de 1. AD divise chaque écart au carré par sa variance : un écart dans une **queue** compte autant qu'un écart au centre. KS prend l'écart brut maximal, dominé par le centre, où la variance \\(u(1-u)/n\\) est la plus grande. AD est donc plus sensible que KS aux désaccords dans les queues. Formule de calcul (vérifiée numériquement par le script contre l'intégrale, non démontrée ici) : \\(A^2 = -n - \\tfrac{1}{n} \\sum_{i=1}^{n} (2i - 1)\\big(\\ln u_{(i)} + \\ln(1 - u_{(n+1-i)})\\big)\\) ; pour les cinq durées de l'exemple précédent, \\(A^2 = 0{,}171\\). Comme \\(A^2\\) ne dépend que des \\(U_i\\), sa loi sous \\(H_0\\) est libre pour une loi continue entièrement spécifiée (même preuve que pour KS). Avec des paramètres estimés, les seuils dépendent de la famille testée. Sans le poids \\(1/(u(1-u))\\), la même intégrale est la statistique de Cramér-von Mises.\n\n**Shapiro-Wilk**, en une phrase : test réservé à la normalité (paramètres inconnus), dont la statistique \\(W \\le 1\\) compare les observations triées aux valeurs attendues des statistiques d'ordre d'un échantillon normal, et qui rejette quand \\(W\\) est petit.\n\n**Jarque-Bera** : test de normalité fondé sur la partie 1. Avec l'asymétrie empirique \\(\\hat{\\gamma}_1\\) et le kurtosis empirique \\(\\hat{\\kappa}\\), la statistique \\(\\tfrac{n}{6}\\big(\\hat{\\gamma}_1^2 + \\tfrac{(\\hat{\\kappa} - 3)^2}{4}\\big)\\) converge en loi vers \\(\\chi^2_2\\) sous l'hypothèse de normalité (admis) ; il ne voit que les écarts d'asymétrie et de kurtosis.\n\nL'expérience suivante compare, pour \\(n = 50\\) et un niveau nominal de 5 %, les fréquences de rejet de quatre tests de normalité à paramètres estimés : sous \\(H_0\\) (données normales), puis pour des données de Student à 4 degrés de liberté (symétriques, queues lourdes) et exponentielles (asymétriques). Le code montre aussi ce que rend `stats.anderson` : la statistique et des seuils propres à la famille testée.\n\n```python\nfrom statsmodels.stats.diagnostic import lilliefors, normal_ad\n\ndef frequences_de_rejet(tirer, n=50, nb=2000):\n    rejets = np.zeros(4)\n    for _ in range(nb):\n        x = tirer(n)\n        rejets += [lilliefors(x, dist=\"norm\")[1] <= 0.05, normal_ad(x)[1] <= 0.05,\n                   stats.shapiro(x)[1] <= 0.05, stats.jarque_bera(x)[1] <= 0.05]\n    return (rejets / nb).round(3)\n\nprint(\"erreur standard maximale d'une fréquence sur 2000 échantillons :\", round(float(np.sqrt(0.25 / 2000)), 4))\nprint(\"ordre des colonnes : Lilliefors, Anderson-Darling, Shapiro-Wilk, Jarque-Bera\")\nprint(\"données normales (niveau réel) :\", frequences_de_rejet(lambda n: rng.normal(0.0, 1.0, n)))\nprint(\"Student à 4 degrés de liberté  :\", frequences_de_rejet(lambda n: rng.standard_t(4, n)))\nprint(\"exponentielle                  :\", frequences_de_rejet(lambda n: rng.exponential(1.0, n)))\nr = stats.anderson(np.random.default_rng(11).normal(0.0, 1.0, 50), dist=\"norm\")   # un échantillon normal\nprint(\"stats.anderson :\", round(float(r.statistic), 3), \"; seuils\", r.critical_values, \"aux niveaux (%)\", r.significance_level)\n```\n\n```sortie\nerreur standard maximale d'une fréquence sur 2000 échantillons : 0.0112\nordre des colonnes : Lilliefors, Anderson-Darling, Shapiro-Wilk, Jarque-Bera\ndonnées normales (niveau réel) : [0.046 0.052 0.045 0.038]\nStudent à 4 degrés de liberté  : [0.312 0.424 0.474 0.504]\nexponentielle                  : [0.964 0.999 1.    0.955]\nstats.anderson : 0.213 ; seuils [0.538 0.613 0.736 0.858 1.021] aux niveaux (%) [15.  10.   5.   2.5  1. ]\n```\n\nLecture : la première ligne donne les niveaux réels, qui doivent être proches de 0,05 ou en dessous ; les deux suivantes des puissances. Sur la dernière ligne, la statistique de l'échantillon normal est sous tous les seuils : pas de rejet. Face aux queues lourdes de la loi de Student, le test de Lilliefors, fondé sur l'écart maximal de KS, rejette moins souvent que celui d'Anderson-Darling, qui pondère les queues. Ces fréquences sont des constats sur cette expérience (2000 échantillons par ligne), pas des résultats généraux : la puissance d'un test dépend de l'alternative et de \\(n\\).\n\n### Quel test pour quelle loi\n\n| Test | Type de loi sous \\(H_0\\) | Paramètres | Conditions et limites |\n|---|---|---|---|\n| khi-deux | discrète (binomiale, Poisson, dé) ; continue seulement après découpage en classes | fixés : \\(k - 1\\) degrés de liberté ; estimés : \\(k - 1 - s\\) | loi asymptotique ; effectifs attendus d'au moins 5 (règle d'usage) ; ignore l'ordre des classes |\n| Kolmogorov-Smirnov | continue | entièrement fixés | loi exacte et libre pour tout \\(n\\) ; surtout sensible au centre ; niveau réel trop bas si la loi est discrète ou si les paramètres sont estimés |\n| Lilliefors | normale ou exponentielle | estimés | statistique de KS avec des seuils propres à la famille |\n| Anderson-Darling | continue | fixés ; estimés avec des seuils propres à chaque famille | pondère les queues |\n| Shapiro-Wilk | normale seulement | estimés | réservé à la normalité |\n| Jarque-Bera | normale seulement | estimés | loi asymptotique ; ne voit que l'asymétrie et le kurtosis |\n\n### Pièges\n\n1. Ne pas rejeter n'est pas prouver \\(H_0\\) : avec peu de données, la puissance est faible (séance de mathématiques 3, partie 4).\n2. Degrés de liberté du khi-deux : \\(k - 1 - s\\). Oublier le \\(- s\\) donne des p-values trop grandes.\n3. Lire la table de Kolmogorov après avoir estimé les paramètres sur l'échantillon, ou pour une loi discrète.\n4. Avec \\(n\\) très grand, tout test rejette un écart minuscule : une p-value ne mesure pas la taille de l'écart.\n5. Le khi-deux appliqué à une loi continue dépend du découpage en classes choisi.\n\n[[controle:adequation]]\n\n## Partie 4 : densités conjointes\n\n### Le problème\n\nUn couple \\((X, Y)\\) est décrit par une fonction de deux variables. Il faut savoir en extraire, vite et sans erreur de bornes : la constante de normalisation, la loi de chaque variable, la loi de l'une sachant la valeur de l'autre, une probabilité « sachant \\(X = x\\) », et dire si les deux variables sont indépendantes.\n\n### Définitions\n\nLe couple \\((X, Y)\\) admet la **densité conjointe** \\(f\\), fonction positive de deux variables, si \\(\\mathbb{P}((X, Y) \\in A) = \\iint_A f(x, y)\\,dx\\,dy\\) pour toute partie \\(A\\) du plan (mesurable) ; en particulier \\(\\iint f = 1\\).\n\n- **Densité marginale** de \\(X\\) : \\(f_X(x) = \\int f(x, y)\\,dy\\). C'est la densité de \\(X\\), car \\(\\mathbb{P}(X \\le t) = \\int_{-\\infty}^{t} \\big(\\int f(x, y)\\,dy\\big)\\,dx\\) (théorème de Fubini, admis). De même \\(f_Y(y) = \\int f(x, y)\\,dx\\).\n- **Densité conditionnelle** de \\(Y\\) sachant \\(X = x\\), pour \\(f_X(x) > 0\\) : \\(f_{Y \\mid X}(y \\mid x) = f(x, y)/f_X(x)\\). C'est une densité en \\(y\\) : son intégrale en \\(y\\) vaut 1.\n- \\(\\mathbb{P}(Y \\in B \\mid X = x) = \\int_B f_{Y \\mid X}(y \\mid x)\\,dy\\) et \\(\\mathbb{E}[Y \\mid X = x] = \\int y\\,f_{Y \\mid X}(y \\mid x)\\,dy\\).\n- \\(X\\) et \\(Y\\) sont **indépendantes** si et seulement si \\(f(x, y) = f_X(x)\\,f_Y(y)\\) (sauf sur un ensemble d'aire nulle).\n\n### L'intuition\n\n\\(\\{X = x\\}\\) est de probabilité nulle : la définition \\(\\mathbb{P}(A \\cap B)/\\mathbb{P}(B)\\) ne s'applique pas. La densité conditionnelle est la limite du conditionnement par une bande étroite : pour \\(h > 0\\) petit, \\(\\mathbb{P}(Y \\in B \\mid x \\le X \\le x + h) = \\dfrac{\\int_x^{x+h} \\int_B f(s, y)\\,dy\\,ds}{\\int_x^{x+h} f_X(s)\\,ds}\\), et si \\(f\\) est continue, numérateur et dénominateur valent \\(h\\) fois leur valeur en \\(s = x\\), à un terme négligeable devant \\(h\\) près : la limite est \\(\\int_B f(x, y)\\,dy / f_X(x)\\). Géométriquement : on coupe la surface \\(f\\) par la droite verticale d'abscisse \\(x\\), et l'on renormalise la tranche pour que son aire vaille 1.\n\n### L'énoncé\n\n1. **(D1) Normalisation.** Si \\(f = c\\,g\\) avec \\(g \\ge 0\\) connue, \\(c = 1/\\iint g\\).\n2. **(D2) Probabilités totales.** \\(\\mathbb{P}(Y \\in B) = \\int \\mathbb{P}(Y \\in B \\mid X = x)\\,f_X(x)\\,dx\\) et \\(\\mathbb{E}[Y] = \\int \\mathbb{E}[Y \\mid X = x]\\,f_X(x)\\,dx\\).\n3. **(D3) Bayes pour les densités.** \\(f_{X \\mid Y}(x \\mid y) = \\dfrac{f_{Y \\mid X}(y \\mid x)\\,f_X(x)}{\\int f_{Y \\mid X}(y \\mid s)\\,f_X(s)\\,ds}\\).\n4. **(D4) Factorisation sur un pavé.** Si \\(f(x, y) = g(x)\\,h(y)\\) sur un pavé \\(\\mathcal{I} \\times \\mathcal{J}\\) (produit de deux intervalles) et \\(f = 0\\) ailleurs, alors \\(X\\) et \\(Y\\) sont indépendantes, de densités \\(g/\\int_{\\mathcal{I}} g\\) et \\(h/\\int_{\\mathcal{J}} h\\). Si l'ensemble où \\(f > 0\\) n'est pas un produit de deux parties de la droite, à un ensemble d'aire nulle près (un triangle, par exemple), \\(X\\) et \\(Y\\) ne sont pas indépendantes, même si la formule de \\(f\\) est un produit.\n5. **(D5) Reconnaître une loi.** À \\(x\\) fixé, \\(y \\mapsto f(x, y)\\) est proportionnelle à \\(f_{Y \\mid X}(\\cdot \\mid x)\\) : on identifie la loi conditionnelle en ne gardant que les facteurs qui contiennent \\(y\\).\n\n### La preuve\n\n1. (D2) : \\(\\int \\mathbb{P}(Y \\in B \\mid X = x)\\,f_X(x)\\,dx = \\int \\big(\\int_B f(x, y)\\,dy\\big)\\,dx = \\mathbb{P}(Y \\in B)\\) (Fubini) ; les \\(x\\) où \\(f_X(x) = 0\\) ne contribuent pas. Même calcul avec \\(y\\,f(x, y)\\) pour l'espérance.\n2. (D3) : \\(f(x, y) = f_{Y \\mid X}(y \\mid x)\\,f_X(x)\\) par définition, et aussi \\(f(x, y) = f_{X \\mid Y}(x \\mid y)\\,f_Y(y)\\), avec \\(f_Y(y) = \\int f(s, y)\\,ds\\).\n3. (D4), sens direct : pour \\(x \\in \\mathcal{I}\\), \\(f_X(x) = g(x) \\int_{\\mathcal{J}} h\\) ; pour \\(y \\in \\mathcal{J}\\), \\(f_Y(y) = h(y) \\int_{\\mathcal{I}} g\\) ; et \\(1 = \\iint f = \\int_{\\mathcal{I}} g \\times \\int_{\\mathcal{J}} h\\). Donc \\(f_X(x)\\,f_Y(y) = g(x)\\,h(y) = f(x, y)\\) sur le pavé, et les deux membres sont nuls ailleurs.\n4. (D4), second point : si \\(X\\) et \\(Y\\) sont indépendantes, \\(f = f_X f_Y\\) est strictement positive exactement sur le produit de \\(\\{f_X > 0\\}\\) par \\(\\{f_Y > 0\\}\\). Si l'on trouve une zone d'aire non nulle où \\(f = 0\\) alors que \\(f_X(x) > 0\\) et \\(f_Y(y) > 0\\), il n'y a pas indépendance.\n5. (D5) : dans \\(f_{Y \\mid X}(y \\mid x) = f(x, y)/f_X(x)\\), le dénominateur ne dépend pas de \\(y\\).\n\n### Exemple A, calcul complet\n\n\\(f(x, y) = c\\,xy\\) pour \\(0 < x < y < 1\\), et 0 ailleurs.\n\n1. Normalisation : \\(\\int_0^1 \\int_0^y xy\\,dx\\,dy = \\int_0^1 \\tfrac{y^3}{2}\\,dy = \\tfrac18\\), donc \\(c = 8\\).\n2. Marginales : \\(f_X(x) = \\int_x^1 8xy\\,dy = 4x(1 - x^2)\\) pour \\(0 < x < 1\\) ; \\(f_Y(y) = \\int_0^y 8xy\\,dx = 4y^3\\) pour \\(0 < y < 1\\). Les bornes viennent du triangle : à \\(x\\) fixé, \\(y\\) va de \\(x\\) à 1.\n3. Conditionnelle : \\(f_{Y \\mid X}(y \\mid x) = \\dfrac{8xy}{4x(1 - x^2)} = \\dfrac{2y}{1 - x^2}\\) pour \\(x < y < 1\\).\n4. Probabilité sachant \\(X = 1/2\\) : \\(f_X(1/2) = \\tfrac{3}{2}\\), et \\(\\mathbb{P}(Y > 3/4 \\mid X = 1/2) = \\int_{3/4}^{1} \\tfrac{2y}{3/4}\\,dy = \\tfrac{1 - 9/16}{3/4} = \\tfrac{7}{12}\\) (simulation dans une bande étroite autour de \\(x = 1/2\\) : 0,585). Sans condition, \\(\\mathbb{P}(Y > 3/4) = 1 - (3/4)^4 = \\tfrac{175}{256} \\approx 0{,}684\\). Enfin \\(\\mathbb{E}[Y \\mid X = 1/2] = \\tfrac{7}{9}\\).\n5. Indépendance : non. La formule \\(8xy\\) est un produit, mais le domaine est un triangle : au point \\((3/4, 1/4)\\), \\(f = 0\\) alors que \\(f_X(3/4)\\,f_Y(1/4) = \\tfrac{21}{256} > 0\\).\n\n### Exemple B, reconnaître une loi usuelle\n\n\\(f(x, y) = x\\,e^{-x(1 + y)}\\) pour \\(x > 0\\) et \\(y > 0\\).\n\n1. À \\(x\\) fixé, le seul facteur qui contient \\(y\\) est \\(e^{-xy}\\) : c'est le noyau de la loi exponentielle de paramètre \\(x\\). Donc \\(f_{Y \\mid X}(y \\mid x) = x\\,e^{-xy}\\), et \\(f_X(x) = f(x, y)/f_{Y \\mid X}(y \\mid x) = e^{-x}\\) : \\(X\\) suit la loi exponentielle de paramètre 1.\n2. \\(\\mathbb{P}(Y > 1 \\mid X = 2) = e^{-2} \\approx 0{,}135\\) (simulation : 0,134), alors que \\(\\mathbb{P}(Y > 1) = 0{,}5\\).\n3. À \\(y\\) fixé, les facteurs qui contiennent \\(x\\) sont \\(x\\,e^{-(1+y)x}\\) : noyau de la loi gamma de forme 2 et de paramètre \\(1 + y\\) (partie 1). Donc \\(f_{X \\mid Y}(x \\mid y) = (1 + y)^2\\,x\\,e^{-(1+y)x}\\), \\(f_Y(y) = 1/(1 + y)^2\\), et \\(\\mathbb{E}[X \\mid Y = y] = 2/(1 + y)\\), soit 1 pour \\(y = 1\\).\n\nLecture bayésienne : \\(X\\) est un paramètre inconnu (l'intensité), de loi a priori exponentielle ; sachant \\(X = x\\), on observe une durée \\(Y\\) exponentielle de paramètre \\(x\\) ; la loi de \\(X\\) sachant l'observation est une loi gamma. La partie 5 fait le même calcul pour un comptage.\n\n### Cas limites\n\n**Conditionner par un événement de probabilité nulle dépend de la variable qui le décrit.** \\(X\\) et \\(Y\\) sont indépendantes, uniformes sur \\([0, 1]\\). « Sachant \\(X = Y\\), quelle est l'espérance de \\(X\\) ? » n'a pas de réponse sans préciser la variable conditionnante.\n\n- Sachant \\(X - Y = 0\\) : la densité du couple \\((X, X - Y)\\) au point \\((x, 0)\\) vaut 1 pour \\(0 < x < 1\\) ; la loi conditionnelle de \\(X\\) est uniforme, d'espérance \\(\\tfrac{1}{2}\\).\n- Sachant \\(X/Y = 1\\) : avec \\(r = x/y\\), soit \\(y = x/r\\), la dérivée de \\(y\\) par rapport à \\(r\\) vaut \\(-x/r^2\\) ; la densité du couple \\((X, X/Y)\\) au point \\((x, 1)\\) vaut \\(x\\) pour \\(0 < x < 1\\) (changement de variables, admis). La loi conditionnelle de \\(X\\) a la densité \\(2x\\), d'espérance \\(\\tfrac{2}{3}\\).\n\nLa bande \\(\\lvert X - Y \\rvert < h\\) a une largeur constante ; la bande \\(\\lvert X/Y - 1 \\rvert < h\\) a une largeur proportionnelle à \\(x\\), donc favorise les grands \\(x\\). Simulation avec \\(h = 0{,}002\\) : 0,501 et 0,666.\n\n**Couple mixte.** Si \\(X\\) est à densité et \\(N\\) discrète, les mêmes formules valent en remplaçant l'intégrale en \\(n\\) par une somme ; et \\(\\{N = k\\}\\) ayant une probabilité non nulle, la loi de \\(X\\) sachant \\(N = k\\) relève de la définition élémentaire (partie 5).\n\n### Pièges\n\n1. Bornes : à \\(x\\) fixé, les bornes de \\(y\\) dépendent de \\(x\\) dès que le domaine n'est pas un pavé.\n2. Conclure à l'indépendance parce que la formule est un produit, sans regarder le domaine.\n3. Oublier de diviser par \\(f_X(x)\\) : \\(\\int_B f(x, y)\\,dy\\) n'est pas une probabilité conditionnelle.\n4. Une densité conditionnelle est une densité **en \\(y\\)**, de paramètre \\(x\\) : vérifier que son intégrale en \\(y\\) vaut 1.\n5. « Sachant \\(X = Y\\) » sans dire comment l'événement est approché.\n\n## Partie 5 : intensité d'une loi de Poisson, a priori et a posteriori\n\n### Le problème\n\nDes événements arrivent selon un processus de Poisson (séance de mathématiques 2, partie 4) dont l'intensité est inconnue. On observe \\(k\\) événements pendant une durée \\(t\\). Quelle intensité est la plus probable, parmi une liste de valeurs candidates ou parmi tous les réels positifs, compte tenu de ce que l'on savait avant d'observer ?\n\n### Définitions et modèle\n\n- \\(\\Lambda\\) est l'intensité, **aléatoire** parce qu'inconnue : un nombre d'événements par unité de temps. Ses valeurs possibles sont notées \\(\\lambda > 0\\).\n- \\(N\\) est le nombre d'événements observés pendant la durée \\(t > 0\\). Modèle : sachant \\(\\Lambda = \\lambda\\), \\(N\\) suit la loi de Poisson de paramètre \\(\\lambda t\\). La **vraisemblance** de \\(\\lambda\\), une fois \\(k\\) observé, est \\(L(\\lambda) = \\mathbb{P}(N = k \\mid \\Lambda = \\lambda) = e^{-\\lambda t} (\\lambda t)^k/k!\\).\n- La **loi a priori** est la loi de \\(\\Lambda\\) avant l'observation : des poids \\(\\pi_1, \\dots, \\pi_m\\) de somme 1 sur une liste \\(\\lambda_1, \\dots, \\lambda_m\\), ou une densité \\(\\pi(\\lambda)\\) sur \\(]0, +\\infty[\\).\n- La **loi a posteriori** est la loi de \\(\\Lambda\\) sachant \\(N = k\\).\n- Le **maximum a posteriori** (MAP) est la valeur de \\(\\lambda\\) qui maximise la loi a posteriori (le poids, ou la densité). Le **maximum de vraisemblance** (EMV, séance de mathématiques 3, partie 2) maximise \\(L\\) : comme \\(\\ln L(\\lambda) = k \\ln \\lambda - \\lambda t\\) à une constante près, de dérivée \\(k/\\lambda - t\\), c'est \\(\\hat{\\lambda} = k/t\\).\n\n### L'énoncé\n\n1. **(B1) Liste finie.** \\(\\mathbb{P}(\\Lambda = \\lambda_i \\mid N = k) = \\dfrac{\\pi_i\\,\\lambda_i^k\\,e^{-\\lambda_i t}}{\\sum_{j=1}^{m} \\pi_j\\,\\lambda_j^k\\,e^{-\\lambda_j t}}\\).\n2. **(B2) Densité.** La loi de \\(\\Lambda\\) sachant \\(N = k\\) a la densité \\(\\pi(\\lambda \\mid k) = \\dfrac{\\pi(\\lambda)\\,\\lambda^k e^{-\\lambda t}}{\\int_0^\\infty \\pi(s)\\,s^k e^{-s t}\\,ds}\\).\n3. **(B3) Conjugaison gamma-Poisson.** Si \\(\\Lambda\\) suit a priori la loi gamma de forme \\(a > 0\\) et de paramètre \\(b > 0\\) (densité \\(b^a \\lambda^{a-1} e^{-b\\lambda}/\\Gamma(a)\\), moyenne \\(a/b\\), partie 1), alors sachant \\(N = k\\) elle suit la loi gamma de forme \\(a + k\\) et de paramètre \\(b + t\\). Sa moyenne a posteriori est \\(\\dfrac{a + k}{b + t} = \\dfrac{b}{b + t} \\cdot \\dfrac{a}{b} + \\dfrac{t}{b + t} \\cdot \\dfrac{k}{t}\\), et son MAP est \\(\\dfrac{a + k - 1}{b + t}\\) si \\(a + k \\ge 1\\).\n4. **(B4) Deux candidates.** Avec des poids a priori égaux, \\(\\lambda_j > \\lambda_i\\) est plus probable a posteriori que \\(\\lambda_i\\) si et seulement si \\(\\dfrac{k}{t} > \\dfrac{\\lambda_j - \\lambda_i}{\\ln \\lambda_j - \\ln \\lambda_i}\\). Ce seuil, la moyenne logarithmique des deux candidates, n'est pas leur milieu.\n5. **(B5) A priori impropre en \\(1/\\lambda\\).** Avec \\(\\pi(\\lambda) = 1/\\lambda\\), la formule (B2) donne la loi gamma de forme \\(k\\) et de paramètre \\(t\\) si \\(k \\ge 1\\), et rien si \\(k = 0\\).\n\n### La preuve\n\n1. (B1) : formule de Bayes pour la partition des événements \\(\\{\\Lambda = \\lambda_i\\}\\) (séance de mathématiques 2, résultat (C2)) ; le facteur \\(t^k/k!\\), commun au numérateur et à tous les termes du dénominateur, se simplifie.\n2. (B2) : par les probabilités totales, \\(\\mathbb{P}(\\Lambda \\in A, N = k) = \\int_A \\pi(\\lambda)\\,L(\\lambda)\\,d\\lambda\\). Comme \\(\\mathbb{P}(N = k) > 0\\), la définition élémentaire donne \\(\\mathbb{P}(\\Lambda \\in A \\mid N = k) = \\int_A \\pi L \\big/ \\int_0^\\infty \\pi L\\), et \\(t^k/k!\\) se simplifie.\n3. (B3) : \\(\\pi(\\lambda)\\,\\lambda^k e^{-\\lambda t}\\) est proportionnel à \\(\\lambda^{a-1} e^{-b\\lambda} \\cdot \\lambda^k e^{-\\lambda t} = \\lambda^{a + k - 1} e^{-(b + t)\\lambda}\\), noyau de la loi gamma de forme \\(a + k\\) et de paramètre \\(b + t\\) ; la constante est imposée par l'intégrale égale à 1. Moyenne et mode : partie 1. Enfin \\(\\tfrac{b}{b+t} \\cdot \\tfrac{a}{b} + \\tfrac{t}{b+t} \\cdot \\tfrac{k}{t} = \\tfrac{a + k}{b + t}\\).\n4. (B4) : le rapport des deux poids a posteriori vaut \\((\\lambda_j/\\lambda_i)^k e^{-(\\lambda_j - \\lambda_i)t}\\) ; il dépasse 1 si et seulement si \\(k\\,(\\ln \\lambda_j - \\ln \\lambda_i) > (\\lambda_j - \\lambda_i)\\,t\\).\n5. (B5) : \\((1/\\lambda) \\cdot \\lambda^k e^{-\\lambda t} = \\lambda^{k-1} e^{-\\lambda t}\\), noyau de la loi gamma de forme \\(k\\) et de paramètre \\(t\\) si \\(k \\ge 1\\). Si \\(k = 0\\), \\(e^{-\\lambda t}/\\lambda\\) n'est pas intégrable près de 0 : il n'y a pas de loi a posteriori.\n\n### Ce que veut dire un a priori impropre\n\n\\(\\int_0^\\infty d\\lambda/\\lambda\\) diverge, en 0 comme à l'infini : \\(1/\\lambda\\) n'est la densité d'aucune loi. C'est une convention, qui n'a de sens que par la loi a posteriori qu'elle produit, quand celle-ci est une vraie loi (ici dès que \\(k \\ge 1\\)). Trois lectures :\n\n- c'est la limite de la loi gamma de forme \\(a\\) et de paramètre \\(b\\) quand \\(a\\) et \\(b\\) tendent vers 0 : (B3) se lit « l'a priori vaut \\(a\\) événements fictifs observés pendant une durée fictive \\(b\\) », et ici il n'apporte aucun événement fictif ;\n- c'est la densité constante sur \\(\\ln \\lambda\\), puisque \\(d\\lambda/\\lambda = d(\\ln \\lambda)\\) : aucun ordre de grandeur de \\(\\lambda\\) n'est favorisé, et la forme \\(1/\\lambda\\) est conservée si l'on change d'unité de temps (\\(\\lambda\\) multiplié par une constante) ;\n- sur une **liste finie**, des poids proportionnels à \\(1/\\lambda_i\\) forment une loi a priori ordinaire une fois divisés par leur somme.\n\n| A priori | A posteriori, \\(k\\) événements en une durée \\(t\\) | Moyenne a posteriori | MAP |\n|---|---|---|---|\n| gamma de forme \\(a\\), de paramètre \\(b\\) | gamma de forme \\(a + k\\), de paramètre \\(b + t\\) | \\((a + k)/(b + t)\\) | \\((a + k - 1)/(b + t)\\) |\n| \\(1/\\lambda\\) (impropre), \\(k \\ge 1\\) | gamma de forme \\(k\\), de paramètre \\(t\\) | \\(k/t\\) | \\((k - 1)/t\\) |\n| constant (impropre) | gamma de forme \\(k + 1\\), de paramètre \\(t\\) | \\((k + 1)/t\\) | \\(k/t\\) |\n\nL'EMV \\(k/t\\) coïncide avec le MAP pour l'a priori constant, et avec la moyenne a posteriori pour l'a priori en \\(1/\\lambda\\).\n\n### Exemples calculés\n\n**Liste, deux a priori.** Intensités candidates 1, 2, 3 et 5 événements par heure ; on observe 5 événements en 2 heures (EMV \\(2{,}5\\)).\n\n- A priori uniforme sur la liste : poids \\(\\lambda^5 e^{-2\\lambda}\\), soit \\((0{,}135 ; 0{,}586 ; 0{,}602 ; 0{,}142)\\) ; probabilités a posteriori \\((0{,}092 ; 0{,}400 ; 0{,}411 ; 0{,}097)\\). Le MAP est 3. Les candidates 2 et 3 sont à la même distance de 2,5, mais leur moyenne logarithmique \\(1/\\ln(3/2) \\approx 2{,}466\\) est sous 2,5 : (B4) donne l'avantage à 3.\n- A priori proportionnel à \\(1/\\lambda\\) (poids \\((0{,}492 ; 0{,}246 ; 0{,}164 ; 0{,}098)\\)) : poids \\(\\lambda^4 e^{-2\\lambda}\\), soit \\((0{,}135 ; 0{,}293 ; 0{,}201 ; 0{,}028)\\) ; probabilités a posteriori \\((0{,}206 ; 0{,}446 ; 0{,}305 ; 0{,}043)\\). Le MAP est 2 : l'a priori a changé la réponse.\n\n**Le seuil n'est pas le milieu.** Candidates 2 et 6, poids égaux, 19 événements en 5 heures : le taux observé \\(3{,}8\\) est sous le milieu 4, donc plus proche de 2. Mais la moyenne logarithmique vaut \\(4/\\ln 3 \\approx 3{,}641 < 3{,}8\\) : 6 est la plus probable, avec un rapport des poids a posteriori de \\(3^{19} e^{-20} \\approx 2{,}40\\).\n\n**Conjugaison.** A priori gamma de forme 2 et de paramètre 1 par heure (moyenne 2, mode 1) ; on observe 7 événements en 3 heures. A posteriori : gamma de forme 9 et de paramètre 4. Moyenne \\(\\tfrac{9}{4} = \\tfrac14 \\times 2 + \\tfrac34 \\times \\tfrac73\\) (simulation : 2,253) ; MAP \\(8/4 = 2\\) ; EMV \\(7/3 \\approx 2{,}333\\). Trois estimations, trois nombres différents. Avec l'a priori en \\(1/\\lambda\\) : gamma de forme 7 et de paramètre 3, moyenne \\(\\tfrac{7}{3}\\), MAP 2. Avec l'a priori constant : gamma de forme 8 et de paramètre 3, MAP \\(\\tfrac{7}{3}\\), moyenne \\(\\tfrac{8}{3}\\).\n\n### Cas limites\n\n- **Beaucoup de données.** Si \\(t \\to \\infty\\) avec \\(k/t\\) fixé, le poids \\(b/(b + t)\\) de l'a priori dans (B3) tend vers 0 et la variance a posteriori \\((a + k)/(b + t)^2\\) aussi : la loi a posteriori se concentre en \\(k/t\\), quel que soit l'a priori gamma.\n- **Plusieurs fenêtres.** Pour des comptages \\(k_1, \\dots, k_r\\) sur des durées disjointes \\(t_1, \\dots, t_r\\), indépendants sachant \\(\\Lambda\\), la vraisemblance est le produit des vraisemblances, proportionnel à \\(\\lambda^{k_1 + \\dots + k_r} e^{-\\lambda (t_1 + \\dots + t_r)}\\) : seuls comptent le nombre total d'événements et la durée totale.\n- **Observer une durée.** Si l'on observe l'instant \\(s\\) du \\(k\\)-ième événement, la vraisemblance est la densité de cet instant, \\(\\lambda^k s^{k-1} e^{-\\lambda s}/(k-1)!\\) (dérivée en \\(s\\) de \\(1 - \\sum_{j < k} e^{-\\lambda s}(\\lambda s)^j/j!\\), résultat (P2) de la séance de mathématiques 2 : la somme se télescope). Même noyau \\(\\lambda^k e^{-\\lambda s}\\) : même loi a posteriori que pour \\(k\\) événements comptés en une durée \\(s\\).\n- **Le MAP dépend de la paramétrisation.** Si \\(\\Lambda\\) a la densité \\(p\\), la durée moyenne entre événements \\(1/\\Lambda\\) a la densité \\(p(1/\\theta)/\\theta^2\\) en \\(\\theta\\). Pour la loi gamma de forme 9 et de paramètre 4, le mode de \\(1/\\Lambda\\) est \\(4/10 = 0{,}4\\), alors que l'inverse du MAP de \\(\\Lambda\\) est \\(0{,}5\\). Sur une liste finie, ce problème n'existe pas : les poids ne changent pas quand on renomme les valeurs.\n\n### Pièges\n\n1. Oublier l'a priori : choisir la candidate de plus grande vraisemblance, c'est supposer des poids égaux.\n2. Choisir la candidate la plus proche de \\(k/t\\) en distance : le seuil entre deux candidates est leur moyenne logarithmique.\n3. Le paramètre de la loi de Poisson est \\(\\lambda t\\), intensité fois durée, en unités cohérentes.\n4. MAP, moyenne a posteriori et EMV sont trois nombres différents ; lire lequel est demandé.\n5. Avec l'a priori en \\(1/\\lambda\\) et \\(k = 0\\), il n'y a pas de loi a posteriori.\n\n[[controle:posterieur]]\n\n## Partie 6 : bâton coupé au hasard\n\n### Le problème\n\nUn bâton de longueur 1 est coupé en \\(n\\) morceaux par \\(n - 1\\) points tirés indépendamment et uniformément. L'outil 3 de la séance de mathématiques 1 donne l'espérance de chaque morceau, \\(1/n\\). Ici : la loi des morceaux, l'espérance du plus petit, du \\(k\\)-ième plus petit, et la probabilité de pouvoir former un triangle.\n\n### Notations\n\n\\(n \\ge 2\\) est le nombre de morceaux. \\(U_1, \\dots, U_{n-1}\\) sont indépendantes, uniformes sur \\([0, 1]\\) ; \\(U_{(1)} < \\dots < U_{(n-1)}\\) sont ces points triés, avec les conventions \\(U_{(0)} = 0\\) et \\(U_{(n)} = 1\\). Le \\(j\\)-ième morceau en partant de la gauche a pour longueur \\(L_j = U_{(j)} - U_{(j-1)}\\), et \\(L_1 + \\dots + L_n = 1\\). Les longueurs triées sont \\(L_{(1)} \\le \\dots \\le L_{(n)}\\) : \\(L_{(1)}\\) est le plus petit morceau. Pour un réel \\(x\\), \\((x)_+ = \\max(x, 0)\\).\n\n### L'intuition\n\nLes \\(n\\) morceaux se comportent comme \\(n\\) durées exponentielles indépendantes divisées par leur somme (énoncé (E5)). Or le minimum de \\(n\\) exponentielles de même paramètre est \\(n\\) fois plus petit en moyenne que chacune (séance de mathématiques 2, résultat (A3)). Le plus petit de \\(n\\) morceaux de moyenne \\(1/n\\) mesure donc \\(1/n^2\\) en moyenne, et non \\(1/(2n)\\) ou \\(1/(n+1)\\).\n\n### L'énoncé\n\n1. **(E1) Loi conjointe.** Pour des réels \\(c_1, \\dots, c_n \\ge 0\\) de somme \\(c \\le 1\\) : \\(\\mathbb{P}(L_1 > c_1, \\dots, L_n > c_n) = (1 - c)^{n-1}\\).\n2. **(E2) Chaque morceau, et le plus petit.** Chaque \\(L_j\\) a la même loi : \\(\\mathbb{P}(L_j > x) = (1 - x)^{n-1}\\) pour \\(0 \\le x \\le 1\\). Les morceaux ne sont pas indépendants. \\(\\mathbb{P}(L_{(1)} > x) = (1 - nx)_+^{\\,n-1}\\) et \\(\\mathbb{E}[L_{(1)}] = \\dfrac{1}{n^2}\\).\n3. **(E3) Le \\(k\\)-ième plus petit.** \\(\\mathbb{E}[L_{(k)}] = \\dfrac{1}{n}\\Big(\\dfrac{1}{n} + \\dfrac{1}{n-1} + \\dots + \\dfrac{1}{n-k+1}\\Big)\\) ; pour le plus grand, \\(\\dfrac{1}{n}\\Big(1 + \\dfrac12 + \\dots + \\dfrac1n\\Big)\\).\n4. **(E4) Le plus grand, et le triangle.** Pour \\(x \\ge 1/2\\), \\(\\mathbb{P}(L_{(n)} > x) = n\\,(1 - x)^{n-1}\\). Trois morceaux forment un triangle avec probabilité \\(1/4\\).\n5. **(E5) Représentation.** Si \\(E_1, \\dots, E_n\\) sont indépendantes de loi exponentielle de paramètre 1 et si \\(T = E_1 + \\dots + E_n\\), le vecteur \\((E_1/T, \\dots, E_n/T)\\) a la loi de \\((L_1, \\dots, L_n)\\) et il est indépendant de \\(T\\).\n\n### La preuve\n\n1. Loi des points triés. Le vecteur \\((U_{(1)}, \\dots, U_{(n-1)})\\) a la densité \\((n-1)!\\) sur \\(\\{0 < u_1 < \\dots < u_{n-1} < 1\\}\\) : pour une région \\(\\mathcal{B}\\) de cet ensemble, « les points triés sont dans \\(\\mathcal{B}\\) » est la réunion disjointe, sur les \\((n-1)!\\) ordres possibles des \\(U_i\\), d'événements de probabilité égale au volume de \\(\\mathcal{B}\\) (les \\(U_i\\) non triés ont la densité 1 sur le cube, et permuter les coordonnées conserve le volume).\n2. Loi des morceaux. Le passage \\(l_j = u_j - u_{j-1}\\) (avec \\(u_0 = 0\\)) est linéaire, de matrice triangulaire à diagonale de 1, donc de déterminant 1 : \\((L_1, \\dots, L_{n-1})\\) a la densité \\((n-1)!\\) sur le simplexe \\(\\mathcal{S} = \\{l_j > 0,\\ l_1 + \\dots + l_{n-1} < 1\\}\\) (changement de variables, admis), et \\(L_n = 1 - L_1 - \\dots - L_{n-1}\\). La loi est uniforme sur \\(\\mathcal{S}\\), dont le volume est donc \\(1/(n-1)!\\).\n3. (E1), cas \\(c < 1\\). En termes des \\(n - 1\\) premières longueurs, l'événement s'écrit \\(l_j > c_j\\) pour \\(j < n\\) et \\(l_1 + \\dots + l_{n-1} < 1 - c_n\\). En posant \\(l_j = c_j + (1 - c)\\,l'_j\\), ces conditions deviennent \\(l'_j > 0\\) et \\(l'_1 + \\dots + l'_{n-1} < 1\\) : la région de l'événement est l'image de \\(\\mathcal{S}\\) par une translation suivie d'une homothétie de rapport \\(1 - c\\) en dimension \\(n - 1\\), de volume \\((1 - c)^{n-1}/(n-1)!\\). Multiplié par la densité \\((n-1)!\\) : \\((1 - c)^{n-1}\\). Si \\(c = 1\\), l'événement exige \\(L_j = c_j\\) pour tout \\(j\\), de probabilité 0.\n4. (E2). Avec \\(c_j = x\\) et les autres nuls : \\(\\mathbb{P}(L_j > x) = (1 - x)^{n-1}\\), quel que soit \\(j\\). Avec tous les \\(c_j\\) égaux à \\(x \\le 1/n\\) : \\(\\mathbb{P}(L_{(1)} > x) = (1 - nx)^{n-1}\\), et cette probabilité est nulle si \\(x > 1/n\\) (la somme des longueurs vaut 1). Par la formule de la queue (séance de mathématiques 1, outil 3, (F)) : \\(\\mathbb{E}[L_{(1)}] = \\int_0^{1/n} (1 - nx)^{n-1}\\,dx = \\Big[-\\dfrac{(1 - nx)^n}{n^2}\\Big]_0^{1/n} = \\dfrac{1}{n^2}\\). Non-indépendance : \\(\\mathbb{P}(L_1 > 0{,}6, L_2 > 0{,}6) = 0\\), alors que chaque probabilité est non nulle.\n5. (E4). Si \\(x \\ge 1/2\\), deux morceaux ne peuvent pas dépasser \\(x\\) tous les deux (leur somme dépasserait 1) : les événements \\(\\{L_j > x\\}\\) sont deux à deux disjoints, donc \\(\\mathbb{P}(L_{(n)} > x) = n\\,(1 - x)^{n-1}\\). Trois longueurs forment un triangle (non aplati) si et seulement si chacune est strictement inférieure à la somme des deux autres ; leur somme valant 1, cela équivaut à : chacune est inférieure à \\(1/2\\). Probabilité : \\(1 - \\mathbb{P}(L_{(3)} \\ge 1/2) = 1 - 3 \\times (1/2)^2 = \\tfrac14\\).\n6. (E5). La densité de \\((E_1, \\dots, E_n)\\) est \\(e^{-(e_1 + \\dots + e_n)}\\) sur les réels positifs. Les sommes partielles \\(s_j = e_1 + \\dots + e_j\\) (déterminant 1) ont la densité \\(e^{-s_n}\\) sur \\(\\{0 < s_1 < \\dots < s_n\\}\\). On pose \\(v_j = s_j/s_n\\) pour \\(j < n\\), en gardant \\(s_n\\) : \\(s_j = v_j s_n\\), de jacobien \\(s_n^{\\,n-1}\\). La densité de \\((V_1, \\dots, V_{n-1}, T)\\) est donc \\(t^{n-1} e^{-t} = (n-1)! \\times \\dfrac{t^{n-1} e^{-t}}{(n-1)!}\\) sur le produit de \\(\\{0 < v_1 < \\dots < v_{n-1} < 1\\}\\) par \\(\\{t > 0\\}\\). C'est un produit sur un domaine produit : par (D4) de la partie 4 (même preuve avec un vecteur à la place de \\(x\\)), \\((V_1, \\dots, V_{n-1})\\) a la densité \\((n-1)!\\), celle des points triés de l'étape 1, et il est indépendant de \\(T\\), de loi gamma de forme \\(n\\). Les écarts successifs des \\(V_j\\) sont les \\(E_j/T\\).\n7. (E3). Soient \\(E_{(1)} \\le \\dots \\le E_{(n)}\\) les exponentielles triées. \\(E_{(1)}\\) est le minimum de \\(n\\) exponentielles de paramètre 1, d'espérance \\(1/n\\) (résultat (A3) de la séance de mathématiques 2). Par (A5) (« la course recommence »), les \\(n - 1\\) durées restantes \\(E_j - E_{(1)}\\) sont indépendantes, de loi exponentielle de paramètre 1 : \\(E_{(2)} - E_{(1)}\\) est le minimum de \\(n - 1\\) exponentielles, d'espérance \\(1/(n-1)\\), et ainsi de suite. Donc \\(\\mathbb{E}[E_{(k)}] = \\tfrac1n + \\tfrac{1}{n-1} + \\dots + \\tfrac{1}{n-k+1}\\).\n8. Fin de (E3). Diviser par \\(T > 0\\) conserve l'ordre : \\(L_{(k)}\\) a la loi de \\(E_{(k)}/T\\). Et \\(E_{(k)} = (E_{(k)}/T) \\times T\\) est le produit de deux variables indépendantes par (E5), donc \\(\\mathbb{E}[E_{(k)}] = \\mathbb{E}[E_{(k)}/T]\\,\\mathbb{E}[T] = n\\,\\mathbb{E}[L_{(k)}]\\). On divise l'étape 7 par \\(n\\).\n\n### Exemple calculé\n\nTrois morceaux (deux points de coupe) : le plus petit mesure en moyenne \\(\\tfrac13 \\times \\tfrac13 = \\tfrac{1}{9}\\), celui du milieu \\(\\tfrac13\\big(\\tfrac13 + \\tfrac12\\big) = \\tfrac{5}{18}\\), le plus grand \\(\\tfrac13\\big(\\tfrac13 + \\tfrac12 + 1\\big) = \\tfrac{11}{18}\\) ; la somme vaut bien 1. Probabilité de former un triangle : \\(\\tfrac{1}{4}\\). Deux morceaux (un point de coupe) : \\(\\tfrac{1}{4}\\) et \\(\\tfrac{3}{4}\\). La corrélation entre le morceau de gauche et celui du milieu, pour trois morceaux, vaut \\(-0{,}5\\) (calcul d'intégrales du script).\n\n```python\nnb = 400000\ncoupes = np.sort(rng.random((nb, 2)), axis=1)\nmorceaux = np.diff(np.concatenate([np.zeros((nb, 1)), coupes, np.ones((nb, 1))], axis=1), axis=1)\ntries = np.sort(morceaux, axis=1)\nprint(\"moyennes des morceaux triés   :\", tries.mean(axis=0).round(4), \"; exact :\", np.round([1 / 9, 5 / 18, 11 / 18], 4))\nprint(\"moyennes gauche, milieu, droite :\", morceaux.mean(axis=0).round(4))\nprint(\"triangle possible             :\", round(float(np.mean(tries[:, 2] < 0.5)), 4))\ne = rng.exponential(1.0, (nb, 3))\nprint(\"exponentielles normalisées, triées :\", np.sort(e / e.sum(axis=1, keepdims=True), axis=1).mean(axis=0).round(4))\n```\n\n```sortie\nmoyennes des morceaux triés   : [0.111  0.2777 0.6113] ; exact : [0.1111 0.2778 0.6111]\nmoyennes gauche, milieu, droite : [0.333  0.3334 0.3336]\ntriangle possible             : 0.2499\nexponentielles normalisées, triées : [0.1112 0.2777 0.6111]\n```\n\n### Cas limites\n\n- **Bâton de longueur \\(\\ell\\)** : toutes les longueurs sont multipliées par \\(\\ell\\), les probabilités d'événements comme « former un triangle » sont inchangées.\n- **Cercle.** \\(n\\) points uniformes indépendants sur un cercle de circonférence 1 le découpent en \\(n\\) arcs qui ont la loi des \\(n\\) morceaux du bâton : on coupe le cercle au premier point, et les \\(n - 1\\) autres, repérés à partir de lui, sont indépendants et uniformes.\n- **Coupes successives : une autre loi.** On coupe en un point uniforme, puis on recoupe le **plus grand** des deux morceaux en un point uniforme de ce morceau. Le plus grand morceau \\(M\\) est uniforme sur \\([1/2, 1]\\) ; la seconde coupe le partage en \\(WM\\) et \\((1 - W)M\\), avec \\(W\\) uniforme sur \\([0, 1]\\), indépendante de \\(M\\). Le morceau \\(1 - M\\) est sous \\(1/2\\) ; le triangle exige \\(WM < 1/2\\) et \\((1 - W)M < 1/2\\), soit \\(1 - \\tfrac{1}{2M} < W < \\tfrac{1}{2M}\\), de probabilité \\(\\tfrac1M - 1\\). En intégrant contre la densité 2 de \\(M\\) : \\(\\int_{1/2}^{1} 2\\big(\\tfrac1m - 1\\big)\\,dm = 2\\ln 2 - 1 \\approx 0{,}386\\) (simulation : 0,387), et non \\(1/4\\).\n- **Plus de trois morceaux** : pour \\(n = 4\\), \\(\\mathbb{P}(L_{(4)} < 1/2) = 1 - 4 \\times (1/2)^3 = \\tfrac{1}{2}\\) par (E4).\n\n### Pièges\n\n1. Le plus petit de trois morceaux mesure \\(1/9\\) en moyenne, pas \\(1/6\\) ni \\(1/4\\) : \\(1/n^2\\), avec \\(n\\) le nombre de **morceaux**.\n2. \\(n\\) morceaux viennent de \\(n - 1\\) coupes ; l'outil 3 de la séance de mathématiques 1 compte \\(n\\) points, donc \\(n + 1\\) morceaux.\n3. Le morceau de gauche a la même loi que celui du milieu (E2), mais les morceaux ne sont pas indépendants.\n4. Lire comment les coupes sont faites : deux points tirés ensemble, ou coupes successives.\n\n## Partie 7 : conditionner sur la bonne information\n\n### Le problème\n\nLa phrase « il y a au moins un garçon » peut conduire à \\(1/3\\) ou à \\(1/2\\) selon la façon dont l'information a été obtenue. La règle : on ne conditionne pas par une phrase vraie, mais par l'événement « j'ai observé ceci », décrit dans un univers écrit explicitement, avec la règle d'observation.\n\n### Le cadre\n\nUne famille a deux enfants. Hypothèses du modèle : chaque enfant est un garçon (G) ou une fille (F) avec probabilité \\(1/2\\), indépendamment de l'autre. L'univers est l'ensemble des couples (aîné, cadet) : GG, GF, FG, FF, chacun de probabilité \\(1/4\\).\n\n### L'énoncé\n\n1. **Version 1.** On sait que l'aîné est une fille. Alors \\(\\mathbb{P}(\\text{deux filles}) = \\tfrac{1}{2}\\).\n2. **Version 2.** À la question « avez-vous au moins un garçon ? », le parent répond oui, et il dit vrai. Alors \\(\\mathbb{P}(\\text{deux garçons}) = \\tfrac{1}{3}\\).\n3. **Version 3.** On rencontre l'un des deux enfants, choisi au hasard (aîné ou cadet avec probabilité \\(1/2\\), indépendamment des sexes) : c'est un garçon. Alors \\(\\mathbb{P}(\\text{deux garçons}) = \\tfrac{1}{2}\\).\n\n### La preuve\n\n1. Version 1 : l'événement observé est \\(\\{\\text{FG}, \\text{FF}\\}\\), de probabilité \\(1/2\\) ; FF a la probabilité \\(1/4\\) ; le rapport vaut \\(1/2\\). Le sexe du cadet est indépendant de celui de l'aîné.\n2. Version 2 : l'événement observé est \\(\\{\\text{GG}, \\text{GF}, \\text{FG}\\}\\), de probabilité \\(3/4\\) ; GG a la probabilité \\(1/4\\) ; le rapport vaut \\(1/3\\).\n3. Version 3 : l'univers doit contenir l'enfant rencontré. Il a 8 issues (famille, enfant rencontré), chacune de probabilité \\(1/8\\). « L'enfant rencontré est un garçon » contient 4 issues : (GG, aîné), (GG, cadet), (GF, aîné), (FG, cadet), dont 2 avec deux garçons. Le rapport vaut \\(2/4 = 1/2\\).\n4. Pourquoi les versions 2 et 3 diffèrent, alors que « au moins un garçon » est vrai dans les deux : par la formule de Bayes, la probabilité d'**observer** un garçon vaut 1 pour GG et seulement \\(1/2\\) pour GF et pour FG dans la version 3, alors que la réponse « oui » a la probabilité 1 pour ces trois familles dans la version 2. La version 3 favorise GG d'un facteur 2.\n\n### Exemple calculé : le garçon né un mardi\n\nLe parent répond oui à « avez-vous au moins un garçon né un mardi ? », chaque enfant étant né un jour de la semaine uniforme et indépendant du reste. Cas général : soit une propriété que chaque garçon possède avec probabilité \\(q\\), indépendamment (\\(q = 1/7\\) pour le mardi).\n\n1. Un enfant donné est « un garçon ayant la propriété » avec probabilité \\(q/2\\). Donc \\(\\mathbb{P}(\\text{au moins un tel enfant}) = 1 - (1 - q/2)^2 = q(4 - q)/4\\).\n2. \\(\\mathbb{P}(\\text{deux garçons, dont au moins un a la propriété}) = \\tfrac14\\big(1 - (1 - q)^2\\big) = q(2 - q)/4\\).\n3. Rapport : \\(\\mathbb{P}(\\text{deux garçons} \\mid \\text{oui}) = \\dfrac{2 - q}{4 - q}\\).\n\nPour \\(q = 1\\) (aucune précision), on retrouve \\(1/3\\), la version 2 ; pour \\(q = 1/7\\), \\(\\tfrac{13}{27} \\approx 0{,}481\\) (énumération des 196 couples de types d'enfant, un type étant un sexe et un jour, et simulation du script : 0,481) ; quand \\(q \\to 0\\), la limite est \\(1/2\\). Plus la propriété est rare, plus elle désigne un enfant précis, et plus on se rapproche de la version 1.\n\n### Cas limites\n\n- **Énoncé sans règle d'observation.** « M. Durand a deux enfants, dont un garçon. Probabilité qu'il ait deux garçons ? » est ambigu : \\(1/3\\) si l'information vient d'un filtre sur la famille (version 2), \\(1/2\\) si elle vient de l'observation d'un enfant désigné (versions 1 et 3). Un énoncé correct dit comment l'information a été obtenue.\n- **Même mécanisme ailleurs** : dans le jeu des trois portes, la réponse dépend de la règle suivie par l'animateur quand il ouvre une porte, pas seulement de la porte ouverte.\n- Les hypothèses (probabilité \\(1/2\\), indépendance des sexes) sont les conventions du problème ; avec d'autres probabilités, la méthode est la même : écrire l'univers, les probabilités des issues, l'événement observé.\n\n### Pièges\n\n1. Conditionner par la phrase « au moins un garçon » quand on a en réalité **vu** un enfant.\n2. Parler de « l'autre enfant » dans la version 2 : aucun enfant n'y est désigné.\n3. Oublier que GF et FG sont deux issues distinctes, de probabilité totale \\(1/2\\).\n\n[[controle:enfants]]\n\n## Réflexes en 30 secondes\n\n| Indice dans l'énoncé | Premier geste |\n|---|---|\n| « étalée à droite », ordre de la moyenne, de la médiane et du mode | règle empirique mode < médiane < moyenne (exponentielle, log-normale, gamma) ; seule garantie générale : \\(\\lvert \\mu - m \\rvert \\le \\sigma\\) |\n| asymétrie, kurtosis d'une loi usuelle | exponentielle : 2 et 9 ; gamma de forme \\(a\\) : \\(2/\\sqrt{a}\\) et \\(3 + 6/a\\) ; normale : 0 et 3 ; somme de \\(n\\) : divisés par \\(\\sqrt{n}\\) et \\(n\\) (pour l'excès) |\n| changement d'unité | covariance multipliée par \\(ac\\) ; corrélation inchangée, au signe de \\(ac\\) près ; pente \\(\\rho\\,\\sigma_Y/\\sigma_X\\) |\n| « corrélation nulle », « mesure quoi » | liaison linéaire seulement ; \\(Y = X^2\\) avec \\(X\\) symétrique : corrélation nulle, dépendance totale |\n| comparer deux notes | cote Z \\((x - \\mu)/\\sigma\\) ; rangs comparables seulement si les lois ont la même forme |\n| adéquation à une loi discrète (binomiale, Poisson) | khi-deux, \\(k - 1 - s\\) degrés de liberté, effectifs attendus d'au moins 5 |\n| adéquation à une loi continue spécifiée | Kolmogorov-Smirnov (écart maximal), Anderson-Darling (queues) |\n| normalité, paramètres estimés | Lilliefors, Shapiro-Wilk, Jarque-Bera ; jamais la table de Kolmogorov |\n| densité conjointe | constante par \\(\\iint = 1\\) ; marginale en intégrant l'autre variable ; conditionnelle = conjointe divisée par marginale ; indépendance = produit **sur un pavé** |\n| intensité de Poisson, a priori | poids a posteriori proportionnel à \\(\\pi_i\\,\\lambda_i^k e^{-\\lambda_i t}\\) ; gamma de forme \\(a\\), paramètre \\(b\\) devient forme \\(a + k\\), paramètre \\(b + t\\) ; a priori \\(1/\\lambda\\) : exposant \\(k - 1\\) |\n| bâton coupé en \\(n\\) morceaux | plus petit \\(1/n^2\\) ; \\(k\\)-ième plus petit \\(\\tfrac1n\\big(\\tfrac1n + \\dots + \\tfrac{1}{n-k+1}\\big)\\) ; triangle \\(1/4\\) |\n| deux enfants | écrire GG, GF, FG, FF ; « aîné » ou enfant vu : \\(1/2\\) ; « au moins un » par filtre : \\(1/3\\) |\n\n## À savoir refaire sans notes\n\n- \\(\\lvert \\mu - m \\rvert \\le \\sigma\\) : la médiane minimise l'écart absolu moyen, puis trois inégalités.\n- Moyenne, médiane, mode et asymétrie de la loi exponentielle et de la loi log-normale ; un contre-exemple à la règle de l'ordre.\n- L'effet d'un changement affine sur la covariance et la corrélation ; la variance résiduelle \\(\\sigma_Y^2 (1 - \\rho^2)\\) ; un exemple de corrélation nulle sans indépendance.\n- Le khi-deux : \\(\\mathbb{E}[C] = k - 1\\), le cas \\(k = 2\\) par la binomiale centrée réduite, le compte des degrés de liberté.\n- Kolmogorov-Smirnov : la formule de calcul, et la preuve que la loi de \\(D_n\\) est libre par \\(X_i = Q(U_i)\\) ; ce qui casse pour une loi discrète et avec des paramètres estimés.\n- Sur une densité conjointe : normalisation, marginales, conditionnelle, probabilité sachant \\(X = x\\), critère d'indépendance.\n- La loi a posteriori sur une liste, la conjugaison gamma-Poisson, l'effet de l'a priori en \\(1/\\lambda\\).\n- \\(\\mathbb{P}(L_1 > c_1, \\dots, L_n > c_n) = (1 - c)^{n-1}\\) par le volume du simplexe, \\(\\mathbb{E}[L_{(1)}] = 1/n^2\\), le triangle, et \\(\\mathbb{E}[L_{(k)}]\\) par les exponentielles.\n- Les trois versions du problème des deux enfants, univers écrit.\n",
+   "controles": {
+    "forme": {
+     "question": "On sait seulement qu'une loi a une variance finie et un coefficient d'asymétrie strictement positif. Qu'est-ce qui est garanti ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Rien sur l'ordre de la moyenne et de la médiane ; seulement que leur écart est au plus égal à l'écart-type.",
+       "correcte": true,
+       "explication": "Oui : \\(\\lvert \\mu - m \\rvert \\le \\sigma\\) vaut pour toute loi de variance finie. Dans le contre-exemple discret de la leçon, l'asymétrie vaut \\(0{,}366\\), l'écart entre moyenne et médiane \\(0{,}9\\) et l'écart-type \\(1{,}921\\)."
+      },
+      {
+       "id": "b",
+       "texte": "La moyenne est supérieure à la médiane.",
+       "correcte": false,
+       "explication": "C'est la règle empirique, vraie pour les lois exponentielle, log-normale et gamma, mais pas un théorème : la loi qui vaut \\(-2\\), 1, 4 avec probabilités 0,4, 0,5, 0,1 a une asymétrie positive, une moyenne de \\(0{,}1\\) et une médiane de 1."
+      },
+      {
+       "id": "c",
+       "texte": "Le mode est inférieur à la médiane.",
+       "correcte": false,
+       "explication": "Faux en général : pour la loi de Weibull de forme \\(3{,}5\\), l'asymétrie est positive (\\(0{,}025\\)) et le mode \\(0{,}908\\) dépasse la médiane \\(0{,}901\\)."
+      },
+      {
+       "id": "d",
+       "texte": "Le kurtosis est supérieur à 3.",
+       "correcte": false,
+       "explication": "Asymétrie et kurtosis sont deux moments distincts : le contre-exemple discret de la leçon a une asymétrie positive et un kurtosis de \\(2{,}29\\), sous celui de la loi normale. Seul \\(\\kappa \\ge 1\\) est garanti."
+      }
+     ]
+    },
+    "unites": {
+     "question": "Deux rendements exprimés en nombres décimaux ont une covariance de 0,00012 et une corrélation de 0,6. On les exprime tous deux en pourcentage (multiplication par 100). Que deviennent la covariance et la corrélation ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Covariance \\(1{,}2\\), corrélation \\(0{,}6\\).",
+       "correcte": true,
+       "explication": "Oui : \\(\\mathrm{Cov}(aX, cY) = ac\\,\\mathrm{Cov}(X, Y)\\) avec \\(a = c = 100\\), soit un facteur 10 000 ; la corrélation, sans unité, ne change pas puisque \\(ac > 0\\)."
+      },
+      {
+       "id": "b",
+       "texte": "Covariance \\(0{,}012\\), corrélation \\(0{,}6\\).",
+       "correcte": false,
+       "explication": "Le facteur 100 n'a été appliqué qu'une fois. La covariance est un produit de deux écarts : chacun des deux est multiplié par 100."
+      },
+      {
+       "id": "c",
+       "texte": "Covariance \\(1{,}2\\), corrélation \\(60\\).",
+       "correcte": false,
+       "explication": "La corrélation a été multipliée par 100 comme une quantité qui aurait une unité. Elle est le rapport de la covariance au produit des écarts-types, tous deux multipliés par 100 : elle reste entre \\(-1\\) et 1."
+      },
+      {
+       "id": "d",
+       "texte": "Covariance \\(0{,}00012\\), corrélation \\(0{,}6\\).",
+       "correcte": false,
+       "explication": "C'est la corrélation qui est insensible aux unités, pas la covariance : celle-ci a l'unité du produit des deux variables et change avec elle."
+      }
+     ]
+    },
+    "adequation": {
+     "question": "On veut tester la normalité de 80 rendements. On estime la moyenne et l'écart-type sur ces 80 valeurs, on calcule la statistique de Kolmogorov-Smirnov contre la loi normale ainsi ajustée, et on lit la p-value dans la table de Kolmogorov. Que vaut cette procédure ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Son niveau réel est très inférieur au niveau affiché et elle perd de la puissance ; il faut des seuils propres au cas estimé (Lilliefors), ou un autre test de normalité.",
+       "correcte": true,
+       "explication": "Oui : la loi ajustée suit les données, la statistique est plus petite que sous la loi de la table. Dans la simulation du script (\\(n = 50\\)), la fréquence de rejet au niveau nominal 5 % tombe à \\(0{,}0001\\), et le seuil correct est \\(0{,}125\\) au lieu de \\(0{,}188\\)."
+      },
+      {
+       "id": "b",
+       "texte": "Elle est exacte : la loi de la statistique ne dépend pas de la loi continue testée.",
+       "correcte": false,
+       "explication": "Ce résultat suppose une loi testée **entièrement spécifiée** avant de voir les données. Ici, la loi testée dépend de l'échantillon par la moyenne et l'écart-type estimés."
+      },
+      {
+       "id": "c",
+       "texte": "Elle rejette trop souvent une hypothèse de normalité vraie.",
+       "correcte": false,
+       "explication": "C'est le sens inverse : estimer les paramètres rapproche la loi ajustée des données, donc diminue la statistique. Le test rejette trop rarement, pas trop souvent."
+      },
+      {
+       "id": "d",
+       "texte": "Elle devient exacte si l'on retire deux degrés de liberté, un par paramètre estimé.",
+       "correcte": false,
+       "explication": "Les degrés de liberté appartiennent au test du khi-deux. La loi de la statistique de Kolmogorov-Smirnov n'a pas de degrés de liberté ; avec des paramètres estimés, il faut une autre table."
+      }
+     ]
+    },
+    "posterieur": {
+     "question": "L'intensité \\(\\Lambda\\) d'un processus de Poisson suit a priori la loi gamma de forme 2 et de paramètre 1 (par heure). On observe 7 événements en 3 heures. Quelle est la loi a posteriori, et quel est le maximum a posteriori ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "Loi gamma de forme 9 et de paramètre 4 ; maximum a posteriori 2.",
+       "correcte": true,
+       "explication": "Oui : la forme reçoit le nombre d'événements (\\(2 + 7\\)), le paramètre reçoit la durée (\\(1 + 3\\)), et le mode d'une loi gamma de forme \\(\\alpha\\) et de paramètre \\(\\beta\\) est \\((\\alpha - 1)/\\beta = 8/4\\)."
+      },
+      {
+       "id": "b",
+       "texte": "Loi gamma de forme 9 et de paramètre 4 ; maximum a posteriori \\(2{,}25\\).",
+       "correcte": false,
+       "explication": "La loi est juste, mais \\(9/4\\) est sa **moyenne**. Le maximum a posteriori est le mode de la densité, \\((\\alpha - 1)/\\beta\\), plus petit que la moyenne pour une loi gamma."
+      },
+      {
+       "id": "c",
+       "texte": "Loi gamma de forme 9 et de paramètre 3 ; maximum a posteriori \\(2{,}67\\).",
+       "correcte": false,
+       "explication": "La durée observée remplace ici le paramètre a priori au lieu de s'y ajouter. Le noyau a posteriori est \\(\\lambda^{2 + 7 - 1} e^{-(1 + 3)\\lambda}\\) : les exposants de \\(e^{-\\lambda}\\) s'additionnent."
+      },
+      {
+       "id": "d",
+       "texte": "Le maximum a posteriori vaut \\(7/3 \\approx 2{,}33\\), quelle que soit la loi a priori.",
+       "correcte": false,
+       "explication": "\\(7/3\\) est le maximum de vraisemblance. Il ne coïncide avec le maximum a posteriori que pour un a priori constant ; un a priori gamma de forme 2 et de paramètre 1 tire l'estimation vers sa propre zone de forte densité."
+      }
+     ]
+    },
+    "enfants": {
+     "question": "M. Martin a deux enfants (chaque enfant est un garçon ou une fille avec probabilité 1/2, indépendamment). Vous le croisez accompagné de l'un des deux, choisi au hasard avec probabilité 1/2 indépendamment des sexes : c'est un garçon. Quelle est la probabilité que M. Martin ait deux garçons ?",
+     "options": [
+      {
+       "id": "a",
+       "texte": "\\(\\tfrac{1}{2}\\)",
+       "correcte": true,
+       "explication": "Oui : parmi les 8 issues (famille, enfant vu), 4 montrent un garçon, dont 2 viennent d'une famille de deux garçons. De façon équivalente, le sexe de l'enfant resté à la maison est indépendant de celui de l'enfant vu."
+      },
+      {
+       "id": "b",
+       "texte": "\\(\\tfrac{1}{3}\\)",
+       "correcte": false,
+       "explication": "C'est la réponse quand on sait seulement, par un filtre sur la famille, qu'il y a au moins un garçon. Ici un enfant précis a été vu, et une famille de deux garçons montre un garçon deux fois plus souvent qu'une famille mixte."
+      },
+      {
+       "id": "c",
+       "texte": "\\(\\tfrac14\\)",
+       "correcte": false,
+       "explication": "C'est la probabilité de deux garçons avant toute observation. Avoir vu un garçon élimine la famille de deux filles et rend les familles avec garçons plus probables."
+      },
+      {
+       "id": "d",
+       "texte": "\\(\\tfrac23\\)",
+       "correcte": false,
+       "explication": "C'est la probabilité que la famille soit mixte quand on sait par un filtre qu'il y a au moins un garçon : deux erreurs à la fois, le mauvais conditionnement et le mauvais événement."
+      }
+     ]
+    }
+   },
+   "verif": {
+    "script": "verif/seance_math_5.py"
+   }
+  },
+  {
+   "id": "M5-01",
+   "section": "math",
+   "theme": "Tests d'adéquation, quel test pour quelle loi",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "conceptuelle": true,
+   "correctes": [
+    "a",
+    "c",
+    "d"
+   ],
+   "enonce": "On dispose de \\(n\\) observations indépendantes et de même loi, et l'on veut tester l'adéquation de cette loi à un modèle. Dans les affirmations ci-dessous, \\(k\\) désigne le nombre de classes d'un test du khi-deux, et « la table usuelle » du test de Kolmogorov-Smirnov est celle qui vaut pour une loi continue entièrement spécifiée à l'avance.\n\nQuelles affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Pour tester « les comptages suivent une loi de Poisson », de paramètre inconnu estimé sur les données, on peut utiliser le test du khi-deux, en comparant la statistique à une loi du khi-deux à \\(k - 2\\) degrés de liberté.",
+     "correcte": true,
+     "explication": "Juste : le khi-deux est le test naturel d'une loi discrète, et l'on retire un degré de liberté pour la contrainte sur le total et un autre pour le paramètre estimé, soit \\(k - 1 - 1\\)."
+    },
+    {
+     "id": "b",
+     "texte": "Pour cette même hypothèse (loi de Poisson de paramètre estimé), le test de Kolmogorov-Smirnov lu dans sa table usuelle a exactement le niveau affiché.",
+     "correcte": false,
+     "explication": "Faux, pour deux raisons : la loi de Poisson est discrète, et son paramètre est estimé sur l'échantillon. Dans les deux cas la statistique est plus petite que sous la loi de la table, et le niveau réel est inférieur au niveau affiché."
+    },
+    {
+     "id": "c",
+     "texte": "Si la loi testée est continue et entièrement spécifiée à l'avance, la loi de la statistique de Kolmogorov-Smirnov sous l'hypothèse nulle est la même quelle que soit cette loi.",
+     "correcte": true,
+     "explication": "Juste : en écrivant \\(X_i = Q(U_i)\\) avec des \\(U_i\\) uniformes, la statistique devient \\(\\sup_u \\lvert G_n(u) - u \\rvert\\), qui ne dépend que des \\(U_i\\) (leçon, partie 3)."
+    },
+    {
+     "id": "d",
+     "texte": "La statistique d'Anderson-Darling donne plus de poids que celle de Kolmogorov-Smirnov aux écarts situés dans les queues de la loi.",
+     "correcte": true,
+     "explication": "Juste : elle divise chaque écart au carré par sa variance \\(u(1-u)/n\\), petite près de 0 et de 1, alors que Kolmogorov-Smirnov prend l'écart brut maximal, dominé par le centre."
+    }
+   ],
+   "solution": "Réponse : les affirmations sur le khi-deux à \\(k - 2\\) degrés de liberté, sur la loi libre de la statistique de Kolmogorov-Smirnov et sur le poids des queues dans Anderson-Darling sont justes ; celle sur le test de Kolmogorov-Smirnov appliqué à une loi de Poisson de paramètre estimé est fausse.\n\nLe classement à retenir (leçon, partie 3, tableau « Quel test pour quelle loi ») :\n\n- loi discrète (binomiale, Poisson) : khi-deux, avec \\(k - 1 - s\\) degrés de liberté quand \\(s\\) paramètres sont estimés, et des effectifs attendus d'au moins 5 (règle d'usage) ;\n- loi continue entièrement spécifiée : Kolmogorov-Smirnov, dont la loi sous l'hypothèse nulle ne dépend pas de la loi testée, ou Anderson-Darling, plus sensible aux queues ;\n- paramètres estimés sur l'échantillon : la table de Kolmogorov ne s'applique plus ; il faut des seuils propres (Lilliefors pour la loi normale ou exponentielle) ou un test conçu pour ce cas (Shapiro-Wilk pour la normalité).\n\nPourquoi le test de Kolmogorov-Smirnov échoue pour une loi discrète : la statistique s'écrit \\(\\sup_{u \\in \\mathcal{A}} \\lvert G_n(u) - u \\rvert\\), où \\(\\mathcal{A}\\) est l'ensemble des valeurs de la fonction de répartition testée ; pour une loi discrète, \\(\\mathcal{A}\\) n'est qu'une partie de \\([0, 1]\\) et le sup est plus petit.",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "Pour tester « les comptages suivent une loi de Poisson », de paramètre inconnu estimé sur les données, on peut utiliser le test du khi-deux, en comparant la statistique à une loi du khi-deux à \\(k - 2\\) degrés de liberté. ; Si la loi testée est continue et entièrement spécifiée à l'avance, la loi de la statistique de Kolmogorov-Smirnov sous l'hypothèse nulle est la même quelle que soit cette loi. ; La statistique d'Anderson-Darling donne plus de poids que celle de Kolmogorov-Smirnov aux écarts situés dans les queues de la loi.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": []
+   }
+  },
+  {
+   "id": "M5-02",
+   "section": "math",
+   "theme": "Khi-deux d'adéquation, statistique et décision",
+   "difficulte": 2,
+   "temps_cible_s": 90,
+   "enonce": "Un générateur est censé tirer, à chaque tirage et indépendamment des autres, l'un des symboles A, B, C, D avec la même probabilité 1/4. Sur 200 tirages, on observe 38 fois A, 62 fois B, 55 fois C et 45 fois D.\n\nOn teste l'hypothèse nulle « les quatre symboles sont équiprobables » par le test du khi-deux d'adéquation, au niveau 5 %. On donne les quantiles d'ordre 0,95 de la loi du khi-deux : 5,99 pour 2 degrés de liberté, 7,81 pour 3, 9,49 pour 4.\n\nQue vaut la statistique du test, et quelle est la décision ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "6,76 ; on ne rejette pas l'hypothèse nulle.",
+     "correcte": true,
+     "explication": "Oui : \\((144 + 144 + 25 + 25)/50 = 6{,}76\\), sous le quantile \\(7{,}81\\) de la loi à \\(4 - 1 = 3\\) degrés de liberté."
+    },
+    {
+     "id": "b",
+     "texte": "6,76 ; on rejette l'hypothèse nulle.",
+     "correcte": false,
+     "explication": "La statistique est juste, mais elle a été comparée au quantile à 2 degrés de liberté (\\(5{,}99\\)). Aucun paramètre n'est estimé ici : il y a \\(k - 1 = 3\\) degrés de liberté, et \\(6{,}76 < 7{,}81\\)."
+    },
+    {
+     "id": "c",
+     "texte": "1,69 ; on ne rejette pas l'hypothèse nulle.",
+     "correcte": false,
+     "explication": "Les carrés des écarts ont été divisés par le nombre de tirages, 200, au lieu de l'effectif attendu de chaque classe, 50. Chaque terme est \\((O_j - e_j)^2/e_j\\)."
+    },
+    {
+     "id": "d",
+     "texte": "338 ; on rejette l'hypothèse nulle.",
+     "correcte": false,
+     "explication": "C'est la somme des carrés des écarts, sans la division par les effectifs attendus. Sans cette division, la statistique dépendrait de la taille de l'échantillon et n'aurait pas la loi du khi-deux."
+    }
+   ],
+   "solution": "Réponse : la statistique vaut \\(6{,}76\\) et l'on ne rejette pas l'hypothèse nulle au niveau 5 %.\n\nNotations : \\(O_j\\) est l'effectif observé du symbole \\(j\\), \\(e_j = 200 \\times 1/4 = 50\\) l'effectif attendu sous l'hypothèse nulle, \\(C = \\sum_j (O_j - e_j)^2/e_j\\) la statistique.\n\nÉtape 1, écarts : \\(38 - 50 = -12\\), \\(62 - 50 = 12\\), \\(55 - 50 = 5\\), \\(45 - 50 = -5\\). Leur somme est nulle, comme toujours.\n\nÉtape 2, statistique : \\(C = (144 + 144 + 25 + 25)/50 = 338/50 = 6{,}76\\).\n\nÉtape 3, degrés de liberté : \\(k = 4\\) classes, aucun paramètre estimé, donc \\(k - 1 = 3\\) (leçon, partie 3). Le quantile d'ordre 0,95 est \\(7{,}81\\), et \\(6{,}76 < 7{,}81\\) : pas de rejet. Tous les effectifs attendus valent 50, bien au-dessus de 5 : l'approximation par la loi du khi-deux est acceptable.\n\nLa p-value approchée vaut \\(0{,}080\\) ; la simulation de la loi exacte de la statistique sous l'hypothèse nulle (script) donne 0,082, et une moyenne de la statistique de 3,001, pour une valeur exacte \\(k - 1 = 3\\).",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "6,76 ; on ne rejette pas l'hypothèse nulle.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q02_d_brut",
+     "Q02_d_sur_n",
+     "Q02_ddl",
+     "Q02_esp_mc",
+     "Q02_exact",
+     "Q02_p",
+     "Q02_p_sim",
+     "Q02_q2",
+     "Q02_q3",
+     "Q02_q4",
+     "Q02_somme_carres"
+    ]
+   }
+  },
+  {
+   "id": "M5-03",
+   "section": "math",
+   "theme": "Khi-deux d'adéquation à une loi de Poisson, paramètre estimé",
+   "difficulte": 4,
+   "temps_cible_s": 150,
+   "enonce": "On compte les ordres reçus pendant 200 intervalles d'une minute : 300 ordres au total. On veut tester l'hypothèse « le nombre d'ordres par intervalle suit une loi de Poisson », de paramètre inconnu, par un test du khi-deux d'adéquation sur les cinq classes « 0 », « 1 », « 2 », « 3 » et « 4 ou plus ». Le paramètre de la loi de Poisson est estimé par le nombre moyen d'ordres par intervalle. On donne \\(e^{-1{,}5} \\approx 0{,}2231\\).\n\nQuel est l'effectif attendu de la classe « 4 ou plus », arrondi à une décimale, et à combien de degrés de liberté compare-t-on la statistique ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "13,1 intervalles ; 3 degrés de liberté",
+     "correcte": true,
+     "explication": "Oui : \\(200 \\times (1 - 0{,}9344) = 13{,}1\\), et \\(5 - 1 - 1 = 3\\) degrés de liberté, le dernier retrait venant du paramètre estimé."
+    },
+    {
+     "id": "b",
+     "texte": "9,4 intervalles ; 3 degrés de liberté",
+     "correcte": false,
+     "explication": "C'est \\(200\\,\\mathbb{P}(N = 4)\\) : la classe est « 4 ou plus », elle doit recevoir tout le complément \\(1 - \\mathbb{P}(N \\le 3)\\). Sinon les effectifs attendus n'ont pas pour somme 200."
+    },
+    {
+     "id": "c",
+     "texte": "13,1 intervalles ; 4 degrés de liberté",
+     "correcte": false,
+     "explication": "\\(k - 1 = 4\\) vaut quand la loi est entièrement spécifiée. Ici le paramètre est estimé sur les données, ce qui retire un degré de liberté de plus."
+    },
+    {
+     "id": "d",
+     "texte": "13,1 intervalles ; 5 degrés de liberté",
+     "correcte": false,
+     "explication": "Le nombre de classes n'est pas le nombre de degrés de liberté : les cinq écarts ont une somme nulle (un degré en moins), et un paramètre est estimé (un autre en moins)."
+    }
+   ],
+   "solution": "Réponse : \\(13{,}1\\) intervalles attendus, et 3 degrés de liberté.\n\nNotations : \\(N\\) est le nombre d'ordres d'un intervalle, \\(\\hat{\\lambda}\\) le paramètre estimé.\n\nÉtape 1, estimation : \\(\\hat{\\lambda} = 300/200 = 1{,}5\\) ordre par intervalle.\n\nÉtape 2, probabilité de la dernière classe : \\(\\mathbb{P}(N \\le 3) = e^{-1{,}5}\\big(1 + 1{,}5 + \\tfrac{1{,}5^2}{2} + \\tfrac{1{,}5^3}{6}\\big) = 0{,}2231 \\times 4{,}1875 = 0{,}9344\\), donc \\(\\mathbb{P}(N \\ge 4) = 0{,}0656\\) (simulation : 0,0657).\n\nÉtape 3, effectif attendu : \\(200 \\times 0{,}0656 = 13{,}1\\). Les quatre autres valent \\((44{,}6 ; 66{,}9 ; 50{,}2 ; 25{,}1)\\) ; tous dépassent 5, la règle d'usage est respectée.\n\nÉtape 4, degrés de liberté : \\(k - 1 - s\\) avec \\(k = 5\\) classes et \\(s = 1\\) paramètre estimé, soit 3 (leçon, partie 3).\n\nRemarque : regrouper les valeurs rares dans « 4 ou plus » est ce qui permet de respecter la règle sur les effectifs attendus ; sans regroupement, la classe « 6 », par exemple, aurait un effectif attendu inférieur à 1.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "13,1 intervalles ; 3 degrés de liberté",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q03_att",
+     "Q03_d_ddl_classes",
+     "Q03_d_ddl_sans_estim",
+     "Q03_d_egal4",
+     "Q03_ddl",
+     "Q03_exact",
+     "Q03_exp",
+     "Q03_lambda",
+     "Q03_n_param",
+     "Q03_p_bas",
+     "Q03_p_queue",
+     "Q03_p_queue_mc",
+     "Q03_somme"
+    ]
+   }
+  },
+  {
+   "id": "M5-04",
+   "section": "math",
+   "theme": "Covariance et corrélation, changement d'unités",
+   "difficulte": 3,
+   "temps_cible_s": 120,
+   "correctes": [
+    "a",
+    "b",
+    "d"
+   ],
+   "enonce": "Pour un jour tiré au hasard dans l'année, \\(X\\) est la température à midi, en degrés Celsius, et \\(Y\\) le montant des ventes d'un glacier, en euros. L'écart-type de \\(X\\) vaut 5 °C, celui de \\(Y\\) vaut 40 euros, et leur covariance vaut 120 (en °C fois euro). On note \\(X' = 1{,}8\\,X + 32\\) la même température en degrés Fahrenheit.\n\nQuelles affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "La corrélation entre \\(X\\) et \\(Y\\) vaut 0,6, et la corrélation entre \\(X'\\) et \\(Y\\) aussi.",
+     "correcte": true,
+     "explication": "Juste : \\(120/(5 \\times 40) = 0{,}6\\), et un changement affine de pente positive ne change pas la corrélation, qui n'a pas d'unité."
+    },
+    {
+     "id": "b",
+     "texte": "La covariance entre \\(X'\\) et \\(Y\\) vaut 216 (en °F fois euro).",
+     "correcte": true,
+     "explication": "Juste : \\(\\mathrm{Cov}(1{,}8\\,X + 32, Y) = 1{,}8 \\times 120 = 216\\). La constante 32 disparaît avec le centrage ; l'ajouter donnerait 248, ce qui est faux."
+    },
+    {
+     "id": "c",
+     "texte": "La droite de régression de \\(Y\\) sur \\(X\\) a pour pente 0,6 euro par degré Celsius.",
+     "correcte": false,
+     "explication": "Faux : la pente est \\(\\mathrm{Cov}(X, Y)/\\mathrm{Var}(X) = 120/25 = 4{,}8\\) euros par degré Celsius. La corrélation est sans unité et ne se lit pas comme une pente."
+    },
+    {
+     "id": "d",
+     "texte": "Si l'on remplace \\(Y\\) par \\(-Y\\), la covariance et la corrélation avec \\(X\\) changent de signe sans changer de valeur absolue.",
+     "correcte": true,
+     "explication": "Juste : \\(\\mathrm{Cov}(X, -Y) = -\\mathrm{Cov}(X, Y)\\) et l'écart-type de \\(-Y\\) est celui de \\(Y\\), donc la corrélation devient \\(-0{,}6\\)."
+    }
+   ],
+   "solution": "Réponse : sont justes les affirmations sur la corrélation inchangée (\\(0{,}6\\)), sur la covariance \\(216\\) en degrés Fahrenheit et sur le changement de signe ; l'affirmation sur la pente est fausse.\n\nRègle (leçon, partie 2, (K1)) : \\(\\mathrm{Cov}(aX + b, cY + d) = ac\\,\\mathrm{Cov}(X, Y)\\), et la corrélation est multipliée par le signe de \\(ac\\).\n\nÉtape 1, corrélation : \\(\\rho = 120/(5 \\times 40) = 0{,}6\\).\n\nÉtape 2, degrés Fahrenheit (\\(a = 1{,}8\\), \\(b = 32\\)) : covariance \\(1{,}8 \\times 120 = 216\\), écart-type de \\(X'\\) égal à \\(1{,}8 \\times 5 = 9\\) °F, corrélation \\(216/(9 \\times 40) = 0{,}6\\) (simulation de la covariance : 214,1).\n\nÉtape 3, pente : \\(\\mathrm{Cov}(X, Y)/\\mathrm{Var}(X) = 120/25 = 4{,}8\\) euros par degré Celsius, soit aussi \\(\\rho\\,\\sigma_Y/\\sigma_X = 0{,}6 \\times 40/5\\). En degrés Fahrenheit, elle devient \\(4{,}8/1{,}8 \\approx 2{,}67\\) euros par degré : la pente dépend des unités, la corrélation non.\n\nÉtape 4, signe : \\(a = 1\\), \\(c = -1\\), donc covariance \\(-120\\) et corrélation \\(-0{,}6\\).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "La corrélation entre \\(X\\) et \\(Y\\) vaut 0,6, et la corrélation entre \\(X'\\) et \\(Y\\) aussi. ; La covariance entre \\(X'\\) et \\(Y\\) vaut 216 (en °F fois euro). ; Si l'on remplace \\(Y\\) par \\(-Y\\), la covariance et la corrélation avec \\(X\\) changent de signe sans changer de valeur absolue.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q04_cov_f",
+     "Q04_cov_f_mc",
+     "Q04_d_cov_affine",
+     "Q04_pente",
+     "Q04_pente_f",
+     "Q04_rho",
+     "Q04_sx_f"
+    ]
+   }
+  },
+  {
+   "id": "M5-05",
+   "section": "math",
+   "theme": "Cote Z, comparaison de notes",
+   "difficulte": 2,
+   "temps_cible_s": 60,
+   "enonce": "Trois candidats passent trois examens différents. Pour chaque examen, on donne la note du candidat, puis la moyenne et l'écart-type des notes de tous les candidats de cet examen.\n\n- Examen A : note 78 sur 100 ; moyenne 66, écart-type 8.\n- Examen B : note 1340 sur 1600 ; moyenne 1100, écart-type 200.\n- Examen C : note 15 sur 20 ; moyenne 11,4, écart-type 2.\n\nQuelle note est la meilleure en position relative, mesurée par la cote Z, et que vaut cette cote ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "Celle de l'examen C, de cote Z 1,8.",
+     "correcte": true,
+     "explication": "Oui : \\((15 - 11{,}4)/2 = 1{,}8\\), contre \\(1{,}5\\) pour A et \\(1{,}2\\) pour B."
+    },
+    {
+     "id": "b",
+     "texte": "Celle de l'examen B, la plus éloignée de sa moyenne : 240 points.",
+     "correcte": false,
+     "explication": "Un écart en points dépend de l'échelle de l'examen. Rapporté à l'écart-type de 200 points, il ne vaut que \\(1{,}2\\) écart-type, la plus petite des trois cotes."
+    },
+    {
+     "id": "c",
+     "texte": "Celle de l'examen B, qui atteint 83,75 % du barème.",
+     "correcte": false,
+     "explication": "Le pourcentage du barème ne dit rien de la position parmi les candidats : il ignore la moyenne et la dispersion des notes de chaque examen."
+    },
+    {
+     "id": "d",
+     "texte": "Celle de l'examen C, de cote Z 3,6.",
+     "correcte": false,
+     "explication": "L'examen est le bon, mais \\(3{,}6\\) est l'écart à la moyenne en points, \\(15 - 11{,}4\\) : il reste à le diviser par l'écart-type 2."
+    }
+   ],
+   "solution": "Réponse : la note de l'examen C, de cote Z \\(1{,}8\\).\n\nLa cote Z d'une note \\(x\\) est \\(z = (x - \\mu)/\\sigma\\), où \\(\\mu\\) et \\(\\sigma\\) sont la moyenne et l'écart-type des notes de l'examen : le nombre d'écarts-types entre la note et la moyenne (leçon, partie 2). Elle n'a pas d'unité, ce qui permet de comparer des barèmes différents.\n\n- Examen A : \\((78 - 66)/8 = 1{,}5\\).\n- Examen B : \\((1340 - 1100)/200 = 1{,}2\\).\n- Examen C : \\((15 - 11{,}4)/2 = 1{,}8\\).\n\nLecture en rang, sous l'hypothèse supplémentaire que les notes de chaque examen suivent une loi normale : la proportion de candidats dépassés serait \\(0{,}933\\) pour A, \\(0{,}885\\) pour B et \\(0{,}964\\) pour C (simulation pour C : 0,964). Sans hypothèse sur la forme des lois, les cotes comparent des positions en écarts-types, pas des rangs.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "Celle de l'examen C, de cote Z 1,8.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q05_d_ecart_b",
+     "Q05_d_ecart_c",
+     "Q05_d_pct_b",
+     "Q05_phi_a",
+     "Q05_phi_b",
+     "Q05_phi_c",
+     "Q05_phi_c_mc",
+     "Q05_za",
+     "Q05_zb",
+     "Q05_zc"
+    ]
+   }
+  },
+  {
+   "id": "M5-06",
+   "section": "math",
+   "theme": "Asymétrie : moyenne, médiane et mode d'une loi log-normale",
+   "difficulte": 3,
+   "temps_cible_s": 90,
+   "correctes": [
+    "a",
+    "b"
+   ],
+   "enonce": "La variable aléatoire \\(X\\) est strictement positive, et \\(\\ln X\\) suit la loi normale d'espérance 0 et de variance 1 : \\(X\\) suit une loi log-normale.\n\nQuelles affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "La médiane de \\(X\\) vaut 1.",
+     "correcte": true,
+     "explication": "Juste : l'exponentielle est croissante, donc \\(\\mathbb{P}(X \\le 1) = \\mathbb{P}(\\ln X \\le 0) = 1/2\\). Une fonction croissante transporte la médiane."
+    },
+    {
+     "id": "b",
+     "texte": "L'espérance de \\(X\\) vaut \\(e^{1/2} \\approx 1{,}649\\).",
+     "correcte": true,
+     "explication": "Juste : \\(\\mathbb{E}[e^{Y}] = e^{1/2}\\) pour \\(Y\\) de loi \\(\\mathcal{N}(0, 1)\\). L'espérance, elle, n'est pas transportée par l'exponentielle : elle dépasse \\(e^{\\mathbb{E}[\\ln X]} = 1\\) (inégalité de Jensen)."
+    },
+    {
+     "id": "c",
+     "texte": "Le mode de \\(X\\) vaut \\(e^{-1/2} \\approx 0{,}607\\).",
+     "correcte": false,
+     "explication": "Faux : le mode vaut \\(e^{-1} \\approx 0{,}368\\). L'exposant est \\(a - b^2\\) avec \\(a = 0\\) et \\(b^2 = 1\\) ; \\(1/2\\) est le terme \\(b^2/2\\) de la moyenne, pas celui du mode."
+    },
+    {
+     "id": "d",
+     "texte": "Pour toute loi de variance finie dont le coefficient d'asymétrie est strictement positif, la moyenne est supérieure à la médiane.",
+     "correcte": false,
+     "explication": "Faux : c'est une règle empirique, vraie ici, mais pas un théorème. La loi qui vaut \\(-2\\), 1, 4 avec probabilités 0,4, 0,5, 0,1 a une asymétrie positive (\\(0{,}366\\)), une moyenne de \\(0{,}1\\) et une médiane de 1 (leçon, partie 1)."
+    }
+   ],
+   "solution": "Réponse : seules les affirmations sur la médiane (1) et sur l'espérance (\\(e^{1/2} \\approx 1{,}649\\)) sont justes.\n\nNotations : \\(X = e^{Y}\\) avec \\(Y\\) de loi \\(\\mathcal{N}(0, 1)\\) ; dans les formules de la leçon (partie 1), \\(a = 0\\) et \\(b = 1\\).\n\nÉtape 1, médiane : \\(\\mathbb{P}(X \\le e^0) = \\mathbb{P}(Y \\le 0) = 1/2\\), donc la médiane vaut 1 (simulation de \\(\\mathbb{P}(X \\le 1)\\) : 0,500).\n\nÉtape 2, moyenne : \\(\\mathbb{E}[e^{Y}] = e^{1/2} \\approx 1{,}649\\) (fonction génératrice de la loi normale ; simulation : 1,648).\n\nÉtape 3, mode : la densité de \\(X\\) en \\(x\\) est \\(\\varphi(\\ln x)/x\\) ; avec \\(t = \\ln x\\), son logarithme vaut \\(-t^2/2 - t\\) à une constante près, maximal en \\(t = -1\\). Le mode est \\(e^{-1} \\approx 0{,}368\\).\n\nÉtape 4 : mode < médiane < moyenne (\\(0{,}368 < 1 < 1{,}649\\)), avec un coefficient d'asymétrie \\((e + 2)\\sqrt{e - 1} \\approx 6{,}18\\). La loi log-normale suit la règle empirique, mais la règle n'est pas générale : ce qui vaut pour toute loi de variance finie, c'est que l'écart entre moyenne et médiane ne dépasse pas l'écart-type (ici \\(2{,}161\\)).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "La médiane de \\(X\\) vaut 1. ; L'espérance de \\(X\\) vaut \\(e^{1/2} \\approx 1{,}649\\).",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "La_B_med",
+     "La_B_moy",
+     "La_B_skew",
+     "Q06_d_mode",
+     "Q06_med",
+     "Q06_med_p_mc",
+     "Q06_mode",
+     "Q06_moy",
+     "Q06_moy_mc",
+     "Q06_sigma",
+     "Q06_skew"
+    ]
+   }
+  },
+  {
+   "id": "M5-07",
+   "section": "math",
+   "theme": "Processus de Poisson, intensité la plus probable a posteriori dans une liste",
+   "difficulte": 4,
+   "temps_cible_s": 150,
+   "enonce": "Des appels arrivent selon un processus de Poisson dont l'intensité \\(\\Lambda\\), en appels par heure, est inconnue. On sait que \\(\\Lambda\\) vaut 0,5, 1, 2 ou 4, et la loi a priori donne à chaque valeur \\(\\lambda\\) de cette liste un poids proportionnel à \\(1/\\lambda\\). On observe exactement 3 appels pendant 2 heures.\n\nOn donne \\(e^{-1} \\approx 0{,}3679\\), \\(e^{-2} \\approx 0{,}1353\\), \\(e^{-4} \\approx 0{,}0183\\), \\(e^{-8} \\approx 0{,}00034\\).\n\nQuelle est la valeur de \\(\\Lambda\\) la plus probable a posteriori, et quelle est sa probabilité a posteriori ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "1 appel par heure, avec la probabilité 0,442",
+     "correcte": true,
+     "explication": "Oui : les poids a posteriori sont proportionnels à \\(\\lambda^{2} e^{-2\\lambda}\\), soit \\((0{,}0920 ; 0{,}1353 ; 0{,}0733 ; 0{,}0054)\\), et \\(0{,}1353/0{,}3059 = 0{,}442\\)."
+    },
+    {
+     "id": "b",
+     "texte": "2 appels par heure, avec la probabilité 0,419",
+     "correcte": false,
+     "explication": "C'est le résultat pour un a priori uniforme sur la liste, c'est-à-dire la vraisemblance \\(\\lambda^3 e^{-2\\lambda}\\) seule. L'a priori en \\(1/\\lambda\\) retire une puissance de \\(\\lambda\\) et favorise les petites intensités."
+    },
+    {
+     "id": "c",
+     "texte": "1,5 appel par heure, le nombre d'appels divisé par la durée",
+     "correcte": false,
+     "explication": "\\(3/2\\) est le maximum de vraisemblance sur tous les réels positifs. Il n'appartient pas à la liste des valeurs possibles de \\(\\Lambda\\), et il ignore la loi a priori."
+    },
+    {
+     "id": "d",
+     "texte": "0,5 appel par heure, avec la probabilité 0,533",
+     "correcte": false,
+     "explication": "C'est la valeur la plus probable **a priori**, avec son poids a priori \\(2/3{,}75\\). Les 3 appels observés en 2 heures rendent cette petite intensité moins plausible."
+    }
+   ],
+   "solution": "Réponse : 1 appel par heure, de probabilité a posteriori \\(0{,}442\\).\n\nNotations : \\(N\\) est le nombre d'appels en \\(t = 2\\) heures ; sachant \\(\\Lambda = \\lambda\\), \\(N\\) suit la loi de Poisson de paramètre \\(2\\lambda\\).\n\nÉtape 1, formule (leçon, partie 5, (B1)) : le poids a posteriori de \\(\\lambda\\) est proportionnel à l'a priori fois la vraisemblance, \\(\\tfrac{1}{\\lambda} \\times \\lambda^3 e^{-2\\lambda} = \\lambda^2 e^{-2\\lambda}\\) ; les facteurs communs \\(2^3/3!\\) et la constante de l'a priori se simplifient.\n\nÉtape 2, calcul pour \\(\\lambda = 0{,}5\\), 1, 2, 4 : \\(0{,}25\\,e^{-1}\\), \\(e^{-2}\\), \\(4\\,e^{-4}\\), \\(16\\,e^{-8}\\), soit \\((0{,}0920 ; 0{,}1353 ; 0{,}0733 ; 0{,}0054)\\), de somme \\(0{,}3059\\).\n\nÉtape 3, normalisation : probabilités a posteriori \\((0{,}301 ; 0{,}442 ; 0{,}239 ; 0{,}018)\\). La plus grande est celle de \\(\\lambda = 1\\) : \\(0{,}442\\) (simulation : 0,441).\n\nComparaison : avec un a priori uniforme sur la liste, les poids seraient \\(\\lambda^3 e^{-2\\lambda}\\), les probabilités a posteriori \\((0{,}132 ; 0{,}387 ; 0{,}419 ; 0{,}061)\\), et la valeur la plus probable serait 2. Le maximum de vraisemblance sans contrainte vaut \\(1{,}5\\), entre les deux : l'a priori décide.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "1 appel par heure, avec la probabilité 0,442",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q07_d_prior",
+     "Q07_d_unif_2",
+     "Q07_e1",
+     "Q07_e2",
+     "Q07_e4",
+     "Q07_e8",
+     "Q07_emv",
+     "Q07_exact",
+     "Q07_mc",
+     "Q07_noyau",
+     "Q07_post",
+     "Q07_post_unif",
+     "Q07_somme_noyau"
+    ]
+   }
+  },
+  {
+   "id": "M5-08",
+   "section": "math",
+   "theme": "Bâton coupé en quatre, deuxième plus petit morceau",
+   "difficulte": 5,
+   "temps_cible_s": 150,
+   "enonce": "Un bâton de longueur 1 est coupé en quatre morceaux par trois points tirés indépendamment et uniformément sur le bâton. On range les quatre longueurs par ordre croissant.\n\nQuelle est l'espérance de la deuxième plus petite longueur ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(\\tfrac{7}{48}\\)",
+     "correcte": true,
+     "explication": "Oui : \\(\\tfrac14\\big(\\tfrac14 + \\tfrac13\\big) = \\tfrac{7}{48} \\approx 0{,}1458\\)."
+    },
+    {
+     "id": "b",
+     "texte": "\\(\\tfrac{1}{16}\\)",
+     "correcte": false,
+     "explication": "C'est \\(1/n^2\\) avec \\(n = 4\\), l'espérance du **plus petit** morceau. Le deuxième ajoute le terme \\(\\tfrac14 \\times \\tfrac13\\)."
+    },
+    {
+     "id": "c",
+     "texte": "\\(\\tfrac{1}{8}\\)",
+     "correcte": false,
+     "explication": "C'est deux fois l'espérance du plus petit morceau. Les écarts entre longueurs triées successives ne sont pas égaux : le deuxième écart vaut \\(\\tfrac14 \\times \\tfrac13\\), plus grand que le premier, \\(\\tfrac14 \\times \\tfrac14\\)."
+    },
+    {
+     "id": "d",
+     "texte": "\\(\\tfrac{1}{5}\\)",
+     "correcte": false,
+     "explication": "C'est \\(2/(1 + 2 + 3 + 4)\\) : des longueurs triées supposées proportionnelles à leur rang. La formule \\(k/(n+1)\\) vaut pour les **positions** de points uniformes triés, pas pour les longueurs triées des morceaux."
+    }
+   ],
+   "solution": "Réponse : \\(\\tfrac14\\big(\\tfrac14 + \\tfrac13\\big) = \\tfrac{7}{48} \\approx 0{,}1458\\).\n\nNotations : \\(n = 4\\) morceaux, de longueurs triées \\(L_{(1)} \\le L_{(2)} \\le L_{(3)} \\le L_{(4)}\\).\n\nÉtape 1, représentation (leçon, partie 6, (E5)) : les quatre morceaux ont la loi de \\((E_1/T, \\dots, E_4/T)\\), où les \\(E_i\\) sont des exponentielles indépendantes de paramètre 1 et \\(T\\) leur somme, et ce vecteur est indépendant de \\(T\\).\n\nÉtape 2, exponentielles triées : la plus petite est le minimum de 4 exponentielles, d'espérance \\(1/4\\) ; par absence de mémoire, l'attente supplémentaire jusqu'à la deuxième est le minimum de 3 exponentielles, d'espérance \\(1/3\\). Donc \\(\\mathbb{E}[E_{(2)}] = \\tfrac14 + \\tfrac13\\).\n\nÉtape 3, retour au bâton : \\(E_{(2)} = (E_{(2)}/T) \\times T\\), produit de deux variables indépendantes, avec \\(\\mathbb{E}[T] = 4\\). Donc \\(\\mathbb{E}[L_{(2)}] = \\tfrac14\\big(\\tfrac14 + \\tfrac13\\big) = \\tfrac{7}{48}\\).\n\nContrôle : les quatre espérances \\(\\tfrac{1}{16}\\), \\(\\tfrac{7}{48}\\), \\(\\tfrac{13}{48}\\), \\(\\tfrac{25}{48}\\) ont pour somme 1. Simulation du bâton (script) : 0,1458.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\(\\tfrac{7}{48}\\)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q08_3e_den",
+     "Q08_3e_num",
+     "Q08_d_double_den",
+     "Q08_d_double_num",
+     "Q08_d_min_den",
+     "Q08_d_min_num",
+     "Q08_d_rang_den",
+     "Q08_d_rang_num",
+     "Q08_exact",
+     "Q08_exact_den",
+     "Q08_exact_num",
+     "Q08_max_den",
+     "Q08_max_num",
+     "Q08_mc"
+    ]
+   }
+  },
+  {
+   "id": "M5-09",
+   "section": "math",
+   "theme": "Bâton coupé en trois, loi des morceaux",
+   "difficulte": 4,
+   "temps_cible_s": 150,
+   "correctes": [
+    "a",
+    "b",
+    "d"
+   ],
+   "enonce": "Un bâton de longueur 1 est coupé en trois morceaux par deux points tirés indépendamment et uniformément sur le bâton. Le « morceau de gauche » va de l'extrémité gauche au premier point de coupe, le « morceau du milieu » est compris entre les deux points de coupe.\n\nQuelles affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "L'espérance de la longueur du plus grand des trois morceaux vaut \\(\\tfrac{11}{18}\\).",
+     "correcte": true,
+     "explication": "Juste : \\(\\tfrac13\\big(\\tfrac13 + \\tfrac12 + 1\\big) = \\tfrac{11}{18}\\), par la formule du \\(k\\)-ième plus petit morceau avec \\(k = n = 3\\)."
+    },
+    {
+     "id": "b",
+     "texte": "La probabilité que le plus petit morceau mesure plus de 0,1 vaut 0,49.",
+     "correcte": true,
+     "explication": "Juste : \\(\\mathbb{P}(L_{(1)} > x) = (1 - 3x)^2\\), soit \\(0{,}7^2 = 0{,}49\\) pour \\(x = 0{,}1\\) : on réserve 0,1 à chaque morceau, il reste un bâton de longueur 0,7."
+    },
+    {
+     "id": "c",
+     "texte": "La probabilité que les trois morceaux puissent former un triangle vaut \\(\\tfrac{1}{2}\\).",
+     "correcte": false,
+     "explication": "Faux : elle vaut \\(\\tfrac{1}{4}\\). Il faut que le plus grand morceau soit sous \\(1/2\\), et \\(\\mathbb{P}(L_{(3)} \\ge 1/2) = 3 \\times (1/2)^2 = 3/4\\). La valeur \\(1/2\\) vient d'un argument de symétrie sans fondement : rien ne dit que le plus grand morceau est au-dessus ou au-dessous de \\(1/2\\) avec la même probabilité."
+    },
+    {
+     "id": "d",
+     "texte": "Le morceau de gauche et le morceau du milieu ont la même loi.",
+     "correcte": true,
+     "explication": "Juste : chaque morceau vérifie \\(\\mathbb{P}(L_j > x) = (1 - x)^2\\), quelle que soit sa place. En revanche ils ne sont pas indépendants : leur corrélation vaut \\(-0{,}5\\)."
+    }
+   ],
+   "solution": "Réponse : sont justes l'espérance \\(\\tfrac{11}{18}\\) du plus grand morceau, la probabilité \\(0{,}49\\) et l'égalité des lois du morceau de gauche et du morceau du milieu ; la probabilité de former un triangle vaut \\(\\tfrac{1}{4}\\), pas \\(\\tfrac{1}{2}\\).\n\nTout vient de la loi conjointe (leçon, partie 6, (E1)) : pour des réels positifs \\(c_1, c_2, c_3\\) de somme \\(c \\le 1\\), \\(\\mathbb{P}(L_1 > c_1, L_2 > c_2, L_3 > c_3) = (1 - c)^2\\).\n\nÉtape 1, même loi : avec un seul \\(c_j = x\\) non nul, \\(\\mathbb{P}(L_j > x) = (1 - x)^2\\), pour le morceau de gauche comme pour celui du milieu. Par exemple \\(\\mathbb{P}(L_j > 1/3) = \\tfrac{4}{9}\\) (simulations : 0,445 à gauche, 0,444 au milieu).\n\nÉtape 2, plus petit morceau : avec \\(c_1 = c_2 = c_3 = 0{,}1\\), \\(\\mathbb{P}(L_{(1)} > 0{,}1) = (1 - 0{,}3)^2 = 0{,}49\\) (simulation : 0,491).\n\nÉtape 3, triangle : il faut \\(L_{(3)} < 1/2\\). Deux morceaux ne peuvent pas dépasser \\(1/2\\) tous les deux, donc \\(\\mathbb{P}(L_{(3)} \\ge 1/2) = 3 \\times (1 - 1/2)^2 = 3/4\\), et la probabilité cherchée vaut \\(\\tfrac{1}{4}\\) (simulation : 0,250).\n\nÉtape 4, plus grand morceau : \\(\\mathbb{E}[L_{(3)}] = \\tfrac13\\big(\\tfrac13 + \\tfrac12 + 1\\big) = \\tfrac{11}{18} \\approx 0{,}611\\) (leçon, (E3) ; simulation : 0,611).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "L'espérance de la longueur du plus grand des trois morceaux vaut \\(\\tfrac{11}{18}\\). ; La probabilité que le plus petit morceau mesure plus de 0,1 vaut 0,49. ; Le morceau de gauche et le morceau du milieu ont la même loi.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q09_corr",
+     "Q09_d_triangle_den",
+     "Q09_d_triangle_num",
+     "Q09_gauche_mc",
+     "Q09_max",
+     "Q09_max_den",
+     "Q09_max_mc",
+     "Q09_max_num",
+     "Q09_milieu_mc",
+     "Q09_p_min",
+     "Q09_p_min_mc",
+     "Q09_p_tiers_den",
+     "Q09_p_tiers_num",
+     "Q09_triangle_den",
+     "Q09_triangle_mc",
+     "Q09_triangle_num"
+    ]
+   }
+  },
+  {
+   "id": "M5-10",
+   "section": "math",
+   "theme": "Densité conjointe, probabilité sachant X = x",
+   "difficulte": 3,
+   "temps_cible_s": 120,
+   "enonce": "Le couple \\((X, Y)\\) a pour densité conjointe \\(f(x, y) = c\\,(x + 2y)\\) pour \\(0 \\le x \\le 1\\) et \\(0 \\le y \\le 1\\), et \\(f(x, y) = 0\\) ailleurs, où \\(c\\) est la constante de normalisation.\n\nQue vaut \\(\\mathbb{P}(Y > 1/2 \\mid X = 1/4)\\) ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(\\tfrac{7}{10}\\)",
+     "correcte": true,
+     "explication": "Oui : \\(\\int_{1/2}^{1} f(1/4, y)\\,dy = \\tfrac{7}{12}\\), divisé par \\(f_X(1/4) = \\tfrac{5}{6}\\)."
+    },
+    {
+     "id": "b",
+     "texte": "\\(\\tfrac{2}{3}\\)",
+     "correcte": false,
+     "explication": "C'est \\(\\mathbb{P}(Y > 1/2)\\) sans condition. \\(X\\) et \\(Y\\) ne sont pas indépendantes (\\(x + 2y\\) n'est pas un produit) : savoir \\(X = 1/4\\) change la loi de \\(Y\\)."
+    },
+    {
+     "id": "c",
+     "texte": "\\(\\tfrac{7}{12}\\)",
+     "correcte": false,
+     "explication": "C'est \\(\\int_{1/2}^{1} f(1/4, y)\\,dy\\), le numérateur seul. Il faut le diviser par la densité marginale \\(f_X(1/4)\\) pour que la densité conditionnelle ait une intégrale égale à 1."
+    },
+    {
+     "id": "d",
+     "texte": "\\(\\tfrac{1}{2}\\)",
+     "correcte": false,
+     "explication": "Ce serait vrai si, sachant \\(X = 1/4\\), \\(Y\\) était uniforme sur \\([0, 1]\\). La densité conditionnelle est proportionnelle à \\(1/4 + 2y\\), croissante en \\(y\\) : elle favorise les grandes valeurs."
+    }
+   ],
+   "solution": "Réponse : \\(\\tfrac{7}{10}\\).\n\nÉtape 1, normalisation : \\(\\int_0^1 \\int_0^1 (x + 2y)\\,dx\\,dy = \\tfrac12 + 1 = \\tfrac32\\), donc \\(c = \\tfrac{2}{3}\\).\n\nÉtape 2, marginale : \\(f_X(x) = \\tfrac23 \\int_0^1 (x + 2y)\\,dy = \\tfrac23\\,(x + 1)\\), donc \\(f_X(1/4) = \\tfrac{5}{6}\\).\n\nÉtape 3, conditionnelle (leçon, partie 4) : \\(f_{Y \\mid X}(y \\mid x) = \\dfrac{f(x, y)}{f_X(x)} = \\dfrac{x + 2y}{x + 1}\\) pour \\(0 \\le y \\le 1\\) ; la constante \\(c\\) se simplifie.\n\nÉtape 4 : \\(\\mathbb{P}(Y > 1/2 \\mid X = 1/4) = \\dfrac{\\int_{1/2}^{1} (1/4 + 2y)\\,dy}{1/4 + 1} = \\dfrac{1/8 + 3/4}{5/4} = \\tfrac{7}{10}\\).\n\nContrôles : sans condition, \\(\\mathbb{P}(Y > 1/2) = \\tfrac{2}{3}\\) (simulation : 0,667) ; simulation de la probabilité conditionnelle, dans une bande étroite autour de \\(x = 1/4\\) : 0,700.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\(\\tfrac{7}{10}\\)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q10_c_den",
+     "Q10_c_num",
+     "Q10_d_joint_den",
+     "Q10_d_joint_num",
+     "Q10_d_marg_den",
+     "Q10_d_marg_num",
+     "Q10_d_unif_den",
+     "Q10_d_unif_num",
+     "Q10_exact_den",
+     "Q10_exact_num",
+     "Q10_fx_den",
+     "Q10_fx_num",
+     "Q10_marg_mc",
+     "Q10_mc"
+    ]
+   }
+  },
+  {
+   "id": "M5-11",
+   "section": "math",
+   "theme": "Densité conjointe sur un domaine non rectangulaire, lois marginales et conditionnelles",
+   "difficulte": 4,
+   "temps_cible_s": 150,
+   "correctes": [
+    "a",
+    "b"
+   ],
+   "enonce": "Le couple \\((X, Y)\\) a pour densité conjointe \\(f(x, y) = 2\\,e^{-x-y}\\) pour \\(0 < x < y\\), et \\(f(x, y) = 0\\) ailleurs.\n\nQuelles affirmations sont justes ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(X\\) suit la loi exponentielle de paramètre 2.",
+     "correcte": true,
+     "explication": "Juste : \\(f_X(x) = 2e^{-x} \\int_x^\\infty e^{-y}\\,dy = 2e^{-2x}\\). Son espérance vaut \\(\\tfrac{1}{2}\\)."
+    },
+    {
+     "id": "b",
+     "texte": "Sachant \\(X = x\\), la variable \\(Y - x\\) suit la loi exponentielle de paramètre 1.",
+     "correcte": true,
+     "explication": "Juste : \\(f_{Y \\mid X}(y \\mid x) = 2e^{-x-y}/(2e^{-2x}) = e^{-(y - x)}\\) pour \\(y > x\\), densité de \\(x\\) plus une exponentielle de paramètre 1."
+    },
+    {
+     "id": "c",
+     "texte": "\\(X\\) et \\(Y\\) sont indépendantes, car \\(f(x, y) = 2e^{-x} \\times e^{-y}\\) est un produit d'une fonction de \\(x\\) par une fonction de \\(y\\).",
+     "correcte": false,
+     "explication": "Faux : le domaine \\(0 < x < y\\) n'est pas un pavé. Savoir \\(X = x\\) impose \\(Y > x\\) ; d'ailleurs \\(\\mathrm{Cov}(X, Y) = \\tfrac{1}{4}\\), non nulle."
+    },
+    {
+     "id": "d",
+     "texte": "\\(Y\\) suit la loi exponentielle de paramètre 1.",
+     "correcte": false,
+     "explication": "Faux : \\(f_Y(y) = 2e^{-y} \\int_0^y e^{-x}\\,dx = 2e^{-y}(1 - e^{-y})\\), d'espérance \\(\\tfrac{3}{2}\\) et non 1. C'est la loi conditionnelle de \\(Y - x\\) qui est exponentielle, pas la loi de \\(Y\\)."
+    }
+   ],
+   "solution": "Réponse : seules les affirmations « \\(X\\) suit la loi exponentielle de paramètre 2 » et « sachant \\(X = x\\), \\(Y - x\\) suit la loi exponentielle de paramètre 1 » sont justes.\n\nÉtape 1, marginale de \\(X\\) : à \\(x\\) fixé, \\(y\\) va de \\(x\\) à l'infini. \\(f_X(x) = \\int_x^\\infty 2e^{-x-y}\\,dy = 2e^{-x} \\cdot e^{-x} = 2e^{-2x}\\) pour \\(x > 0\\) : loi exponentielle de paramètre 2, d'espérance \\(\\tfrac{1}{2}\\) (simulation : 0,500).\n\nÉtape 2, conditionnelle : \\(f_{Y \\mid X}(y \\mid x) = \\dfrac{2e^{-x-y}}{2e^{-2x}} = e^{-(y - x)}\\) pour \\(y > x\\). Ainsi \\(\\mathbb{P}(Y > x + 1 \\mid X = x) = e^{-1} \\approx 0{,}368\\) pour tout \\(x\\) (simulation autour de \\(x = 0{,}5\\) : 0,367).\n\nÉtape 3, marginale de \\(Y\\) : à \\(y\\) fixé, \\(x\\) va de 0 à \\(y\\). \\(f_Y(y) = 2e^{-y}(1 - e^{-y})\\), qui n'est pas une densité exponentielle : \\(\\mathbb{E}[Y] = \\tfrac{3}{2}\\) (simulation : 1,500) et \\(\\mathbb{P}(Y > 1) = 2e^{-1} - e^{-2} \\approx 0{,}600\\), contre \\(0{,}368\\) pour une exponentielle de paramètre 1.\n\nÉtape 4, indépendance : la formule est un produit, mais sur le domaine \\(0 < x < y\\), qui n'est pas un pavé (leçon, partie 4, (D4)). \\(f_X(x)\\,f_Y(y) > 0\\) pour \\(x > y > 0\\), où \\(f = 0\\) : pas d'indépendance.\n\nLecture : \\(f\\) est la densité du couple (minimum, maximum) de deux durées exponentielles indépendantes de paramètre 1. Le minimum est exponentiel de paramètre 2, puis la course recommence pour la durée restante (séance de mathématiques 2, résultats (A3) et (A5)).",
+   "type": "qcm",
+   "multiple": true,
+   "reponse": "\\(X\\) suit la loi exponentielle de paramètre 2. ; Sachant \\(X = x\\), la variable \\(Y - x\\) suit la loi exponentielle de paramètre 1.",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q11_cov_den",
+     "Q11_cov_num",
+     "Q11_d_p_y1",
+     "Q11_ex_den",
+     "Q11_ex_mc",
+     "Q11_ex_num",
+     "Q11_ey_den",
+     "Q11_ey_mc",
+     "Q11_ey_num",
+     "Q11_p_cond",
+     "Q11_p_cond_mc",
+     "Q11_p_y1"
+    ]
+   }
+  },
+  {
+   "id": "M5-12",
+   "section": "math",
+   "theme": "Conditionnement, famille de trois enfants",
+   "difficulte": 3,
+   "temps_cible_s": 75,
+   "enonce": "Une famille a trois enfants. Chaque enfant est une fille ou un garçon avec probabilité 1/2, indépendamment des autres. À la question « avez-vous au moins une fille ? », le parent répond oui, et il dit vrai.\n\nQuelle est la probabilité que les trois enfants soient des filles ?",
+   "options": [
+    {
+     "id": "a",
+     "texte": "\\(\\tfrac{1}{7}\\)",
+     "correcte": true,
+     "explication": "Oui : 7 des 8 familles équiprobables contiennent au moins une fille, et une seule est composée de trois filles."
+    },
+    {
+     "id": "b",
+     "texte": "\\(\\tfrac{1}{4}\\)",
+     "correcte": false,
+     "explication": "C'est la réponse quand un enfant **désigné** est une fille (l'aîné, ou un enfant rencontré au hasard) : les deux autres sont alors des filles avec probabilité \\(1/2 \\times 1/2\\). Ici aucun enfant n'est désigné."
+    },
+    {
+     "id": "c",
+     "texte": "\\(\\tfrac{1}{8}\\)",
+     "correcte": false,
+     "explication": "C'est la probabilité de trois filles avant toute information. La réponse du parent élimine la famille de trois garçons : la probabilité doit augmenter."
+    },
+    {
+     "id": "d",
+     "texte": "\\(\\tfrac{1}{3}\\)",
+     "correcte": false,
+     "explication": "C'est la réponse du problème à deux enfants (trois familles possibles, une favorable). Avec trois enfants, l'information « au moins une fille » laisse sept familles possibles."
+    }
+   ],
+   "solution": "Réponse : \\(\\tfrac{1}{7}\\).\n\nUnivers : les 8 triplets (aîné, deuxième, benjamin) formés de F et de G, chacun de probabilité \\(1/8\\).\n\nÉtape 1, événement observé : le parent répond oui exactement quand la famille n'est pas GGG. L'événement contient 7 triplets, de probabilité totale \\(7/8\\).\n\nÉtape 2 : un seul de ces triplets est FFF, de probabilité \\(1/8\\). Donc \\(\\mathbb{P}(\\text{FFF} \\mid \\text{oui}) = \\dfrac{1/8}{7/8} = \\tfrac{1}{7}\\) (simulation : 0,143).\n\nComparaison (leçon, partie 7) : si l'on avait rencontré un enfant choisi au hasard et constaté que c'est une fille, la probabilité de trois filles serait \\(\\tfrac{1}{4}\\) (simulation : 0,251), car la famille FFF montre une fille trois fois plus souvent qu'une famille à une seule fille. La règle d'observation, et pas seulement la phrase « au moins une fille », fixe la réponse.",
+   "type": "qcm",
+   "multiple": false,
+   "reponse": "\\(\\tfrac{1}{7}\\)",
+   "fiche": null,
+   "verif": {
+    "script": "verif/seance_math_5.py",
+    "cles": [
+     "Q12_d_aine_den",
+     "Q12_d_aine_num",
+     "Q12_d_deux_den",
+     "Q12_d_deux_num",
+     "Q12_d_sans_den",
+     "Q12_d_sans_num",
+     "Q12_exact_den",
+     "Q12_exact_num",
+     "Q12_hasard_mc",
+     "Q12_mc",
+     "Q12_nb_issues"
+    ]
+   }
+  }
+ ]
+}

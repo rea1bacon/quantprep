@@ -1,0 +1,151 @@
+{
+ "versions": {
+  "python": "3.10.6",
+  "pandas": "2.3.3",
+  "numpy": "2.2.6",
+  "scipy": "1.15.3",
+  "scikit-learn": "1.5.2"
+ },
+ "resultats": [
+  {
+   "extrait": "DataFrame.map (élément par élément)",
+   "code": "df[[\"x\"]].map(lambda v: v + 1)",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "DataFrame.applymap (élément par élément)",
+   "code": "df[[\"x\"]].applymap(lambda v: v + 1)",
+   "etat": "fonctionne avec avertissement : FutureWarning"
+  },
+  {
+   "extrait": "groupby.apply avec include_groups=False",
+   "code": "df.groupby(\"g\").apply(lambda t: t[\"x\"].sum(), include_groups=False)",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "groupby.apply sans argument",
+   "code": "df.groupby(\"g\").apply(lambda t: t[\"x\"].sum())",
+   "etat": "fonctionne avec avertissement : FutureWarning"
+  },
+  {
+   "extrait": "groupby.mean avec une colonne de texte, sans numeric_only",
+   "code": "df.groupby(\"g\").mean()",
+   "etat": "échoue : TypeError"
+  },
+  {
+   "extrait": "groupby.mean avec numeric_only=True",
+   "code": "df.groupby(\"g\").mean(numeric_only=True)",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "groupby sur colonne choisie",
+   "code": "df.groupby(\"g\")[\"x\"].mean()",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "resample(\"M\") (fin de mois)",
+   "code": "dates.resample(\"M\").sum()",
+   "etat": "fonctionne avec avertissement : FutureWarning"
+  },
+  {
+   "extrait": "resample(\"ME\") (fin de mois)",
+   "code": "dates.resample(\"ME\").sum()",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "DataFrame.append",
+   "code": "df.append(df)",
+   "etat": "échoue : AttributeError"
+  },
+  {
+   "extrait": "pd.concat",
+   "code": "pd.concat([df, df])",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "fillna(method=\"ffill\")",
+   "code": "df[\"x\"].fillna(method=\"ffill\")",
+   "etat": "fonctionne avec avertissement : FutureWarning"
+  },
+  {
+   "extrait": "Series.ffill()",
+   "code": "df[\"x\"].ffill()",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "scipy spearmanr(...).statistic",
+   "code": "__import__('scipy.stats').stats.spearmanr([1, 2, 3], [1, 3, 2]).statistic",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "scipy spearmanr(...).correlation",
+   "code": "__import__('scipy.stats').stats.spearmanr([1, 2, 3], [1, 3, 2]).correlation",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "scipy spearmanr : dépaquetage rho, p",
+   "code": "tuple(__import__('scipy.stats').stats.spearmanr([1, 2, 3], [1, 3, 2]))",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "sklearn OneHotEncoder(sparse_output=False)",
+   "code": "__import__('sklearn.preprocessing').preprocessing.OneHotEncoder(sparse_output=False)",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "sklearn OneHotEncoder(sparse=False)",
+   "code": "__import__('sklearn.preprocessing').preprocessing.OneHotEncoder(sparse=False).fit([['a'], ['b']])",
+   "etat": "échoue : TypeError"
+  },
+  {
+   "extrait": "sklearn root_mean_squared_error",
+   "code": "__import__('sklearn.metrics').metrics.root_mean_squared_error([1, 2], [1, 3])",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "sklearn mean_squared_error(squared=False)",
+   "code": "__import__('sklearn.metrics').metrics.mean_squared_error([1, 2], [1, 3], squared=False)",
+   "etat": "fonctionne avec avertissement : FutureWarning"
+  },
+  {
+   "extrait": "numpy np.trapezoid",
+   "code": "np.trapezoid([1, 2, 3])",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "numpy np.trapz",
+   "code": "np.trapz([1, 2, 3])",
+   "etat": "fonctionne avec avertissement : DeprecationWarning"
+  },
+  {
+   "extrait": "numpy np.random.default_rng",
+   "code": "np.random.default_rng(0).standard_normal(2)",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "annotation de type int | None",
+   "code": "exec('def f(a: int | None = None): return a')",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "instruction match",
+   "code": "exec('match 1:\\n    case 1:\\n        pass')",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "pd.merge_asof",
+   "code": "pd.merge_asof(dates.reset_index(), dates.reset_index(), on=\"index\")",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "groupby.transform(\"rank\")",
+   "code": "df.groupby(\"g\")[\"x\"].transform(\"rank\")",
+   "etat": "fonctionne"
+  },
+  {
+   "extrait": "rank(pct=True)",
+   "code": "df[\"x\"].rank(pct=True)",
+   "etat": "fonctionne"
+  }
+ ]
+}

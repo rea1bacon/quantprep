@@ -1,0 +1,26 @@
+Descente de gradient : pas optimal 2/(lmin + L), facteur (L - lmin)/(L + lmin), convergence ssi eta < 2/L, 200 spectres.
+Exemple diag(1, 10) : erreur après t pas majorée par q^t fois l'erreur initiale, 30 pas exacts.
+Conditionnement 100 : 691 pas (gradient) contre 69 pas (momentum) pour 10^-6.
+Momentum : rayon spectral = sqrt(beta) = (sqrt(kappa) - 1)/(sqrt(kappa) + 1) sur tout le spectre, 3 cas.
+O_sgd_var                exact=0.052632  MC=0.052712  se=0.000374  z=+0.21
+R_relu_gauss             exact=0.500000  MC=0.500579  se=0.001765  z=+0.33
+R_relu_laplace           exact=1.000000  MC=1.003798  se=0.005283  z=+0.72
+R_var_relu               exact=0.340845  MC=0.341021  se=0.001127  z=+0.16
+R_do_esp                 exact=3.000000  MC=2.999835  se=0.004743  z=-0.03
+Champ réceptif 1 + somme d (k - 1), et absence de trou si d_l <= R_(l-1), vérifiés sur 500 piles.
+A_var_score              exact=64.000000  MC=63.877615  se=0.292035  z=-0.42
+Jacobienne du softmax p_i (delta_ij - p_j) vérifiée par différences finies, 50 cas.
+Noyau polynomial de degré 2 en dimension 2 : 6 caractéristiques explicites, 200 cas.
+Ridge à noyau : prédictions identiques à la ridge sur caractéristiques explicites, 50 cas.
+N_gp_var                 exact=0.082395  MC=0.082395  se=0.000263  z=-0.00
+SVM C = 0.1 : w = 0.350000, largeur 2/w = 5.714286, somme des charnières = 2.775000
+SVM C = 1.0 : w = 0.666667, largeur 2/w = 3.000000, somme des charnières = 1.666667
+SVM C = 100.0 : w = 4.000000, largeur 2/w = 0.500000, somme des charnières = 0.000000
+EM : log-vraisemblance croissante à chaque itération, 100 jeux de données.
+Q02                      exact=0.013889  MC=0.013800  se=0.000098  z=-0.91
+Q03                      exact=0.000977  MC=0.001042  se=0.000065  z=+1.00
+Q04_esp                  exact=2.000000  MC=1.999544  se=0.001582  z=-0.29
+Q04                      exact=1.000000  MC=1.000684  se=0.002373  z=+0.29
+Q07_var                  exact=0.300757  MC=0.300488  se=0.000950  z=-0.28
+232 valeurs exportées dans verif/seance_ml_4.out.json.
+Toutes les vérifications passent.
